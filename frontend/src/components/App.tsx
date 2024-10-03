@@ -1,100 +1,50 @@
 import React, { useEffect, useState } from 'react';
-import { PineconeService } from '../services/pineconeService';
-import { OpenAIService } from '../services/openAIService';
-import { analyzeSentiment } from '../utils/sentimentAnalysis';
-import SentimentDisplay from './SentimentDisplay';
-import { Comment, Sentiment, ApiCredentials } from '../types';
-import { fetchApiCredentials } from '../services/apiService';
+import { analyzeSentiment } from '../services/apiService';
+import SentimentWheel from './SentimentWheel';
+import { Sentiment } from '../types';
 
 interface AppProps {
-  pineconeService: PineconeService;
+  zafClient: any;
 }
 
-const App: React.FC<AppProps> = ({ pineconeService }) => {
-  const [client, setClient] = useState<any | null>(null);
-  const [ticketId, setTicketId] = useState<string | null>(null);
-  const [sentiment, setSentiment] = useState<Sentiment>('neutral');
-  const [apiCredentials, setApiCredentials] = useState<ApiCredentials | null>(null);
+const App: React.FC<AppProps> = ({ zafClient }) => {
+  const [currentSentiment, setCurrentSentiment] = useState<Sentiment>('neutral');
+  const [lastThirtySentiment, setLastThirtySentiment] = useState<Sentiment>('neutral');
 
   useEffect(() => {
-    const script = document.createElement('script');
-    script.src = 'https://static.zdassets.com/zendesk_app_framework_sdk/2.0/zaf_sdk.min.js';
-    script.async = true;
-    script.onload = initializeApp;
-    document.body.appendChild(script);
+    const fetchSentiments = async () => {
+      try {
+        // Fetch current ticket sentiment
+        const currentTicketComments = await zafClient.get('ticket.comments');
+        console.log('Current ticket comments:', currentTicketComments);
+        const currentSentimentResult = await analyzeSentiment(currentTicketComments);
+        console.log('Current sentiment result:', currentSentimentResult);
+        setCurrentSentiment(currentSentimentResult);
 
-    return () => {
-      document.body.removeChild(script);
-    };
-  }, []);
-
-  const initializeApp = async () => {
-    const zafClient = await ZAFClient.init();
-    setClient(zafClient);
-
-    await initializeApp();
-    const credentials = await fetchApiCredentials();
-    setApiCredentials(credentials);
-
-    zafClient.on('ticket.updated', handleTicketUpdate);
-    zafClient.invoke('resize', { width: '100%', height: '200px' });
-
-    const context = await zafClient.context();
-    setTicketId(context.ticketId);
-  };
-
-  useEffect(() => {
-    if (client && ticketId) {
-      updateSentiment();
-    }
-  }, [client, ticketId]);
-
-  const handleTicketUpdate = async () => {
-    if (client) {
-      const context = await client.context();
-      setTicketId(context.ticketId);
-      updateSentiment();
-    }
-  };
-
-  const storeComment = async (ticketId: string, text: string, isCustomer: boolean) => {
-    const embedding = await OpenAIService.getEmbedding(text);
-    const commentIndex = await pineconeService.getNextCommentIndex(ticketId);
-    const metadata = {
-      text,
-      timestamp: new Date().toISOString(),
-      author: isCustomer ? 'customer' : 'agent',
+        // Fetch last 30 days sentiment (this is a placeholder, you'll need to implement the actual logic)
+        const lastThirtySentimentResult = await analyzeSentiment([]);
+        console.log('Last 30 days sentiment result:', lastThirtySentimentResult);
+        setLastThirtySentiment(lastThirtySentimentResult);
+      } catch (error) {
+        console.error('Error fetching sentiments:', error);
+      }
     };
 
-    await pineconeService.upsertVector(`${ticketId}#${commentIndex}`, embedding, metadata);
-  };
-
-  const updateSentiment = async () => {
-    if (!ticketId || !client) return;
-
-    try {
-      const ticket = await client.get('ticket');
-      const comments: Comment[] = await client.get('ticket.comments');
-
-      const customerComments = comments
-        .filter(comment => comment.author.role === 'end-user')
-        .map(comment => ({ text: comment.text, author: comment.author, isCustomer: true }));
-
-      const newSentiment = await analyzeSentiment(customerComments);
-      setSentiment(newSentiment);
-
-      // Store the latest comment
-      const latestComment = comments[comments.length - 1];
-      await storeComment(ticketId, latestComment.text, latestComment.author.role === 'end-user');
-    } catch (error) {
-      console.error('Error fetching ticket comments:', error);
-    }
-  };
+    fetchSentiments();
+  }, [zafClient]);
 
   return (
     <div className="p-4">
-      <h1 className="text-2xl font-bold mb-4">SatCom Sentiment Analysis</h1>
-      <SentimentDisplay sentiment={sentiment} />
+      <div className="flex justify-between items-center">
+        <div className="w-1/2 pr-2">
+          <h2 className="text-lg font-semibold mb-2">Current Ticket</h2>
+          <SentimentWheel sentiment={currentSentiment} />
+        </div>
+        <div className="w-1/2 pl-2">
+          <h2 className="text-lg font-semibold mb-2">Last 30 Days</h2>
+          <SentimentWheel sentiment={lastThirtySentiment} />
+        </div>
+      </div>
     </div>
   );
 };

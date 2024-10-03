@@ -1,23 +1,49 @@
-from flask import Flask, request, jsonify, redirect
-from auth import verify_access_token, create_access_token, get_customer_credentials
+from flask import Flask, request, jsonify, redirect, make_response
+from flask_cors import CORS
+from .auth import verify_access_token, create_access_token, get_customer_credentials
 import requests
-import os
+import dotenv, os
 
+dotenv.load_dotenv()
 app = Flask(__name__)
+CORS(app, resources={r"/api/*": {"origins": ["http://localhost:4567", "https://d3v-silverstream.zendesk.com"]}}, supports_credentials=True)
 
-ZENDESK_OAUTH_URL = 'https://your-subdomain.zendesk.com/oauth/authorizations/new'
+if os.getenv('ZENDESK_SUBDOMAIN') is None:
+    ZENDESK_SUBDOMAIN = 'd3v-silverstream'
+else:
+    ZENDESK_SUBDOMAIN = os.getenv('ZENDESK_SUBDOMAIN')
+ZENDESK_OAUTH_URL = f'https://{ZENDESK_SUBDOMAIN}.zendesk.com/oauth/authorizations/new'
 CLIENT_ID = os.getenv('ZENDESK_CLIENT_ID')
 CLIENT_SECRET = os.getenv('ZENDESK_CLIENT_SECRET')
-REDIRECT_URI = 'https://your-app-domain.com/api/oauth/callback'
+REDIRECT_URI = f'https://{ZENDESK_SUBDOMAIN}.zendesk.com/api/oauth/callback'
 
-@app.route('/api/oauth/initiate', methods=['POST'])
+@app.route('/api/oauth/initiate', methods=['OPTIONS'])
+def handle_preflight():
+    response = jsonify({'message': 'OK'})
+    response.headers.add('Access-Control-Allow-Origin', 'http://localhost:4567')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+    response.headers.add('Access-Control-Allow-Methods', 'POST')
+    return response
+
+@app.route('/api/oauth/initiate', methods=['POST', 'OPTIONS'])
 def initiate_oauth():
-    installation_id = request.json.get('installation_id')
-    if not installation_id:
-        return jsonify({'error': 'Installation ID is required'}), 400
-
-    auth_url = f"{ZENDESK_OAUTH_URL}?response_type=code&client_id={CLIENT_ID}&redirect_uri={REDIRECT_URI}&scope=read&state={installation_id}"
-    return jsonify({'authorizationUrl': auth_url}), 200
+    if request.method == 'OPTIONS':
+        response = make_response()
+        response.headers.add('Access-Control-Allow-Origin', 'http://localhost:4567')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+        response.headers.add('Access-Control-Allow-Methods', 'POST')
+        return response
+    app_id = request.json.get('app_id')
+    if not app_id:
+        return jsonify({'error': 'App ID is required'}), 400
+    auth_url = f"{ZENDESK_OAUTH_URL}?response_type=code&" \
+               f"client_id={CLIENT_ID}&" \
+               f"redirect_uri={REDIRECT_URI}&" \
+               f"scope=read&" \
+               f"state={app_id}"
+    response = jsonify({'authorizationUrl': auth_url})
+    response.headers.add('Access-Control-Allow-Origin', 'http://localhost:4567')
+    return response, 200
 
 @app.route('/api/oauth/callback')
 def oauth_callback():
@@ -27,7 +53,7 @@ def oauth_callback():
     if not code or not state:
         return 'Error: Missing parameters', 400
 
-    token_url = 'https://your-subdomain.zendesk.com/oauth/tokens'
+    token_url = f'https://{ZENDESK_SUBDOMAIN}.zendesk.com/oauth/tokens'
     data = {
         'grant_type': 'authorization_code',
         'code': code,

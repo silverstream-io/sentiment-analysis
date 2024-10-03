@@ -1,5 +1,5 @@
 from api.zendesk import ZendeskAPI
-from api.openai import analyze_sentiment
+from services.openai_service import analyze_sentiment
 
 def analyze_tickets_sentiment(view_id):
     zendesk = ZendeskAPI()
