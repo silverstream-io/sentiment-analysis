@@ -3,20 +3,18 @@ import { PineconeService } from '../services/pineconeService';
 import { OpenAIService } from '../services/openAIService';
 import { analyzeSentiment } from '../utils/sentimentAnalysis';
 import SentimentDisplay from './SentimentDisplay';
-import { Comment, Sentiment } from '../types';
+import { Comment, Sentiment, ApiCredentials } from '../types';
+import { fetchApiCredentials } from '../services/apiService';
 
 interface AppProps {
   pineconeService: PineconeService;
 }
 
-declare const ZAFClient: {
-  init: () => Promise<any>;
-};
-
 const App: React.FC<AppProps> = ({ pineconeService }) => {
   const [client, setClient] = useState<any | null>(null);
   const [ticketId, setTicketId] = useState<string | null>(null);
   const [sentiment, setSentiment] = useState<Sentiment>('neutral');
+  const [apiCredentials, setApiCredentials] = useState<ApiCredentials | null>(null);
 
   useEffect(() => {
     const script = document.createElement('script');
@@ -33,6 +31,10 @@ const App: React.FC<AppProps> = ({ pineconeService }) => {
   const initializeApp = async () => {
     const zafClient = await ZAFClient.init();
     setClient(zafClient);
+
+    await initializeApp();
+    const credentials = await fetchApiCredentials();
+    setApiCredentials(credentials);
 
     zafClient.on('ticket.updated', handleTicketUpdate);
     zafClient.invoke('resize', { width: '100%', height: '200px' });

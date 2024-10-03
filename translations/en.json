@@ -1,0 +1,8 @@
+{
+  "app": {
+    "name": "SatCom",
+    "short_description": "SatCom is a tool that provides real-time sentiment analysis for Zendesk tickets.",
+    "long_description": "Satisfaction Command (SatCom) is a tool that provides real-time sentiment analysis for Zendesk tickets. By leveraging AI and machine learning, we can help you understand the sentiment of your customers' tickets and take action to improve their experience.",
+    "installation_instructions": "Simply click install."
+  }
+}

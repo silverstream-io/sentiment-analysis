@@ -1,62 +1,63 @@
-from flask import Flask, request, jsonify
-from functools import wraps
-from api.openai import analyze_sentiment
-from services.pinecone_service import PineconeService
+from flask import Flask, request, jsonify, redirect
+from auth import verify_access_token, create_access_token, get_customer_credentials
+import requests
+import os
 
 app = Flask(__name__)
 
-def validate_api_key(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        api_key = request.headers.get('Authorization')
-        if api_key and api_key.startswith('Bearer '):
-            api_key = api_key.split('Bearer ')[1]
-            if is_valid_api_key(api_key):
-                return f(*args, **kwargs)
-        return jsonify({'error': 'Unauthorized'}), 401
-    return decorated_function
+ZENDESK_OAUTH_URL = 'https://your-subdomain.zendesk.com/oauth/authorizations/new'
+CLIENT_ID = os.getenv('ZENDESK_CLIENT_ID')
+CLIENT_SECRET = os.getenv('ZENDESK_CLIENT_SECRET')
+REDIRECT_URI = 'https://your-app-domain.com/api/oauth/callback'
 
-def is_valid_api_key(api_key):
-    # TODO: Implement actual API key validation
-    return True  # Placeholder: always return True for now
+@app.route('/api/oauth/initiate', methods=['POST'])
+def initiate_oauth():
+    installation_id = request.json.get('installation_id')
+    if not installation_id:
+        return jsonify({'error': 'Installation ID is required'}), 400
 
-@app.route('/analyze_sentiment', methods=['POST'])
-@validate_api_key
-def analyze_comment_sentiment():
-    data = request.json
+    auth_url = f"{ZENDESK_OAUTH_URL}?response_type=code&client_id={CLIENT_ID}&redirect_uri={REDIRECT_URI}&scope=read&state={installation_id}"
+    return jsonify({'authorizationUrl': auth_url}), 200
+
+@app.route('/api/oauth/callback')
+def oauth_callback():
+    code = request.args.get('code')
+    state = request.args.get('installation_id')
     
-    if not all(key in data for key in ['ticket_id', 'comment_id', 'customer_id', 'agent_id', 'text']):
-        return jsonify({'error': 'Missing required fields'}), 400
+    if not code or not state:
+        return 'Error: Missing parameters', 400
 
-    ticket_id = data['ticket_id']
-    comment_id = data['comment_id']
-    customer_id = data['customer_id']
-    agent_id = data['agent_id']
-    text = data['text']
-
-    # Analyze sentiment
-    sentiment_score = analyze_sentiment(text)
-
-    # Store the embedding
-    pinecone_service = PineconeService(customer_id)
-    embedding = pinecone_service.get_embedding(text)
-    metadata = {
-        'ticket_id': ticket_id,
-        'comment_id': comment_id,
-        'customer_id': customer_id,
-        'agent_id': agent_id,
-        'text': text,
-        'sentiment': sentiment_score
+    token_url = 'https://your-subdomain.zendesk.com/oauth/tokens'
+    data = {
+        'grant_type': 'authorization_code',
+        'code': code,
+        'client_id': CLIENT_ID,
+        'client_secret': CLIENT_SECRET,
+        'redirect_uri': REDIRECT_URI,
     }
-    pinecone_service.upsert_vector(f"{ticket_id}#{comment_id}", embedding, metadata)
+    
+    response = requests.post(token_url, data=data)
+    if response.status_code != 200:
+        return 'Error: Failed to obtain access token', 500
 
-    response = {
-        'ticket_id': ticket_id,
-        'comment_id': comment_id,
-        'sentiment': sentiment_score
-    }
+    access_token = response.json()['access_token']
+    create_access_token(state, access_token)
+    
+    return 'Authentication successful. You can close this window.'
 
-    return jsonify(response)
+@app.route('/api/credentials', methods=['GET'])
+def get_credentials():
+    auth_header = request.headers.get('Authorization')
+    if not auth_header or not auth_header.startswith('Bearer '):
+        return jsonify({'error': 'Invalid authorization header'}), 401
+
+    token = auth_header.split(' ')[1]
+    customer_id = verify_access_token(token)
+    if not customer_id:
+        return jsonify({'error': 'Invalid or expired token'}), 401
+
+    credentials = get_customer_credentials(customer_id)
+    return jsonify(credentials), 200
 
 if __name__ == '__main__':
     app.run(debug=True)

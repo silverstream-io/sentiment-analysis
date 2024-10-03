@@ -2,32 +2,26 @@ import { Pinecone } from '@pinecone-database/pinecone';
 
 export class PineconeService {
   private client: Pinecone;
-  private index: any; // Replace 'any' with the correct Pinecone index type
+  private index: any;
   private namespace: string = '';
   private initialized: boolean = false;
 
-  private constructor() {
+  private constructor(apiKey: string, indexName: string) {
     this.client = new Pinecone({
-      apiKey: process.env.PINECONE_API_KEY || '',
+      apiKey: apiKey,
     });
+    this.index = this.client.Index(indexName);
   }
 
-  static async create(apiKey: string): Promise<PineconeService> {
-    const service = new PineconeService();
-    await service.validateCustomerAccess(apiKey);
+  static async create(apiKey: string, indexName: string, namespace: string): Promise<PineconeService> {
+    const service = new PineconeService(apiKey, indexName);
+    service.namespace = namespace;
     await service.initialize();
     return service;
   }
 
-  private async validateCustomerAccess(apiKey: string): Promise<string> {
-    // TODO: Implement actual API key validation against an external service
-    // For now, just return a placeholder namespace
-    this.namespace = 'namespace';
-    return this.namespace;
-  }
-
   private async initialize() {
-    this.index = this.client.Index(process.env.PINECONE_INDEX_NAME || '').namespace(this.namespace);
+    // Any additional initialization logic
     this.initialized = true;
   }
 
@@ -116,6 +110,6 @@ export class PineconeService {
 }
 
 // Export a function to create the PineconeService instance
-export const createPineconeService = async (apiKey: string): Promise<PineconeService> => {
-  return PineconeService.create(apiKey);
+export const createPineconeService = async (apiKey: string, indexName: string, namespace: string): Promise<PineconeService> => {
+  return PineconeService.create(apiKey, indexName, namespace);
 };
