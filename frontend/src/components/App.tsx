@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { analyzeSentiment } from '../services/apiService';
-import SentimentWheel from './SentimentWheel';
+import SentimentDisplay from './SentimentDisplay';
 import { Sentiment } from '../types';
 
 interface AppProps {
@@ -10,6 +10,7 @@ interface AppProps {
 const App: React.FC<AppProps> = ({ zafClient }) => {
   const [currentSentiment, setCurrentSentiment] = useState<Sentiment>('neutral');
   const [lastThirtySentiment, setLastThirtySentiment] = useState<Sentiment>('neutral');
+  const [greyscale, setGreyscale] = useState(false);
 
   useEffect(() => {
     const fetchSentiments = async () => {
@@ -34,15 +35,26 @@ const App: React.FC<AppProps> = ({ zafClient }) => {
   }, [zafClient]);
 
   return (
-    <div className="p-4">
-      <div className="flex justify-between items-center">
-        <div className="w-1/2 pr-2">
-          <h2 className="text-lg font-semibold mb-2">Current Ticket</h2>
-          <SentimentWheel sentiment={currentSentiment} />
+    <div className="p-2">
+      <div className="mb-2">
+        <label className="flex items-center text-xs">
+          <input
+            type="checkbox"
+            checked={greyscale}
+            onChange={(e) => setGreyscale(e.target.checked)}
+            className="mr-1 h-3 w-3"
+          />
+          <span className="text-gray-600">Greyscale Mode</span>
+        </label>
+      </div>
+      <div className="flex flex-col space-y-2">
+        <div>
+          <h2 className="text-base font-semibold mb-1">Current Ticket</h2>
+          <SentimentDisplay sentiment={currentSentiment} greyscale={greyscale} />
         </div>
-        <div className="w-1/2 pl-2">
-          <h2 className="text-lg font-semibold mb-2">Last 30 Days</h2>
-          <SentimentWheel sentiment={lastThirtySentiment} />
+        <div>
+          <h2 className="text-base font-semibold mb-1">Last 30 Days</h2>
+          <SentimentDisplay sentiment={lastThirtySentiment} greyscale={greyscale} />
         </div>
       </div>
     </div>
