@@ -1,4 +1,4 @@
-export type Sentiment = 'extremely positive' | 'positive' | 'neutral' | 'negative' | 'extremely negative';
+export type Sentiment = -2 | -1 | 0 | 1 | 2;
 
 interface ZendeskUser {
   id: number;

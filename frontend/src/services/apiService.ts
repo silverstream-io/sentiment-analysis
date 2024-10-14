@@ -3,39 +3,46 @@ import { Sentiment, Comment } from '../types';
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
 
 export async function initializeApp(zafClient: any): Promise<void> {
-  // No need for OAuth initialization
+  if (!zafClient) {
+    throw new Error('ZAFClient is not initialized');
+  }
   console.log('App initialized');
 }
 
-export async function analyzeSentiment(zafClient: any, customerComments: Comment[]): Promise<Sentiment> {
-  if (process.env.REACT_APP_LOCAL_DEV === 'true') {
-    const sentiments: Sentiment[] = ['extremely positive', 'positive', 'neutral', 'negative', 'extremely negative'];
-    return sentiments[Math.floor(Math.random() * sentiments.length)];
+async function makeApiRequest(zafClient: any, endpoint: string, method: string, body?: any) {
+  const metadata = await zafClient.metadata();
+  const subdomain = metadata.settings.subdomain;
+  
+  // Get the ZAF JWT token
+  const jwt = await zafClient.get('jwt');
+
+  const response = await fetch(`${BACKEND_URL}${endpoint}`, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${jwt}`,
+      'X-Zendesk-Subdomain': subdomain
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+
+  if (!response.ok) {
+    throw new Error(`API request failed: ${response.statusText}`);
   }
 
-  try {
-    const metadata = await zafClient.metadata();
-    const subdomain = metadata.settings.subdomain;
-    const apiKey = await zafClient.get('currentUser.settings.api_key');
+  return response.json();
+}
 
-    const response = await fetch(`${BACKEND_URL}/api/analyze-sentiment`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-        'X-Zendesk-Subdomain': subdomain
-      },
-      body: JSON.stringify({ customerComments }),
-    });
+export async function listTicketVectors(zafClient: any, ticketId: string): Promise<string[]> {
+  const data = await makeApiRequest(zafClient, '/api/get-ticket-vectors', 'POST', { ticket_id: ticketId });
+  return data.vectors;
+}
 
-    if (!response.ok) {
-      throw new Error('Failed to analyze sentiment');
-    }
+export async function analyzeComments(zafClient: any, ticketId: string, comments: { [id: string]: string }): Promise<void> {
+  await makeApiRequest(zafClient, '/api/analyze-comments', 'POST', { ticket_id: ticketId, comments });
+}
 
-    const data = await response.json();
-    return data.sentiment;
-  } catch (error) {
-    console.error('Error analyzing sentiment:', error);
-    throw error;
-  }
+export async function getScore(zafClient: any, ticketId: string): Promise<number> {
+  const data = await makeApiRequest(zafClient, '/api/get-score', 'POST', { ticket_id: ticketId });
+  return data.score;
 }

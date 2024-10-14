@@ -1,38 +1,23 @@
-import React, { useEffect, useState } from 'react';
-import { analyzeSentiment } from '../services/apiService';
+import React, { useState } from 'react';
+import SentimentAnalysis from './SentimentAnalysis';
 import SentimentDisplay from './SentimentDisplay';
-import { Sentiment } from '../types';
 
 interface AppProps {
   zafClient: any;
 }
 
 const App: React.FC<AppProps> = ({ zafClient }) => {
-  const [currentSentiment, setCurrentSentiment] = useState<Sentiment>('neutral');
-  const [lastThirtySentiment, setLastThirtySentiment] = useState<Sentiment>('neutral');
+  const [currentSentiment, setCurrentSentiment] = useState<number | null>(null);
+  const [lastThirtySentiment, setLastThirtySentiment] = useState<number | null>(null);
   const [greyscale, setGreyscale] = useState(false);
 
-  useEffect(() => {
-    const fetchSentiments = async () => {
-      try {
-        // Fetch current ticket sentiment
-        const currentTicketComments = await zafClient.get('ticket.comments');
-        console.log('Current ticket comments:', currentTicketComments);
-        const currentSentimentResult = await analyzeSentiment(currentTicketComments);
-        console.log('Current sentiment result:', currentSentimentResult);
-        setCurrentSentiment(currentSentimentResult);
-
-        // Fetch last 30 days sentiment (this is a placeholder, you'll need to implement the actual logic)
-        const lastThirtySentimentResult = await analyzeSentiment([]);
-        console.log('Last 30 days sentiment result:', lastThirtySentimentResult);
-        setLastThirtySentiment(lastThirtySentimentResult);
-      } catch (error) {
-        console.error('Error fetching sentiments:', error);
-      }
-    };
-
-    fetchSentiments();
-  }, [zafClient]);
+  const handleSentimentUpdate = (ticketId: string | null, sentiment: number) => {
+    if (ticketId === null) {
+      setLastThirtySentiment(sentiment);
+    } else {
+      setCurrentSentiment(sentiment);
+    }
+  };
 
   return (
     <div className="p-2">
@@ -47,14 +32,22 @@ const App: React.FC<AppProps> = ({ zafClient }) => {
           <span className="text-gray-600">Greyscale Mode</span>
         </label>
       </div>
+      <SentimentAnalysis 
+        zafClient={zafClient} 
+        onSentimentUpdate={handleSentimentUpdate} 
+      />
       <div className="flex flex-col space-y-2">
         <div>
           <h2 className="text-base font-semibold mb-1">Current Ticket</h2>
-          <SentimentDisplay sentiment={currentSentiment} greyscale={greyscale} />
+          {currentSentiment !== null && (
+            <SentimentDisplay sentiment={currentSentiment} greyscale={greyscale} />
+          )}
         </div>
         <div>
           <h2 className="text-base font-semibold mb-1">Last 30 Days</h2>
-          <SentimentDisplay sentiment={lastThirtySentiment} greyscale={greyscale} />
+          {lastThirtySentiment !== null && (
+            <SentimentDisplay sentiment={lastThirtySentiment} greyscale={greyscale} />
+          )}
         </div>
       </div>
     </div>

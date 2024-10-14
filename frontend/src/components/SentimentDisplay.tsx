@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Sentiment } from '../types';
 
 interface Props {
-  sentiment: Sentiment;
+  sentiment: number;
   greyscale?: boolean;
 }
 const SentimentDisplay: React.FC<Props> = ({ sentiment, greyscale = false }) => {
@@ -30,7 +30,7 @@ const SentimentDisplay: React.FC<Props> = ({ sentiment, greyscale = false }) => 
     const colors = greyscale
       ? ['#333333', '#666666', '#999999', '#CCCCCC', '#FFFFFF']
       : ['red', 'orange', 'yellow', 'lightgreen', 'green'];
-    const sentiments = ['extremely negative', 'negative', 'neutral', 'positive', 'extremely positive'];
+    const sentiments = [-2, -1, 0, 1, 2];
 
     for (let i = 0; i < wedges; i++) {
       ctx.beginPath();
@@ -53,7 +53,7 @@ const SentimentDisplay: React.FC<Props> = ({ sentiment, greyscale = false }) => 
       ctx.fillStyle = greyscale ? (i < 2 ? 'white' : 'black') : 'black';
       ctx.font = '8px Arial'; // Reduce font size
       ctx.textAlign = 'center';
-      ctx.fillText(sentiments[i], textX, textY);
+      ctx.fillText(sentiments[i].toString(), textX, textY);
     }
   };
 
@@ -96,15 +96,9 @@ const SentimentDisplay: React.FC<Props> = ({ sentiment, greyscale = false }) => 
     ctx.fill();
   };
 
-  const getSentimentDegree = (sentiment: Sentiment): number => {
-    switch (sentiment) {
-      case 'extremely negative': return 20;
-      case 'negative': return 60;
-      case 'neutral': return 90;
-      case 'positive': return 120;
-      case 'extremely positive': return 160;
-      default: return 90;
-    }
+  const getSentimentDegree = (sentiment: number): number => {
+    // Map sentiment from [-2, 2] to [0, 180]
+    return (sentiment + 2) * 45;
   };
 
   return (
