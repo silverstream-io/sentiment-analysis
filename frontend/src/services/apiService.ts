@@ -7,13 +7,14 @@ export async function initializeApp(zafClient: any): Promise<void> {
   try {
     const metadata = await zafClient.metadata();
     const appId = metadata.appId;
+    const subdomain = metadata.settings.subdomain;
     
     const response = await fetch(`${BACKEND_URL}/api/oauth/initiate`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ app_id: appId }),
+      body: JSON.stringify({ app_id: appId, subdomain: subdomain }),
       mode: 'no-cors',
     });
     
