@@ -16,13 +16,5 @@
     }
   },
   "version": "1.0.0",
-  "frameworkVersion": "2.0",
-  "parameters": [
-    {
-      "name": "backend_url",
-      "type": "text",
-      "required": true,
-      "default": "https://silverstream.onrender.com"
-    }
-  ]
+  "frameworkVersion": "2.0"
 }

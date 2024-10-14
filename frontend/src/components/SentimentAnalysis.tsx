@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { listTicketVectors, analyzeComments, getScore } from '../services/apiService';
+import { listTicketVectors, analyzeComments, getScore, debugLog } from '../services/apiService';
 
 interface SentimentAnalysisProps {
   zafClient: any;
@@ -18,6 +18,8 @@ const SentimentAnalysis: React.FC<SentimentAnalysisProps> = ({ zafClient, onSent
         }
 
         const ticketId = await zafClient.get('ticket.id');
+        debugLog('Analyzing sentiment for ticket:', ticketId);
+
         const storedVectors = await listTicketVectors(zafClient, ticketId);
         const ticketComments = await zafClient.get('ticket.comments');
         
@@ -29,10 +31,12 @@ const SentimentAnalysis: React.FC<SentimentAnalysisProps> = ({ zafClient, onSent
         });
 
         if (Object.keys(missingComments).length > 0) {
+          debugLog('Analyzing missing comments:', missingComments);
           await analyzeComments(zafClient, ticketId, missingComments);
         }
 
         const totalScore = await getScore(zafClient, ticketId);
+        debugLog('Total score:', totalScore);
         setScore(totalScore);
         onSentimentUpdate(ticketId, totalScore);
       } catch (error) {
