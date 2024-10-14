@@ -22,7 +22,7 @@
       "name": "backend_url",
       "type": "text",
       "required": true,
-      "default": "http://localhost:5000"
+      "default": "https://silverstream.onrender.com"
     }
   ]
 }
