@@ -31,7 +31,7 @@ def analyze_comments():
     logger.info("Received request for analyze_comments")
     subdomain = request.headers.get('X-Zendesk-Subdomain')
     if not subdomain:
-        logger.error("Missing Zendesk subdomain in request headers")
+        logger.info("Missing Zendesk subdomain in request headers")
         return jsonify({'error': 'Missing Zendesk subdomain'}), 400
 
     data = request.json
@@ -39,7 +39,7 @@ def analyze_comments():
     comments = ticket.get('comments', {})
     ticket_id = ticket.get('id')
     if not comments or not ticket_id:
-        logger.error("Missing comments or ticket id in request data")
+        logger.info("Missing comments or ticket id in request data")
         return jsonify({'error': 'Missing comments or ticket id'}), 400
 
     logger.info(f"Processing comments for ticket: {ticket_id}")
@@ -82,7 +82,7 @@ def get_ticket_vectors():
     logger.info("Received request for get_ticket_vectors")
     subdomain = request.headers.get('X-Zendesk-Subdomain')
     if not subdomain:
-        logger.error("Missing Zendesk subdomain in request headers")
+        logger.info("Missing Zendesk subdomain in request headers")
         return jsonify({'error': 'Missing Zendesk subdomain'}), 400
 
     data = request.json
@@ -103,7 +103,7 @@ def get_score():
     logger.info("Received request for get_score")
     subdomain = request.headers.get('X-Zendesk-Subdomain')
     if not subdomain:
-        logger.error("Missing Zendesk subdomain in request headers")
+        logger.info("Missing Zendesk subdomain in request headers")
         return jsonify({'error': 'Missing Zendesk subdomain'}), 400
 
     data = request.json
