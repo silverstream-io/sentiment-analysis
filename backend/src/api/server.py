@@ -1,4 +1,5 @@
-from flask import Flask, request, jsonify
+from typing import Optional, Tuple, Dict
+from flask import Flask, Request, request, jsonify
 from flask_cors import CORS
 from services.pinecone_service import PineconeService
 import dotenv, os
@@ -24,14 +25,26 @@ dotenv.load_dotenv()
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": ["http://localhost:4567", "https://d3v-silverstream.zendesk.com"]}}, supports_credentials=True)
 
-@app.route('/api/analyze-comments', methods=['POST'])
-@jwt_required
-def analyze_comments():
-    logger.info("Received request for analyze_comments")
-    subdomain = request.form.get('subdomain')
+def get_subdomain(request: Request) -> Tuple[Optional[str], Optional[Tuple[Dict[str, str], int]]]:
+    """
+    Get the subdomain from the request headers. If it's missing, return an error.
+    """
+    subdomain = request.headers.get('X-Zendesk-Subdomain')
     if not subdomain:
         logger.info("Missing Zendesk subdomain in request headers")
-        return jsonify({'error': 'Missing Zendesk subdomain'}), 400
+        return None, ({'error': 'Missing Zendesk subdomain'}, 400)
+    return subdomain, None
+
+@app.route('/api/analyze-comments', methods=['POST'])
+@jwt_required
+def analyze_comments() -> Tuple[Dict[str, str], int]:
+    """
+    Analyze the comments of a ticket and store them in the database.
+    """
+    logger.info("Received request for analyze_comments")
+    subdomain, error = get_subdomain(request)
+    if error:
+        return jsonify(error[0]), error[1]
 
     data = request.json
     ticket = data.get('ticket', {})
@@ -74,15 +87,14 @@ def analyze_comments():
 
 @app.route('/api/get-ticket-vectors', methods=['POST'])
 @jwt_required
-def get_ticket_vectors():
+def get_ticket_vectors() -> Tuple[Dict[str, str], int]:
     """
     Get the vectors of a ticket or tickets.
     """
     logger.info("Received request for get_ticket_vectors")
-    subdomain = request.form.get('subdomain')
-    if not subdomain:
-        logger.info("Missing Zendesk subdomain in request form")
-        return jsonify({'error': 'Missing Zendesk subdomain'}), 400
+    subdomain, error = get_subdomain(request)
+    if error:
+        return jsonify(error[0]), error[1]
 
     data = request.json
     ticket = data.get('ticket', {})
@@ -95,15 +107,14 @@ def get_ticket_vectors():
 
 @app.route('/api/get-score', methods=['POST'])
 @jwt_required
-def get_score():
+def get_score() -> Tuple[Dict[str, str], int]:
     """
     Get the score of a ticket or tickets based on the emotions of the comments.
     """
     logger.info("Received request for get_score")
-    subdomain = request.form.get('subdomain')
-    if not subdomain:
-        logger.info("Missing Zendesk subdomain in request form")
-        return jsonify({'error': 'Missing Zendesk subdomain'}), 400
+    subdomain, error = get_subdomain(request)
+    if error:
+        return jsonify(error[0]), error[1]
 
     data = request.json
     ticket = data.get('ticket', {})

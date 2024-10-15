@@ -38,7 +38,7 @@ def jwt_required(f):
     def decorated_function(*args, **kwargs):
         token = request.form.get('token')
         if not token:
-            logger.error("Missing token in request body")
+            logger.error("Missing token in request form")
             logger.error(f"Request form: {request.form}")
             return jsonify({'error': 'Missing token'}), 401
 
