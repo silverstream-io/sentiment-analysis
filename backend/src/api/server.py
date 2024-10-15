@@ -1,5 +1,5 @@
 from typing import Optional, Tuple, Dict
-from flask import Flask, Request, request, jsonify
+from flask import Flask, Request, request, jsonify, make_response
 from flask_cors import CORS
 from services.pinecone_service import PineconeService
 import dotenv, os
@@ -40,7 +40,7 @@ def _handle_options_request(request: Request) -> Tuple[Dict[str, str], int]:
     """
     Handle the OPTIONS request.
     """
-    response = jsonify({"message": "Preflight response"})
+    response = make_response()
     response.headers.add("Access-Control-Allow-Origin", "https://1077817.apps.zdusercontent.com")
     response.headers.add("Access-Control-Allow-Methods", "POST, OPTIONS")
     response.headers.add("Access-Control-Allow-Headers", "Content-Type, Authorization")
