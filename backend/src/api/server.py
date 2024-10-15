@@ -1,6 +1,6 @@
 from typing import Optional, Tuple, Dict
 from flask import Flask, Request, request, jsonify, make_response
-from flask_cors import CORS
+#from flask_cors import CORS
 from services.pinecone_service import PineconeService
 import dotenv, os
 from datetime import datetime
@@ -23,7 +23,7 @@ logger.addHandler(file_handler)
 
 dotenv.load_dotenv()
 app = Flask(__name__)
-CORS(app, resources={r"/api/*": {"origins": [ "https://1077817.apps.zdusercontent.com" ]}}, supports_credentials=True)
+#CORS(app, resources={r"/api/*": {"origins": [ "https://1077817.apps.zdusercontent.com" ]}}, supports_credentials=True)
 
 def get_subdomain(request: Request) -> Tuple[Optional[str], Optional[Tuple[Dict[str, str], int]]]:
     """
