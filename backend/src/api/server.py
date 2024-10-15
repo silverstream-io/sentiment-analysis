@@ -23,7 +23,7 @@ logger.addHandler(file_handler)
 
 dotenv.load_dotenv()
 app = Flask(__name__)
-CORS(app, resources={r"/api/*": {"origins": [ "https://*.apps.zdusercontent.com" ]}}, supports_credentials=True)
+CORS(app, resources={r"/api/*": {"origins": [ "https://1077817.apps.zdusercontent.com" ]}}, supports_credentials=True)
 
 def get_subdomain(request: Request) -> Tuple[Optional[str], Optional[Tuple[Dict[str, str], int]]]:
     """
@@ -35,12 +35,27 @@ def get_subdomain(request: Request) -> Tuple[Optional[str], Optional[Tuple[Dict[
         return None, ({'error': 'Missing Zendesk subdomain'}, 400)
     return subdomain, None
 
-@app.route('/api/analyze-comments', methods=['POST'])
+
+def _handle_options_request(request: Request) -> Tuple[Dict[str, str], int]:
+    """
+    Handle the OPTIONS request.
+    """
+    response = jsonify({"message": "Preflight response"})
+    response.headers.add("Access-Control-Allow-Origin", "https://1077817.apps.zdusercontent.com")
+    response.headers.add("Access-Control-Allow-Methods", "POST, OPTIONS")
+    response.headers.add("Access-Control-Allow-Headers", "Content-Type, Authorization")
+    return response, 204
+
+
+@app.route('/api/analyze-comments', methods=['POST', 'OPTIONS'])
 @jwt_required
 def analyze_comments() -> Tuple[Dict[str, str], int]:
     """
     Analyze the comments of a ticket and store them in the database.
     """
+    if request.method == 'OPTIONS':
+        return _handle_options_request(request)
+
     logger.info("Received request for analyze_comments")
     subdomain, error = get_subdomain(request)
     if error:
@@ -85,12 +100,15 @@ def analyze_comments() -> Tuple[Dict[str, str], int]:
     logger.info(f"Finished processing comments for ticket: {ticket_id}")
     return jsonify({'message': 'Comments analyzed and stored successfully', 'results': results}), 200
 
-@app.route('/api/get-ticket-vectors', methods=['POST'])
+@app.route('/api/get-ticket-vectors', methods=['POST', 'OPTIONS'])
 @jwt_required
 def get_ticket_vectors() -> Tuple[Dict[str, str], int]:
     """
     Get the vectors of a ticket or tickets.
     """
+    if request.method == 'OPTIONS':
+        return _handle_options_request(request)
+
     logger.info("Received request for get_ticket_vectors")
     subdomain, error = get_subdomain(request)
     if error:
@@ -105,12 +123,15 @@ def get_ticket_vectors() -> Tuple[Dict[str, str], int]:
 
     return jsonify({'vectors': vectors}), 200
 
-@app.route('/api/get-score', methods=['POST'])
+@app.route('/api/get-score', methods=['POST', 'OPTIONS'])
 @jwt_required
 def get_score() -> Tuple[Dict[str, str], int]:
     """
     Get the score of a ticket or tickets based on the emotions of the comments.
     """
+    if request.method == 'OPTIONS':
+        return _handle_options_request(request)
+
     logger.info("Received request for get_score")
     subdomain, error = get_subdomain(request)
     if error:
