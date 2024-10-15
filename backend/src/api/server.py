@@ -22,8 +22,7 @@ logger.addHandler(file_handler)
 
 dotenv.load_dotenv()
 app = Flask(__name__)
-#CORS(app, resources={r"/api/*": {"origins": ["http://localhost:4567", "https://d3v-silverstream.zendesk.com"]}}, supports_credentials=True)
-CORS(app) #, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
+CORS(app, resources={r"/api/*": {"origins": ["http://localhost:4567", "https://d3v-silverstream.zendesk.com"]}}, supports_credentials=True)
 
 @app.route('/api/analyze-comments', methods=['POST'])
 @jwt_required

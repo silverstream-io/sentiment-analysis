@@ -36,7 +36,7 @@ def verify_jwt(token):
 def jwt_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        token = request.forms.get('token')
+        token = request.form.get('token')
         if not token:
             logger.error("Missing token in request body")
             logger.error(f"Request form: {request.form}")
