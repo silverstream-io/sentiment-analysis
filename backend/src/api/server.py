@@ -1,6 +1,6 @@
 from typing import Optional, Tuple, Dict
 from flask import Flask, Request, request, jsonify, make_response
-#from flask_cors import CORS
+from flask_cors import CORS
 from services.pinecone_service import PineconeService
 import dotenv, os
 from datetime import datetime
@@ -24,6 +24,7 @@ logger.addHandler(file_handler)
 dotenv.load_dotenv()
 app = Flask(__name__)
 #CORS(app, resources={r"/api/*": {"origins": [ "https://1077817.apps.zdusercontent.com" ]}}, supports_credentials=True)
+CORS()
 
 def get_subdomain(request: Request) -> Tuple[Optional[str], Optional[Tuple[Dict[str, str], int]]]:
     """
@@ -53,8 +54,8 @@ def analyze_comments() -> Tuple[Dict[str, str], int]:
     """
     Analyze the comments of a ticket and store them in the database.
     """
-    if request.method == 'OPTIONS':
-        return _handle_options_request(request)
+    #if request.method == 'OPTIONS':
+    #    return _handle_options_request(request)
 
     logger.info("Received request for analyze_comments")
     subdomain, error = get_subdomain(request)
@@ -106,8 +107,8 @@ def get_ticket_vectors() -> Tuple[Dict[str, str], int]:
     """
     Get the vectors of a ticket or tickets.
     """
-    if request.method == 'OPTIONS':
-        return _handle_options_request(request)
+    #if request.method == 'OPTIONS':
+    #    return _handle_options_request(request)
 
     logger.info("Received request for get_ticket_vectors")
     subdomain, error = get_subdomain(request)
@@ -129,8 +130,8 @@ def get_score() -> Tuple[Dict[str, str], int]:
     """
     Get the score of a ticket or tickets based on the emotions of the comments.
     """
-    if request.method == 'OPTIONS':
-        return _handle_options_request(request)
+    #if request.method == 'OPTIONS':
+    #    return _handle_options_request(request)
 
     logger.info("Received request for get_score")
     subdomain, error = get_subdomain(request)
