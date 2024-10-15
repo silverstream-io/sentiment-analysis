@@ -28,7 +28,7 @@ CORS(app, resources={r"/api/*": {"origins": ["http://localhost:4567", "https://d
 @jwt_required
 def analyze_comments():
     logger.info("Received request for analyze_comments")
-    subdomain = request.headers.get('X-Zendesk-Subdomain')
+    subdomain = request.form.get('subdomain')
     if not subdomain:
         logger.info("Missing Zendesk subdomain in request headers")
         return jsonify({'error': 'Missing Zendesk subdomain'}), 400
@@ -79,9 +79,9 @@ def get_ticket_vectors():
     Get the vectors of a ticket or tickets.
     """
     logger.info("Received request for get_ticket_vectors")
-    subdomain = request.headers.get('X-Zendesk-Subdomain')
+    subdomain = request.form.get('subdomain')
     if not subdomain:
-        logger.info("Missing Zendesk subdomain in request headers")
+        logger.info("Missing Zendesk subdomain in request form")
         return jsonify({'error': 'Missing Zendesk subdomain'}), 400
 
     data = request.json
@@ -100,9 +100,9 @@ def get_score():
     Get the score of a ticket or tickets based on the emotions of the comments.
     """
     logger.info("Received request for get_score")
-    subdomain = request.headers.get('X-Zendesk-Subdomain')
+    subdomain = request.form.get('subdomain')
     if not subdomain:
-        logger.info("Missing Zendesk subdomain in request headers")
+        logger.info("Missing Zendesk subdomain in request form")
         return jsonify({'error': 'Missing Zendesk subdomain'}), 400
 
     data = request.json

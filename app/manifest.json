@@ -1,12 +1,12 @@
 {
   "name": "Sentiment Checker",
+  "signedUrls": true,
   "author": {
     "name": "Silverstream",
     "email": "support@silverstream.io"
   },
   "defaultLocale": "en",
   "private": true,
-  "signedUrls": true,
   "location": {
     "support": {
       "ticket_sidebar": {

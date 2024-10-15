@@ -40,7 +40,6 @@ def jwt_required(f):
         if not token:
             logger.error("Missing token in request body")
             logger.error(f"Request form: {request.form}")
-            logger.error(f"Request body: {request.get_data()}")
             return jsonify({'error': 'Missing token'}), 401
 
         verified_token = verify_jwt(token)

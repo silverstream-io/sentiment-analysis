@@ -1,3 +1,4 @@
+import { formatDiagnostic } from 'typescript';
 import { Sentiment, Comment } from '../types';
 
 const BACKEND_URL = 'https://silverstream.onrender.com';
@@ -17,29 +18,37 @@ async function makeApiRequest(zafClient: any, endpoint: string, method: string, 
 
   debugLog(`Making API request to ${BACKEND_URL}${endpoint}`, { method, subdomain, body });
 
-  const headers = new Headers({
-    'Content-Type': 'application/json',
-    'X-Zendesk-Subdomain': subdomain,
-  });
+  const formData = new FormData();
+  formData.append('token', zafClient.getToken());
+  formData.append('subdomain', subdomain);
 
-  const response = await fetch(`${BACKEND_URL}${endpoint}`, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-    mode: 'cors',
-    credentials: 'same-origin',
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    debugLog(`API request failed: ${response.statusText}`, errorText);
-    throw new Error(`API request failed: ${response.statusText}`);
+  if (body) {
+    for (const key in body) {
+      formData.append(key, JSON.stringify(body[key]));
+    }
   }
 
-  const responseData = await response.json();
-  debugLog(`API response from ${BACKEND_URL}${endpoint}:`, responseData);
+  debugLog(`Trying to fetch ${BACKEND_URL}${endpoint} with method ${method}`);
+  debugLog(`With form data: ${formData}`);
+  try {
+    const response = await fetch(`${BACKEND_URL}${endpoint}`, {
+      method,
+      body: formData,
+    });
 
-  return responseData;
+    if (!response.ok) {
+      const errorText = await response.text();
+      debugLog(`API request failed: ${response.status} ${response.statusText}`, errorText);
+      throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+    }
+
+    const responseData = await response.json();
+    debugLog(`API response from ${BACKEND_URL}${endpoint}:`, responseData);
+    return responseData;
+  } catch (error) {
+    debugLog(`API request failed: ${error}`);
+    throw error;
+  }
 }
 
 export async function listTicketVectors(zafClient: any, ticketId: string): Promise<string[]> {
