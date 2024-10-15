@@ -4,27 +4,19 @@ import App from './components/App';
 import './tailwind.css';
 import { initializeApp as initializeApiService } from './services/apiService';
 
-const initializeApp = async () => {
+declare global {
+  interface Window {
+    initializeApp: (client: any) => void;
+  }
+}
+
+window.initializeApp = async (client) => {
   try {
-    await new Promise<void>((resolve, reject) => {
-      const script = document.createElement('script');
-      script.src = 'https://static.zdassets.com/zendesk_app_framework_sdk/2.0/zaf_sdk.min.js';
-      script.async = true;
-      script.onload = () => resolve();
-      script.onerror = () => reject(new Error('Failed to load Zendesk App Framework SDK'));
-      document.body.appendChild(script);
-    });
-
-    if (typeof ZAFClient === 'undefined') {
-      throw new Error('ZAFClient is not defined');
-    }
-
-    const zafClient = await ZAFClient.init();
-    await initializeApiService(zafClient);
+    await initializeApiService(client);
 
     ReactDOM.render(
       <React.StrictMode>
-        <App zafClient={zafClient} />
+        <App zafClient={client} />
       </React.StrictMode>,
       document.getElementById('root')
     );
@@ -38,5 +30,3 @@ const initializeApp = async () => {
     );
   }
 };
-
-initializeApp();
