@@ -35,6 +35,14 @@ def get_subdomain(request: Request) -> Tuple[Optional[str], Optional[Tuple[Dict[
         return None, ({'error': 'Missing Zendesk subdomain'}, 400)
     return subdomain, None
 
+@app.route('/')
+def index():
+    return "Nothing to see here."
+
+@app.route('/api/health')
+def health():
+    return "OK"
+
 @app.route('/api/analyze-comments', methods=['POST'])
 @jwt_required
 def analyze_comments() -> Tuple[Dict[str, str], int]:
