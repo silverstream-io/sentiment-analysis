@@ -1,7 +1,7 @@
-import { formatDiagnostic } from 'typescript';
-import { Sentiment, Comment } from '../types';
+import { formatDiagnostic } from 'typescript'; import { Sentiment, Comment } from '../types';
 
-const BACKEND_URL = 'https://silverstream.onrender.com';
+const BACKEND_URL = 'https://api.silverstream.io';
+// const BACKEND_URL = 'https://silverstream.onrender.com';
 // const BACKEND_URL = 'http://localhost:4000';
 const DEBUG = process.env.REACT_APP_DEBUG === 'true';
 
@@ -19,8 +19,6 @@ async function makeApiRequest(zafClient: any, endpoint: string, method: string, 
   debugLog(`Making API request to ${BACKEND_URL}${endpoint}`, { method, subdomain, body });
 
   const formData = new FormData();
-  formData.append('token', zafClient.getToken());
-  formData.append('subdomain', subdomain);
 
   if (body) {
     for (const key in body) {
@@ -33,6 +31,9 @@ async function makeApiRequest(zafClient: any, endpoint: string, method: string, 
   try {
     const response = await fetch(`${BACKEND_URL}${endpoint}`, {
       method,
+      headers: {
+        'X-Zendesk-Subdomain': subdomain,
+      },
       body: formData,
     });
 
