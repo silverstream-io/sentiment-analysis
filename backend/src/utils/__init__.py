@@ -1,6 +1,5 @@
 from typing import Optional, Tuple, Dict
 from flask import Request
-from api.server import logger
 import os, datetime
 import logging
 from logging.handlers import TimedRotatingFileHandler
@@ -10,6 +9,7 @@ def setup_logging():
     log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '../logs')
     os.makedirs(log_dir, exist_ok=True)
     log_file = os.path.join(log_dir, f"{datetime.now().strftime('%Y-%m-%d')}.log")
+    logger = logging.getLogger('api.server')
     logger.setLevel(logging.DEBUG)
     file_handler = TimedRotatingFileHandler(log_file, when="midnight", interval=1, backupCount=30)
     file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))

@@ -4,8 +4,10 @@ from datetime import datetime
 from services.auth_service import jwt_required
 from services.pinecone_service import PineconeService
 from models.emotions import emotions
-from api.server import logger
 from utils import get_subdomain
+import logging
+
+logger = logging.getLogger('api.server')
 
 def index():
     return "Nothing to see here."

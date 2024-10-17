@@ -1,10 +1,10 @@
 from flask import Flask
 from flask_cors import CORS
 import dotenv
-from utils import setup_logging
+import logging
 
 dotenv.load_dotenv()
-logger = setup_logging()
+logger = logging.getLogger(__name__)
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 

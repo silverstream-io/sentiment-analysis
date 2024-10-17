@@ -1,8 +1,9 @@
 from flask import Blueprint
 from .views import index, health, analyze_comments, get_score, get_ticket_vectors
-from api.server import logger
+import logging
 
 api = Blueprint('api', __name__)
+logger = logging.getLogger('api.server')
 logger.debug("Initializing API routes")
 
 api.add_url_rule('/', 'index', index, methods=['GET'])
