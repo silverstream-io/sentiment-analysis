@@ -1,6 +1,7 @@
 from typing import Optional, Tuple, Dict
 from flask import Request
-import os, datetime
+import os
+from datetime import datetime
 import logging
 from logging.handlers import TimedRotatingFileHandler
 
