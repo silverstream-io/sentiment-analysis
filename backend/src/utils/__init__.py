@@ -19,7 +19,9 @@ def get_subdomain(request: Request) -> Tuple[Optional[str], Optional[Tuple[Dict[
     """
     Get the subdomain from the request headers. If it's missing, return an error.
     """
-    subdomain = request.headers.get('X-Zendesk-Subdomain')
+    origin = request.args.get('origin', '')
+    subdomain = origin.split('//')[1].split('.')[0] if '//' in origin else ''
+    logger.info(f"Extracted subdomain: {subdomain}")
     if not subdomain:
         logger.info("Missing Zendesk subdomain in request headers")
         return None, ({'error': 'Missing Zendesk subdomain'}, 400)
