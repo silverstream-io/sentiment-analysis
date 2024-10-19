@@ -1,4 +1,5 @@
 import { formatDiagnostic } from 'typescript'; import { Sentiment, Comment } from '../types';
+import { getCookie, setCookie } from './cookieService';
 
 const BACKEND_URL = 'https://api.silverstream.io';
 // const BACKEND_URL = 'https://silverstream.onrender.com';
@@ -26,6 +27,11 @@ async function makeApiRequest(zafClient: any, endpoint: string, method: string, 
     }
   }
 
+  const token = getCookie('jwt_token');
+  if (token) {
+    formData.append('token', token);
+  }
+
   debugLog(`Trying to fetch ${BACKEND_URL}${endpoint} with method ${method}`);
   debugLog(`With form data: ${formData}`);
   try {
@@ -35,6 +41,7 @@ async function makeApiRequest(zafClient: any, endpoint: string, method: string, 
         'X-Zendesk-Subdomain': subdomain,
       },
       body: formData,
+      credentials: 'include',
     });
 
     if (!response.ok) {
@@ -44,6 +51,13 @@ async function makeApiRequest(zafClient: any, endpoint: string, method: string, 
     }
 
     const responseData = await response.json();
+    
+    // Check if the response includes a new token
+    const newToken = response.headers.get('X-JWT-Token');
+    if (newToken) {
+      setCookie('jwt_token', newToken, { secure: true, sameSite: 'strict' });
+    }
+
     debugLog(`API response from ${BACKEND_URL}${endpoint}:`, responseData);
     return responseData;
   } catch (error) {

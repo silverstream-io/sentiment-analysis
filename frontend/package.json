@@ -4,7 +4,9 @@
   "private": true,
   "dependencies": {
     "@pinecone-database/pinecone": "^3.0.3",
+    "@types/js-cookie": "^3.0.6",
     "@zendesk/zcli": "^1.0.0-beta.51",
+    "js-cookie": "^3.0.5",
     "openai": "^4.0.0",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",

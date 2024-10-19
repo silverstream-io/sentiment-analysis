@@ -1,5 +1,5 @@
 from functools import wraps
-from flask import request, jsonify
+from flask import request, jsonify, session, make_response
 import jwt
 import os
 import logging
@@ -36,10 +36,9 @@ def verify_jwt(token):
 def jwt_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        token = request.form.get('token')
+        token = request.cookies.get('jwt_token') or request.form.get('token')
         if not token:
-            logger.error("Missing token in request form")
-            logger.error(f"Request form: {request.form}")
+            logger.error("Missing token in cookies and request form")
             return jsonify({'error': 'Missing token'}), 401
 
         verified_token = verify_jwt(token)
@@ -47,5 +46,7 @@ def jwt_required(f):
             logger.error(f"JWT verification failed: {verified_token}")
             return jsonify({'error': verified_token}), 401
 
-        return f(*args, **kwargs)
+        response = make_response(f(*args, **kwargs))
+        response.set_cookie('jwt_token', token, httponly=True, secure=True, samesite='Strict')
+        return response
     return decorated_function
