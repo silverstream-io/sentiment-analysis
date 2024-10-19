@@ -39,6 +39,8 @@ def auth_required(f):
         token = request.cookies.get('jwt_token') or request.form.get('token')
         if not token:
             logger.error("Missing token in cookies and request form")
+            logger.error(f"Request cookies: {request.cookies}")
+            logger.error(f"Request form: {request.form}")
             return jsonify({'error': 'Missing token'}), 401
 
         verified_token = verify_jwt(token)
