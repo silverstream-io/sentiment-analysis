@@ -111,6 +111,26 @@ class SentimentChecker:
 
     @auth_required
     def entry():
-        # Process the form to get the JWT
-        # For now, we're just returning 'ok'
-        return jsonify({'status': 'ok'}), 200
+        logger.info("Received request for entry point")
+        
+        # Extract subdomain from the origin URL
+        origin = request.args.get('origin', '')
+        subdomain = origin.split('//')[1].split('.')[0] if '//' in origin else ''
+        logger.info(f"Extracted subdomain: {subdomain}")
+
+        # Check for ticket ID in form data
+        form_data = request.form
+        ticket_id = form_data.get('ticket_id')
+        logger.error(f"Ticket ID from form data: {ticket_id}")
+
+        # Log all form data for debugging
+        logger.error("All form data:")
+        for key, value in form_data.items():
+            logger.error(f"{key}: {value}")
+
+        return jsonify({
+            'status': 'ok',
+            'subdomain': subdomain,
+            'ticket_id': ticket_id,
+            'form_data': dict(form_data)
+        }), 200
