@@ -1,7 +1,7 @@
 from typing import Tuple, Dict
 from flask import jsonify, request
 from datetime import datetime
-from services.auth_service import jwt_required
+from services.auth_service import auth_required
 from services.pinecone_service import PineconeService
 from models.emotions import emotions
 from utils import get_subdomain
@@ -15,7 +15,7 @@ def index():
 def health():
     return "OK"
 
-@jwt_required
+@auth_required
 def analyze_comments() -> Tuple[Dict[str, str], int]:
     """
     Analyze the comments of a ticket and store them in the database.
@@ -64,7 +64,7 @@ def analyze_comments() -> Tuple[Dict[str, str], int]:
     logger.info(f"Finished processing comments for ticket: {ticket_id}")
     return jsonify({'message': 'Comments analyzed and stored successfully', 'results': results}), 200
 
-@jwt_required
+@auth_required
 def get_ticket_vectors() -> Tuple[Dict[str, str], int]:
     """
     Get the vectors of a ticket or tickets.
@@ -84,7 +84,7 @@ def get_ticket_vectors() -> Tuple[Dict[str, str], int]:
 
     return jsonify({'vectors': vectors}), 200
 
-@jwt_required
+@auth_required
 def get_score() -> Tuple[Dict[str, str], int]:
     """
     Get the score of a ticket or tickets based on the emotions of the comments.
