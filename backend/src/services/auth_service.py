@@ -12,18 +12,18 @@ def verify_jwt(token):
         logger.error("Missing token")
         return 'Missing token'
     try:
-        # Log the contents of the JWT without verifying
-        unverified_payload = jwt.decode(token, options={"verify_signature": False})
-        logger.info(f"JWT contents: {unverified_payload}")
-
         key = os.environ.get('ZENDESK_APP_PUBLIC_KEY')
         audience = os.environ.get('ZENDESK_APP_AUD')
         if not key or not audience:
             logger.error("Missing ZENDESK_APP_PUBLIC_KEY or ZENDESK_APP_AUD in environment variables")
             return 'Missing ZENDESK_APP_PUBLIC_KEY or ZENDESK_APP_AUD in environment variables'
-        payload = jwt.decode(token, key, algorithms=['RS256'], audience=audience)
-        logger.info("JWT successfully verified")
-        return payload
+        algorithms = ['RS256','HS256']
+        for algorithm in algorithms:    
+            try:
+                payload = jwt.decode(token, key, algorithms=[algorithm], audience=audience)
+                return payload
+            except jwt.InvalidAlgorithmError as e:
+                logger.error(f"Invalid algorithm: {str(e)}")
     except jwt.ExpiredSignatureError:
         logger.error("Token has expired")
         return 'Token has expired'
