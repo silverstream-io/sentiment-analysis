@@ -107,3 +107,9 @@ def get_score() -> Tuple[Dict[str, str], int]:
 
     logger.info(f"Calculated score: {emotion_score}")
     return jsonify({'score': emotion_score}), 200
+
+@auth_required
+def entry():
+    # Process the form to get the JWT
+    # For now, we're just returning 'ok'
+    return jsonify({'status': 'ok'}), 200
