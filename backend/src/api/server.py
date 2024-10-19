@@ -4,14 +4,15 @@ from flask_cors import CORS
 import dotenv
 import logging
 import os
-from .routes import api as api_blueprint
+from .routes import root as root_blueprint, sentiment_checker as sentiment_checker_blueprint
 
 dotenv.load_dotenv()
 logger = logging.getLogger(__name__)
 app = Flask(__name__)
 app.config['SESSION_TYPE'] = 'filesystem'
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
-app.register_blueprint(api_blueprint)
+app.register_blueprint(root_blueprint)
+app.register_blueprint(sentiment_checker_blueprint)
 CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
 Session(app)
 
