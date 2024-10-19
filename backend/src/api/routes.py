@@ -19,3 +19,4 @@ sentiment_checker.add_url_rule('/get-score', 'get_score', SentimentChecker.get_s
 sentiment_checker.add_url_rule('/get-ticket-vectors', 'get_ticket_vectors', SentimentChecker.get_ticket_vectors, methods=['POST'])
 sentiment_checker.add_url_rule('/', 'entry', SentimentChecker.entry, methods=['POST'])
 sentiment_checker.add_url_rule('', 'entry', SentimentChecker.entry, methods=['POST'])
+sentiment_checker.add_url_rule('/health', 'health', Root.health, methods=['GET'])
