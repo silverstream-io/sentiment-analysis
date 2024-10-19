@@ -33,7 +33,7 @@ def verify_jwt(token):
         logger.error(f"Invalid token: {str(e)}")
         return f'Invalid token: {str(e)}'
 
-def jwt_required(f):
+def auth_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         token = request.cookies.get('jwt_token') or request.form.get('token')
