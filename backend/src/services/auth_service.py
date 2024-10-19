@@ -36,11 +36,17 @@ def verify_jwt(token):
 def auth_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        token = request.cookies.get('jwt_token') or request.form.get('token')
+        auth_header = request.headers.get('Authorization')
+        if not auth_header:
+            logger.error("Missing Authorization header")
+            return jsonify({'error': 'Missing Authorization header'}), 401
+        try:    
+            token = request.cookies.get('jwt_token') or request.form.get('token')
+        except Exception as e:
+            logger.error(f"Error getting token: {e}")
+            return jsonify({'error': 'Error getting token'}), 401
         if not token:
-            logger.error("Missing token in cookies and request form")
-            logger.error(f"Request cookies: {request.cookies}")
-            logger.error(f"Request form: {request.form}")
+            logger.error("Missing token in headers")
             return jsonify({'error': 'Missing token'}), 401
 
         verified_token = verify_jwt(token)

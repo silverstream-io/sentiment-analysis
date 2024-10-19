@@ -27,9 +27,13 @@ async function makeApiRequest(zafClient: any, endpoint: string, method: string, 
     }
   }
 
-  const token = getCookie('jwt_token');
+  const token = getCookie('token');
+  const headers: HeadersInit = {
+    'X-Zendesk-Subdomain': subdomain,
+  };
+
   if (token) {
-    formData.append('token', token);
+    headers['Authorization'] = `Bearer ${token}`;
   }
 
   debugLog(`Trying to fetch ${BACKEND_URL}${endpoint} with method ${method}`);
@@ -37,9 +41,7 @@ async function makeApiRequest(zafClient: any, endpoint: string, method: string, 
   try {
     const response = await fetch(`${BACKEND_URL}${endpoint}`, {
       method,
-      headers: {
-        'X-Zendesk-Subdomain': subdomain,
-      },
+      headers,
       body: formData,
       credentials: 'include',
     });
