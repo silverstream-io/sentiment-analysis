@@ -43,7 +43,6 @@ class SentimentChecker:
     """
 
     def __init__(self):
-        self.template_folder = '../templates/sentiment-checker'
         self.logger = logger
     
     def init(self):
@@ -152,7 +151,7 @@ class SentimentChecker:
         
         form_data = request.form
 
-        return render_template(f'{self.template_folder}/index.html', subdomain=self.subdomain, form_data=dict(form_data))
+        return render_template(f'index.html', subdomain=self.subdomain, form_data=dict(form_data))
     
     def health(self):
         return "Sentiment Checker is healthy"
