@@ -13,12 +13,24 @@ declare global {
 
 window.initializeApp = async (client) => {
   try {
-    // Extract the token from URL parameters
-    const urlParams = new URLSearchParams(window.location.search);
-    const token = urlParams.get('token');
-    if (token) {
-      setCookie('token', token, { secure: true, sameSite: 'strict' });
+    console.log('Getting form data');
+    const form = document.querySelector('form');
+
+    if (form) {
+      const formData = new FormData(form);
+
+      // Iterate over all form data entries and log them to the console
+      formData.forEach((value, key) => {
+        console.log(`${key}: ${value}`);
+      });
+    } else {
+      console.error('No form found');
     }
+  } catch (error) {
+    console.error('Error getting form data:', error);
+  }
+
+  try {
     await initializeApiService(client);
 
     ReactDOM.render(
