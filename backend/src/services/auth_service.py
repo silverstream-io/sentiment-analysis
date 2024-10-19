@@ -42,7 +42,7 @@ def auth_required(f):
             logger.error(f"Request headers: {request.headers}")
             return jsonify({'error': 'Missing Authorization header'}), 401
         try:    
-            token = request.cookies.get('jwt_token') or request.form.get('token')
+            token = auth_header.split(" ")[1]
         except Exception as e:
             logger.error(f"Error getting token: {e}")
             return jsonify({'error': 'Error getting token'}), 401
