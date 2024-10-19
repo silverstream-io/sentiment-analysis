@@ -12,7 +12,9 @@ app = Flask(__name__)
 app.config['SESSION_TYPE'] = 'filesystem'
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
 app.register_blueprint(root_blueprint)
+root_blueprint.template_folder = '../templates'
 app.register_blueprint(sentiment_checker_blueprint)
+sentiment_checker_blueprint.template_folder = '../templates'
 CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
 Session(app)
 

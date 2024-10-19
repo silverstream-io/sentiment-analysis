@@ -11,7 +11,7 @@ logger = logging.getLogger('api.server')
 
 class Root: 
     def index():
-        return "Nothing to see here."
+        return render_template('index.html')
 
     def health():
         return "OK"
@@ -120,4 +120,4 @@ class SentimentChecker:
 
         form_data = request.form
 
-        return render_template('sentiment-checker.html', subdomain=subdomain, form_data=dict(form_data))
+        return render_template('index.html', subdomain=subdomain, form_data=dict(form_data))
