@@ -18,12 +18,17 @@ def verify_jwt(token):
             logger.error("Missing ZENDESK_APP_PUBLIC_KEY or ZENDESK_APP_AUD in environment variables")
             return 'Missing ZENDESK_APP_PUBLIC_KEY or ZENDESK_APP_AUD in environment variables'
         algorithms = ['RS256','HS256']
+        failed = []
         for algorithm in algorithms:    
             try:
                 payload = jwt.decode(token, key, algorithms=[algorithm], audience=audience)
                 return payload
             except jwt.InvalidAlgorithmError as e:
                 logger.error(f"Invalid algorithm: {str(e)}")
+                failed.append(algorithm)
+        if failed:
+            logger.error(f"Failed to verify JWT with algorithms: {failed}")
+            return f'Failed to verify JWT with algorithms: {failed}'
     except jwt.ExpiredSignatureError:
         logger.error("Token has expired")
         return 'Token has expired'
