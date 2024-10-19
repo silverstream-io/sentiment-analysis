@@ -5,10 +5,10 @@ from datetime import datetime
 
 dotenv.load_dotenv()
 class PineconeService:
-    def __init__(self, customer_id):
+    def __init__(self, subdomain):
         self.pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
         self.index = self.pc.Index(os.getenv("PINECONE_INDEX_NAME"))
-        self.namespace = customer_id
+        self.namespace = subdomain
         self.openai_client = OpenAI()
 
     def get_embedding(self, text):
