@@ -175,3 +175,7 @@ frontend/build/
 
 # VSCode
 .vscode/
+
+# Flask
+.flaskenv
+flask_session/
