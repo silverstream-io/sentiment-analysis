@@ -18,8 +18,6 @@ def verify_jwt(token):
 
         key = os.environ.get('ZENDESK_APP_PUBLIC_KEY')
         audience = os.environ.get('ZENDESK_APP_AUD')
-        logger.debug(f"Public key: {key[:10]}...")  # Log first 10 characters of key
-        logger.debug(f"Audience: {audience}")
         if not key or not audience:
             logger.error("Missing ZENDESK_APP_PUBLIC_KEY or ZENDESK_APP_AUD in environment variables")
             return 'Missing ZENDESK_APP_PUBLIC_KEY or ZENDESK_APP_AUD in environment variables'
