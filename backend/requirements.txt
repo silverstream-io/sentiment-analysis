@@ -36,6 +36,7 @@ openai==1.51.2
 packaging==24.1
 pandas==2.2.3
 pillow==10.4.0
+pip==24.2
 pinecone-client==5.0.1
 pinecone-plugin-inference==1.1.0
 pinecone-plugin-interface==0.0.7
