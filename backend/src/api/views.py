@@ -10,10 +10,10 @@ import logging
 logger = logging.getLogger('api.server')
 
 class Root: 
-    def index():
+    def index(self):
         return render_template('root/index.html')
 
-    def health():
+    def health(self):
         return "OK"
 
 class SentimentChecker:
