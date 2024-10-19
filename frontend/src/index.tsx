@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom';
 import App from './components/App';
 import './tailwind.css';
 import { initializeApp as initializeApiService } from './services/apiService';
+import { setCookie } from './services/cookieService';
 
 declare global {
   interface Window {
@@ -12,6 +13,12 @@ declare global {
 
 window.initializeApp = async (client) => {
   try {
+    // Extract the token from URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+    if (token) {
+      setCookie('token', token, { secure: true, sameSite: 'strict' });
+    }
     await initializeApiService(client);
 
     ReactDOM.render(
