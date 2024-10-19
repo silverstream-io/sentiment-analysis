@@ -44,12 +44,14 @@ class SentimentChecker:
 
     def __init__(self):
         self.template_folder = '../templates/sentiment-checker'
+        self.logger = logger
+    
+    def init(self):
         self.subdomain, error = get_subdomain(request)
         if error:
             self.logger.error(f"Error getting subdomain: {error}")
             raise Exception(error)
         self.pinecone_service = PineconeService(self.subdomain)
-        self.logger = logger
         self.logger.info(f"Initialized SentimentChecker with subdomain: {self.subdomain}")
 
     @auth_required
@@ -57,6 +59,8 @@ class SentimentChecker:
         """
         Analyze the comments of a ticket and store them in the database.
         """
+
+        self.init()
 
         self.logger.info("Received request for analyze_comments")
 
@@ -103,17 +107,15 @@ class SentimentChecker:
         """
         Get the vectors of a ticket or tickets.
         """
-        logger.info("Received request for get_ticket_vectors")
-        subdomain, error = get_subdomain(request)
-        if error:
-            return jsonify(error[0]), error[1]
+
+        self.init()
+        self.logger.info("Received request for get_ticket_vectors")
 
         data = request.json
         ticket = data.get('ticket', {})
         ticket_id = ticket.get('id')
 
-        pinecone_service = PineconeService(subdomain)
-        vectors = pinecone_service.list_ticket_vectors(ticket_id)
+        vectors = self.pinecone_service.list_ticket_vectors(ticket_id)
 
         return jsonify({'vectors': vectors}), 200
 
@@ -122,6 +124,8 @@ class SentimentChecker:
         """
         Get the score of a ticket or tickets based on the emotions of the comments.
         """
+
+        self.init()
         self.logger.info("Received request for get_score")
 
         data = request.json
@@ -139,16 +143,16 @@ class SentimentChecker:
 
     @auth_required
     def entry(self):
+        """
+        Serve the entry point for the Zendesk application.
+        """
+
+        self.init()
         self.logger.info("Received request for entry point")
         
-        # Extract subdomain from the origin URL
-        origin = request.args.get('origin', '')
-        subdomain = origin.split('//')[1].split('.')[0] if '//' in origin else ''
-        self.logger.info(f"Extracted subdomain: {subdomain}")
-
         form_data = request.form
 
-        return render_template(f'{self.template_folder}/index.html', subdomain=subdomain, form_data=dict(form_data))
+        return render_template(f'{self.template_folder}/index.html', subdomain=self.subdomain, form_data=dict(form_data))
     
     def health(self):
         return "Sentiment Checker is healthy"
