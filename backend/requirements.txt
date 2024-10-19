@@ -28,7 +28,6 @@ Jinja2==3.1.4
 jiter==0.6.1
 kiwisolver==1.4.7
 logger==1.4
-logging==0.4.9.6
 lz4==4.3.3
 MarkupSafe==3.0.1
 matplotlib==3.9.2
