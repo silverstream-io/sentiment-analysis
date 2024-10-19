@@ -120,7 +120,7 @@ class SentimentChecker:
 
         form_data = request.form
 
-        return render_template('index.html', subdomain=subdomain, form_data=dict(form_data))
+        return render_template('sentiment-checker/index.html', subdomain=subdomain, form_data=dict(form_data))
     
     def health():
         return "Sentiment Checker is healthy"
