@@ -1,5 +1,5 @@
 from typing import Tuple, Dict
-from flask import jsonify, request
+from flask import jsonify, request, render_template
 from datetime import datetime
 from services.auth_service import auth_required
 from services.pinecone_service import PineconeService
@@ -118,19 +118,6 @@ class SentimentChecker:
         subdomain = origin.split('//')[1].split('.')[0] if '//' in origin else ''
         logger.info(f"Extracted subdomain: {subdomain}")
 
-        # Check for ticket ID in form data
         form_data = request.form
-        ticket_id = form_data.get('ticket_id')
-        logger.error(f"Ticket ID from form data: {ticket_id}")
 
-        # Log all form data for debugging
-        logger.error("All form data:")
-        for key, value in form_data.items():
-            logger.error(f"{key}: {value}")
-
-        return jsonify({
-            'status': 'ok',
-            'subdomain': subdomain,
-            'ticket_id': ticket_id,
-            'form_data': dict(form_data)
-        }), 200
+        return render_template('sentiment-checker.html', subdomain=subdomain, form_data=dict(form_data))
