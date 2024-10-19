@@ -28,6 +28,7 @@ async function makeApiRequest(zafClient: any, endpoint: string, method: string, 
   }
 
   const token = getCookie('token');
+  console.log('Token in cookie:', token);
   const headers: HeadersInit = {
     'X-Zendesk-Subdomain': subdomain,
   };
