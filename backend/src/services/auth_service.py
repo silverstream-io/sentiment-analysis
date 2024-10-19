@@ -39,6 +39,7 @@ def auth_required(f):
         auth_header = request.headers.get('Authorization')
         if not auth_header:
             logger.error("Missing Authorization header")
+            logger.error(f"Request headers: {request.headers}")
             return jsonify({'error': 'Missing Authorization header'}), 401
         try:    
             token = request.cookies.get('jwt_token') or request.form.get('token')
