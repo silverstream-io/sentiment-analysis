@@ -36,7 +36,7 @@ const SentimentAnalysis: React.FC<SentimentAnalysisProps> = ({ zafClient, onSent
 
         console.log('storedVectors', storedVectors);
         console.log('storedVectors.length', storedVectors.length);
-        if (storedVectors.length === 0) {
+        if (storedVectors.length === 0 || storedVectors.length === undefined) {
           // If no vectors exist, analyze all customer comments
           customerComments.forEach((comment: any) => {
             commentsToAnalyze[comment.id] = comment.value;
