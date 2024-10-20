@@ -67,7 +67,8 @@ export async function analyzeComments(zafClient: any, ticketId: string, comments
 
 export async function getScore(zafClient: any, ticketIds: string | string[]): Promise<number> {
   debugLog('Getting score for tickets:', ticketIds);
-  const data = await makeApiRequest(zafClient, '/get-score', 'POST', { tickets: Array.isArray(ticketIds) ? ticketIds : [ticketIds] });
+  const tickets = Array.isArray(ticketIds) ? ticketIds.map(id => ({ ticketId: id })) : [{ ticketId: ticketIds }];
+  const data = await makeApiRequest(zafClient, '/get-score', 'POST', { tickets });
   debugLog('Score data:', data.score);
   return data.score;
 }
@@ -85,7 +86,7 @@ export async function getLast30DaysSentiment(zafClient: any): Promise<number> {
   const ticketData = await zafClient.get('ticket');
   const requesterId = ticketData.ticket.requester.id;
 
-  const ticketsResponse = await zafClient.request({
+  const searchResponse = await zafClient.request({
     url: '/api/v2/search.json',
     type: 'GET',
     data: {
@@ -93,7 +94,7 @@ export async function getLast30DaysSentiment(zafClient: any): Promise<number> {
     },
   });
 
-  const ticketIds = ticketsResponse.results.map((ticket: any) => ticket.id);
+  const ticketIds = searchResponse.results.map((result: any) => result.id);
   
   console.log('Ticket IDs for last 30 days:', ticketIds);
   if (ticketIds.length === 0) {
