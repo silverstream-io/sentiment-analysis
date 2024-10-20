@@ -31,9 +31,7 @@ class PineconeService:
         )
         return upsert_response
 
-    def query_vectors(self, vector, top_k=5, namespace=None, include_metadata=False, include_values=False):
-        if not namespace:
-            namespace = self.namespace
+    def query_vectors(self, vector, top_k=10, namespace=None, include_metadata=False, include_values=False):
         query_response = self.index.query(
             vector=vector,
             top_k=top_k,
