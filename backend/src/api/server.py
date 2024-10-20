@@ -13,6 +13,9 @@ app.template_folder = '../templates'
 app.static_folder = '../static'
 app.config['SESSION_TYPE'] = 'filesystem'
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SECURE'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'None'
 app.register_blueprint(root_blueprint)
 app.register_blueprint(sentiment_checker_blueprint)
 CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)

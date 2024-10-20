@@ -13,7 +13,7 @@
     <script>
         const client = ZAFClient.init();
         client.invoke('resize', { width: '100%', height: '200px' });
-        window.initializeApp(client);
+        window.initializeApp(client, "{{ original_query_string }}");
     </script>
 </body>
 </html>
