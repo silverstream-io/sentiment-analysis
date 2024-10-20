@@ -55,7 +55,6 @@ class SentimentChecker:
         self.pinecone_service = PineconeService(self.subdomain)
         self.logger.info(f"Initialized SentimentChecker with subdomain: {self.subdomain}")
 
-    @auth_required
     @session_required
     def analyze_comments(self) -> Tuple[Dict[str, str], int]:
         """
@@ -104,7 +103,6 @@ class SentimentChecker:
         self.logger.info(f"Finished processing comments for ticket: {ticket_id}")
         return jsonify({'message': 'Comments analyzed and stored successfully', 'results': results}), 200
 
-    @auth_required
     @session_required
     def get_ticket_vectors(self) -> Tuple[Dict[str, str], int]:
         """
@@ -122,7 +120,6 @@ class SentimentChecker:
 
         return jsonify({'vectors': vectors}), 200
 
-    @auth_required
     @session_required
     def get_score(self) -> Tuple[Dict[str, str], int]:
         """
