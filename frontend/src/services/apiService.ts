@@ -53,18 +53,18 @@ async function makeApiRequest(zafClient: any, endpoint: string, method: string, 
 
 export async function listTicketVectors(zafClient: any, ticketId: string): Promise<any[]> {
   debugLog('Listing ticket vectors for ticket:', ticketId);
-  const data = await makeApiRequest(zafClient, '/api/get-ticket-vectors', 'POST', { ticket: { id: ticketId } });
+  const data = await makeApiRequest(zafClient, '/get-ticket-vectors', 'POST', { ticket: { id: ticketId } });
   return data.vectors;
 }
 
 export async function analyzeComments(zafClient: any, ticketId: string, comments: { [id: string]: string }): Promise<void> {
   debugLog('Analyzing comments for ticket:', ticketId, comments);
-  await makeApiRequest(zafClient, '/api/analyze-comments', 'POST', { ticket: { id: ticketId, comments } });
+  await makeApiRequest(zafClient, '/analyze-comments', 'POST', { ticket: { id: ticketId, comments } });
 }
 
 export async function getScore(zafClient: any, ticketId: string): Promise<number> {
   debugLog('Getting score for ticket:', ticketId);
-  const data = await makeApiRequest(zafClient, '/api/get-score', 'POST', { ticket: { id: ticketId } });
+  const data = await makeApiRequest(zafClient, '/get-score', 'POST', { ticket: { id: ticketId } });
   return data.score;
 }
 
