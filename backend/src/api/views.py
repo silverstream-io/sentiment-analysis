@@ -85,15 +85,17 @@ class SentimentChecker:
             try:
                 existing_vector = self.pinecone_service.fetch_vector(vector_id)
             except Exception as e:
-                self.logger.warning(f"Error fetching vector {vector_id}: {e}")
+                self.logger.error(f"Error fetching vector {vector_id}: {e}")
                 existing_vector = None
             if existing_vector:
+                self.logger.error(f"Existing vector found for comment {comment_id}: {existing_vector}")
                 results.append({
                     'comment_id': comment_id,
                     'emotion_score': existing_vector['metadata']['emotion_score'],
                     'upserted_count': 0
                 })
             else:
+                self.logger.error(f"No existing vector found for comment {comment_id}")
                 embedding = self.pinecone_service.get_embedding(text)
                 # Query emotions namespace
                 emotion_matches = self.pinecone_service.query_vectors(embedding, 
@@ -104,14 +106,13 @@ class SentimentChecker:
                 self.logger.error(f"Emotion matches: {emotion_matches}")
                 emotion_sum = 0
                 matched_count = 0
-                if 'matches' in emotion_matches:
-                    for match in emotion_matches['matches']:
-                        for emotion_name in match['metadata']:
-                            if emotion_name in emotions and match['metadata'][emotion_name]:
-                                emotion_sum += emotions[emotion_name].score * match['score']
-                                matched_count += 1
-                            else:
-                                self.logger.warning(f"Emotion {emotion_name} not found in emotions dictionary")
+                for match in emotion_matches:
+                    for emotion_name in match['metadata']:
+                        if emotion_name in emotions and match['metadata'][emotion_name]:
+                            emotion_sum += emotions[emotion_name].score * match['score']
+                            matched_count += 1
+                        else:
+                            self.logger.warning(f"Emotion {emotion_name} not found in emotions dictionary")
                 self.logger.error(f"Emotion sum for comment {comment_id}: {emotion_sum}")
                 # Prepare metadata for upsert
                 if matched_count > 0:   
