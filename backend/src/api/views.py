@@ -160,7 +160,7 @@ class SentimentChecker:
     @session_required
     def get_score(self) -> Tuple[Dict[str, str], int]:
         """
-        Get the score of a ticket or tickets based on the emotions of the comments.
+        Get the score of a ticket or multiple tickets based on the emotions of the comments.
         """
 
         self.init()
@@ -168,26 +168,32 @@ class SentimentChecker:
 
         try:
             data = request.json
-            ticket = data.get('ticket', {})
-            ticket_id = ticket.get('id')
-            ticket_id = ticket_id['ticketId']
+            tickets = data.get('tickets', [])
+            if not tickets:
+                return jsonify({'error': 'Missing ticket ids'}), 400
         except Exception as e:
-            self.logger.error(f"Error getting ticket id: {e}")
-            return jsonify({'error': 'Missing ticket id', 'data': data, 'ticket': ticket}), 400
+            self.logger.error(f"Error getting ticket ids: {e}")
+            return jsonify({'error': 'Invalid request data'}), 400
 
-        vector_list = self.pinecone_service.list_ticket_vectors(ticket_id)
-        vector_ids = [getattr(vector, 'id', vector.get('id')) if isinstance(vector, dict) else vector.id for vector in vector_list]
-        comment_vectors = self.pinecone_service.fetch_vectors(vector_ids)
-        total_score = 0 
-        for vector_id in comment_vectors:
-            if 'metadata' in comment_vectors[vector_id] and 'emotion_score' in comment_vectors[vector_id]['metadata']:
-                total_score += comment_vectors[vector_id]['metadata']['emotion_score']
-        if len(comment_vectors) > 0:
-            emotion_score = total_score / len(comment_vectors)
+        total_score = 0
+        total_comments = 0
+
+        for ticket_id in tickets:
+            vector_list = self.pinecone_service.list_ticket_vectors(ticket_id)
+            vector_ids = [getattr(vector, 'id', vector.get('id')) if isinstance(vector, dict) else vector.id for vector in vector_list]
+            comment_vectors = self.pinecone_service.fetch_vectors(vector_ids)
+            
+            for vector_id in comment_vectors:
+                if 'metadata' in comment_vectors[vector_id] and 'emotion_score' in comment_vectors[vector_id]['metadata']:
+                    total_score += comment_vectors[vector_id]['metadata']['emotion_score']
+                    total_comments += 1
+
+        if total_comments > 0:
+            emotion_score = total_score / total_comments
         else:
             emotion_score = 0
 
-        self.logger.info(f"Calculated score: {emotion_score}")
+        self.logger.info(f"Calculated score for {len(tickets)} tickets: {emotion_score}")
         return jsonify({'score': emotion_score}), 200
 
     @auth_required
@@ -213,3 +219,4 @@ class SentimentChecker:
     
     def health(self):
         return render_template(f'{self.templates}/health.html')
+

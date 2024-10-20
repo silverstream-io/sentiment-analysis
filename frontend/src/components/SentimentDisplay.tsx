@@ -66,9 +66,9 @@ const SentimentDisplay: React.FC<Props> = ({ sentiment, greyscale = false }) => 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     drawHalfCircle(ctx, canvas);
 
-    // Calculate end point of the pointer (halfway through the semi-circle)
-    const endX = centerX + (radius * 0.5) * Math.cos(Math.PI + radian);
-    const endY = centerY + (radius * 0.5) * Math.sin(Math.PI + radian);
+    // Calculate end point of the pointer (80% through the semi-circle)
+    const endX = centerX + (radius * 0.8) * Math.cos(Math.PI + radian);
+    const endY = centerY + (radius * 0.8) * Math.sin(Math.PI + radian);
 
     // Draw the main line
     ctx.beginPath();
@@ -98,7 +98,7 @@ const SentimentDisplay: React.FC<Props> = ({ sentiment, greyscale = false }) => 
 
   const getSentimentDegree = (sentiment: number): number => {
     // Map sentiment from [-2, 2] to [0, 180]
-    return (sentiment + 2) * 45;
+    return ((sentiment + 2) / 4) * 180;
   };
 
   return (
