@@ -24,8 +24,9 @@ const SentimentAnalysis: React.FC<SentimentAnalysisProps> = ({ zafClient, onSent
         const storedVectors = await listTicketVectors(zafClient, ticketId);
         
         // Get all customer comments
-        const ticketComments = await zafClient.get('ticket.comments');
-        console.log('ticketComments', ticketComments);
+        const ticketCommentsData = await zafClient.get('ticket.comments');
+        console.log('ticketCommentsData', ticketCommentsData);
+        const ticketComments = ticketCommentsData['ticket.comments'];
         const customerComments = Array.isArray(ticketComments) 
           ? ticketComments.filter((comment: any) => comment.author.role === 'end-user')
           : [];
