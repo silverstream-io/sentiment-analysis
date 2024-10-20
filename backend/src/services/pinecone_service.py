@@ -69,10 +69,10 @@ class PineconeService:
         if ticket_id:
             ticket_id = f"{ticket_id}#"
         response = self.index.list_paginated(prefix=ticket_id, namespace=self.namespace)
-        vectors.extend(response['vectors'])
+        vectors.extend(response.vectors)
         while response.pagination and len(vectors) < 1000:
             response = self.index.list_paginated(prefix=ticket_id, namespace=self.namespace, pagination_token=response.pagination.next)
-            vectors.extend(response['vectors'])
+            vectors.extend(response.vectors)
         return vectors
 
     def fetch_vectors(self, vector_ids, namespace=None):
