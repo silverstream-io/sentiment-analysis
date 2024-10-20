@@ -2,8 +2,11 @@ from pinecone.grpc import PineconeGRPC as Pinecone
 from openai import OpenAI
 import dotenv, os
 from datetime import datetime
+import logging
 
 dotenv.load_dotenv()
+logger = logging.getLogger('sentiment_checker')
+
 class PineconeService:
     def __init__(self, subdomain):
         self.pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))

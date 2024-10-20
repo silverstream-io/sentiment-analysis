@@ -4,7 +4,7 @@ import jwt
 import os
 import logging
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('sentiment_checker')
 
 def verify_jwt(token):
     logger.debug(f"Verifying JWT: {token[:10]}...")  # Log first 10 characters of token

@@ -2,7 +2,7 @@ from flask import Blueprint
 from .views import Root, SentimentChecker
 import logging
 
-logger = logging.getLogger('api.server')
+logger = logging.getLogger('sentiment_checker')
 logger.debug("Initializing routes")
 
 root_obj = Root()

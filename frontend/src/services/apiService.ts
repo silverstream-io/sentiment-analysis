@@ -68,6 +68,7 @@ export async function analyzeComments(zafClient: any, ticketId: string, comments
 export async function getScore(zafClient: any, ticketIds: string | string[]): Promise<number> {
   debugLog('Getting score for tickets:', ticketIds);
   const data = await makeApiRequest(zafClient, '/get-score', 'POST', { tickets: Array.isArray(ticketIds) ? ticketIds : [ticketIds] });
+  debugLog('Score data:', data.score);
   return data.score;
 }
 

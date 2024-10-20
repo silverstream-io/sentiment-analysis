@@ -1,7 +1,9 @@
 import openai
 import dotenv, os
+import logging
 
 dotenv.load_dotenv()
+logger = logging.getLogger('sentiment_checker')
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
