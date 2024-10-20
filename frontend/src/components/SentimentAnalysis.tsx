@@ -25,10 +25,12 @@ const SentimentAnalysis: React.FC<SentimentAnalysisProps> = ({ zafClient, onSent
         
         // Get all customer comments
         const ticketComments = await zafClient.get('ticket.comments');
+        console.log('ticketComments', ticketComments);
         const customerComments = Array.isArray(ticketComments) 
           ? ticketComments.filter((comment: any) => comment.author.role === 'end-user')
           : [];
 
+        console.log('customerComments', customerComments);
         const commentsToAnalyze: { [id: string]: string } = {};
 
         if (storedVectors.length === 0) {
@@ -45,6 +47,7 @@ const SentimentAnalysis: React.FC<SentimentAnalysisProps> = ({ zafClient, onSent
             }
           });
         }
+        console.log('commentsToAnalyze', commentsToAnalyze);
 
         // Analyze new comments if any
         if (Object.keys(commentsToAnalyze).length > 0) {
