@@ -62,12 +62,24 @@ class PineconeService:
         )
         return [match.id for match in query_response.matches]
 
-    def fetch_vector(self, vector_id):
-        fetch_response = self.index.fetch(ids=[vector_id], namespace=self.namespace)
-        return fetch_response.vectors.get(vector_id)
-
     def list_ticket_vectors(self, ticket_id=None):
+        vectors = []
         if ticket_id:
-            return self.index.list(prefix=f"{ticket_id}#", namespace=self.namespace)
-        else:
-            return self.index.list(namespace=self.namespace)
+            ticket_id = f"{ticket_id}#"
+        response = self.index.list_paginated(prefix=ticket_id, namespace=self.namespace)
+        vectors.extend(response.vectors)
+        while response.pagination and len(vectors) < 1000:
+            response = self.index.list_paginated(prefix=ticket_id, namespace=self.namespace, pagination_token=response.pagination.next)
+            vectors.extend(response.vectors)
+        return vectors
+
+    def fetch_vectors(self, vector_ids):
+        fetch_response = self.index.fetch(ids=vector_ids, namespace=self.namespace)
+        vectors = {}
+        for vector_id in vector_ids:
+            vector = fetch_response.vectors.get(vector_id)
+            if vector:
+                metadata = {k: v for k, v in vector.metadata.items() if k != 'text'}
+                vectors[vector_id] = metadata
+        return vectors
+
