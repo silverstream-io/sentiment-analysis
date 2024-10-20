@@ -162,12 +162,14 @@ class SentimentChecker:
             self.logger.error(f"Error getting ticket id: {e}")
             return jsonify({'error': 'Missing ticket id', 'data': data, 'ticket': ticket}), 400
 
-        comments = self.pinecone_service.list_ticket_vectors(ticket_id)
+        vector_list = self.pinecone_service.list_ticket_vectors(ticket_id)
+        comment_vectors = self.pinecone_service.fetch_vectors(vector_list)
         total_score = 0 
-        for comment in comments:
-            total_score += comment['metadata']['emotion_sum']
-        if len(comments) > 0:
-            emotion_score = total_score / len(comments)
+        for vector_id in comment_vectors:
+            if 'metadata' in comment_vectors[vector_id] and 'emotion_sum' in comment_vectors[vector_id]['metadata']:
+                total_score += comment_vectors[vector_id]['metadata']['emotion_sum']
+        if len(comment_vectors) > 0:
+            emotion_score = total_score / len(comment_vectors)
         else:
             emotion_score = 0
 
