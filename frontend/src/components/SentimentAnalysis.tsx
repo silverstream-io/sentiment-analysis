@@ -23,22 +23,33 @@ const SentimentAnalysis: React.FC<SentimentAnalysisProps> = ({ zafClient, onSent
         // Get all vectors associated with the current ticket
         const storedVectors = await listTicketVectors(zafClient, ticketId);
         
-        // Get the most recent customer comment
+        // Get all customer comments
         const ticketComments = await zafClient.get('ticket.comments');
-        const comments = Array.isArray(ticketComments) ? ticketComments : []; 
-        const latestCustomerComment = comments
-          .filter((comment: any) => comment.author.role === 'end-user')
-          .pop();
+        const customerComments = Array.isArray(ticketComments) 
+          ? ticketComments.filter((comment: any) => comment.author.role === 'end-user')
+          : [];
 
-        if (latestCustomerComment) {
-          const latestCommentId = `${ticketId}#${latestCustomerComment.id}`;
-          console.log('latestCommentId', latestCommentId);
-          
-          // Check if the latest comment is already analyzed
-          if (!storedVectors.some(vector => vector.id === latestCommentId)) {
-            debugLog('Analyzing latest comment:', latestCustomerComment.value);
-            await analyzeComments(zafClient, ticketId, { [latestCustomerComment.id]: latestCustomerComment.value });
-          }
+        const commentsToAnalyze: { [id: string]: string } = {};
+
+        if (storedVectors.length === 0) {
+          // If no vectors exist, analyze all customer comments
+          customerComments.forEach((comment: any) => {
+            commentsToAnalyze[comment.id] = comment.value;
+          });
+        } else {
+          // Compare existing vectors with customer comments
+          customerComments.forEach((comment: any) => {
+            const commentVectorId = `${ticketId}#${comment.id}`;
+            if (!storedVectors.some(vector => vector.id === commentVectorId)) {
+              commentsToAnalyze[comment.id] = comment.value;
+            }
+          });
+        }
+
+        // Analyze new comments if any
+        if (Object.keys(commentsToAnalyze).length > 0) {
+          debugLog('Analyzing comments:', commentsToAnalyze);
+          await analyzeComments(zafClient, ticketId, commentsToAnalyze);
         }
 
         // Get the updated score for the ticket
