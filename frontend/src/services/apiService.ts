@@ -65,9 +65,9 @@ export async function analyzeComments(zafClient: any, ticketId: string, comments
   await makeApiRequest(zafClient, '/analyze-comments', 'POST', { ticket: { id: ticketId, comments } });
 }
 
-export async function getScore(zafClient: any, ticketId: string): Promise<number> {
-  debugLog('Getting score for ticket:', ticketId);
-  const data = await makeApiRequest(zafClient, '/get-score', 'POST', { ticket: { id: ticketId } });
+export async function getScore(zafClient: any, ticketIds: string | string[]): Promise<number> {
+  debugLog('Getting score for tickets:', ticketIds);
+  const data = await makeApiRequest(zafClient, '/get-score', 'POST', { tickets: Array.isArray(ticketIds) ? ticketIds : [ticketIds] });
   return data.score;
 }
 
@@ -75,4 +75,25 @@ export function debugLog(...args: any[]) {
   if (DEBUG) {
     console.log('[DEBUG]', ...args);
   }
+}
+
+export async function getLast30DaysSentiment(zafClient: any): Promise<number> {
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  const ticketsResponse = await zafClient.request({
+    url: '/api/v2/search.json',
+    type: 'GET',
+    data: {
+      query: `type:ticket created>${thirtyDaysAgo.toISOString()} requester:current_user`,
+    },
+  });
+
+  const ticketIds = ticketsResponse.results.map((ticket: any) => ticket.id);
+  
+  if (ticketIds.length === 0) {
+    return 0;
+  }
+
+  return await getScore(zafClient, ticketIds);
 }

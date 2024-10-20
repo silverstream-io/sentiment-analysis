@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { listTicketVectors, analyzeComments, getScore, debugLog } from '../services/apiService';
+import { listTicketVectors, analyzeComments, getScore, debugLog, getLast30DaysSentiment } from '../services/apiService';
 
 interface SentimentAnalysisProps {
   zafClient: any;
@@ -58,11 +58,16 @@ const SentimentAnalysis: React.FC<SentimentAnalysisProps> = ({ zafClient, onSent
           await analyzeComments(zafClient, ticketId, commentsToAnalyze);
         }
 
-        // Get the updated score for the ticket
-        const totalScore = await getScore(zafClient, ticketId);
-        debugLog('Total score:', totalScore);
-        setScore(totalScore);
-        onSentimentUpdate(ticketId, totalScore);
+        // Get the updated score for the current ticket
+        const currentTicketScore = await getScore(zafClient, ticketId);
+        debugLog('Current ticket score:', currentTicketScore);
+        setScore(currentTicketScore);
+        onSentimentUpdate(ticketId, currentTicketScore);
+
+        // Get the sentiment for the last 30 days
+        const last30DaysScore = await getLast30DaysSentiment(zafClient);
+        debugLog('Last 30 days score:', last30DaysScore);
+        onSentimentUpdate(null, last30DaysScore);
       } catch (error) {
         console.error('Error analyzing sentiment:', error);
         setError(error instanceof Error ? error.message : 'An unknown error occurred');
