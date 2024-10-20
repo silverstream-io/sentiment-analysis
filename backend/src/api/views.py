@@ -1,11 +1,11 @@
 from typing import Tuple, Dict
 from flask import jsonify, request, render_template, make_response, session
 from datetime import datetime
+from bs4 import BeautifulSoup as bs
 from services.auth_service import auth_required, session_required
 from services.pinecone_service import PineconeService
 from models.emotions import emotions
 from utils import get_subdomain
-import html
 import logging
 import os
 
@@ -79,7 +79,7 @@ class SentimentChecker:
         results = []
     
         for comment_id, text in comments.items():
-            text = html.unescape(text)
+            text = bs(text, 'html.parser').get_text()
             text = ' '.join(text.split())
             vector_id = f"{ticket_id}#{comment_id}"
             try:
@@ -153,9 +153,14 @@ class SentimentChecker:
         self.init()
         self.logger.info("Received request for get_score")
 
-        data = request.json
-        ticket = data.get('ticket', {})
-        ticket_id = ticket.get('id')['ticketId']
+        try:
+            data = request.json
+            ticket = data.get('ticket', {})
+            ticket_id = ticket.get('id')
+            ticket_id = ticket_id['ticketId']
+        except Exception as e:
+            self.logger.error(f"Error getting ticket id: {e}")
+            return jsonify({'error': 'Missing ticket id', 'data': data, 'ticket': ticket}), 400
 
         comments = self.pinecone_service.list_ticket_vectors(ticket_id)
         total_score = 0 
