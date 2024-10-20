@@ -122,7 +122,7 @@ class SentimentChecker:
             vectors = self.pinecone_service.fetch_vectors(vectors_ids)
             return jsonify({'vectors': vectors}), 200
         else:
-            return jsonify({'error': 'No vectors found'}), 404
+            return jsonify({'vectors': {}}), 200
 
     @session_required
     def get_score(self) -> Tuple[Dict[str, str], int]:
