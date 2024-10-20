@@ -94,7 +94,6 @@ class SentimentChecker:
                     'upserted_count': 0
                 })
             else:
-                matched_count = 0
                 embedding = self.pinecone_service.get_embedding(text)
                 # Query emotions namespace
                 emotion_matches = self.pinecone_service.query_vectors(embedding, 
@@ -104,20 +103,22 @@ class SentimentChecker:
                                                                       include_values=False)
                 self.logger.error(f"Emotion matches: {emotion_matches}")
                 emotion_sum = 0
+                matched_count = 0
                 if 'matches' in emotion_matches:
                     for match in emotion_matches['matches']:
                         for emotion_name in match['metadata']:
                             if emotion_name in emotions and match['metadata'][emotion_name]:
                                 emotion_sum += emotions[emotion_name].score * match['score']
                                 matched_count += 1
-                        else:
-                            self.logger.warning(f"Emotion {emotion_name} not found in emotions dictionary")
-                self.logger.info(f"Emotion sum for comment {comment_id}: {emotion_sum}")
+                            else:
+                                self.logger.warning(f"Emotion {emotion_name} not found in emotions dictionary")
+                self.logger.error(f"Emotion sum for comment {comment_id}: {emotion_sum}")
                 # Prepare metadata for upsert
                 if matched_count > 0:   
                     emotion_score = emotion_sum / matched_count
                 else:
                     emotion_score = 0
+                self.logger.error(f"Emotion score for comment {comment_id}: {emotion_score}")
                 metadata = {
                     'text': text,
                     'timestamp': int(datetime.timestamp(datetime.now())),
