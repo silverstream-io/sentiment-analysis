@@ -26,3 +26,15 @@ def get_subdomain(request: Request) -> Tuple[Optional[str], Optional[Tuple[Dict[
         logger.info("Missing Zendesk subdomain in request headers")
         return None, ({'error': 'Missing Zendesk subdomain'}, 400)
     return subdomain, None
+
+def prune_duplicate_emotions(emotion_results):
+    unique_results = {}
+    for result in emotion_results:
+        text = result['metadata']['text']
+        emotions = tuple(sorted([k for k, v in result['metadata'].items() if v and k != 'text']))
+        key = (text, emotions)
+        
+        if key not in unique_results or result['score'] > unique_results[key]['score']:
+            unique_results[key] = result
+    
+    return list(unique_results.values())

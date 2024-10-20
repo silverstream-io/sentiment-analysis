@@ -102,11 +102,12 @@ class SentimentChecker:
                                                                       top_k=10, 
                                                                       include_metadata=True, 
                                                                       include_values=False)
+                self.logger.error(f"Emotion matches: {emotion_matches}")
                 emotion_sum = 0
                 if 'matches' in emotion_matches:
                     for match in emotion_matches['matches']:
                         for emotion_name in match['metadata']:
-                            if emotion_name in emotions:
+                            if emotion_name in emotions and match['metadata'][emotion_name]:
                                 emotion_sum += emotions[emotion_name].score * match['score']
                                 matched_count += 1
                         else:
