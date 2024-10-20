@@ -27,4 +27,7 @@ def page_not_found(error):
 
 if __name__ == '__main__':
     debug_mode = os.environ.get('FLASK_DEBUG')
-    app.run(debug=debug_mode)
+    if debug_mode:
+        app.run(debug=debug_mode)
+    else:
+        app.run()

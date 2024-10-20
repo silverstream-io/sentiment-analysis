@@ -104,7 +104,7 @@ class SentimentChecker:
             results.append({
                 'comment_id': comment_id,
                 'emotion_sum': emotion_sum,
-                'upsert_response': upsert_response
+                'upserted_count': upsert_response.upserted_count
             })
         
         self.logger.info(f"Finished processing comments for ticket: {ticket_id}")
