@@ -141,9 +141,12 @@ class SentimentChecker:
         total_score = 0 
         for comment in comments:
             total_score += comment['metadata']['emotion_sum']
-        emotion_score = total_score / len(comments)
+        if len(comments) > 0:
+            emotion_score = total_score / len(comments)
+        else:
+            emotion_score = 0
 
-        self.logger.info(f"Calculated score: {total_score}")
+        self.logger.info(f"Calculated score: {emotion_score}")
         return jsonify({'score': emotion_score}), 200
 
     @auth_required
