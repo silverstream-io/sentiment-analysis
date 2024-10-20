@@ -31,7 +31,10 @@ async function makeApiRequest(zafClient: any, endpoint: string, method: string, 
   try {
     const response = await fetch(url.toString(), {
       method,
-      body,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
       credentials: 'include',
     });
 
