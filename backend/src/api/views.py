@@ -9,7 +9,7 @@ from utils import get_subdomain
 import logging
 import os
 
-logger = logging.getLogger('api.server')
+logger = logging.getLogger('sentiment_checker')
 
 class Root: 
     def index(self):
@@ -175,10 +175,12 @@ class SentimentChecker:
             self.logger.error(f"Error getting ticket ids: {e}")
             return jsonify({'error': 'Invalid request data'}), 400
 
+        self.logger.info(f"Processing {len(tickets)} tickets")
         total_score = 0
         total_comments = 0
 
         for ticket_id in tickets:
+            self.logger.info(f"Processing ticket: {ticket_id}")
             vector_list = self.pinecone_service.list_ticket_vectors(ticket_id)
             vector_ids = [getattr(vector, 'id', vector.get('id')) if isinstance(vector, dict) else vector.id for vector in vector_list]
             comment_vectors = self.pinecone_service.fetch_vectors(vector_ids)

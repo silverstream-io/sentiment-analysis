@@ -4,10 +4,17 @@ from flask_cors import CORS
 import dotenv
 import logging
 import os
+import sys
 from .routes import root as root_blueprint, sentiment_checker as sentiment_checker_blueprint
 
 dotenv.load_dotenv()
-logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler(sys.stdout)]
+)
+logger = logging.getLogger('sentiment_checker')
+
 app = Flask(__name__)
 app.template_folder = '../templates'
 app.static_folder = '../static'
