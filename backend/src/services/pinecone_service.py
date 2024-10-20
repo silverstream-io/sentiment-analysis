@@ -75,13 +75,12 @@ class PineconeService:
             vectors.extend(response.vectors)
         return vectors
 
-    def fetch_vectors(self, vector_ids):
-        fetch_response = self.index.fetch(ids=vector_ids, namespace=self.namespace)
-        vectors = {}
-        for vector_id in vector_ids:
-            vector = fetch_response.vectors.get(vector_id)
-            if vector:
-                metadata = {k: v for k, v in vector.metadata.items() if k != 'text'}
-                vectors[vector_id] = metadata
+    def fetch_vectors(self, vector_ids, namespace=None):
+        vectors = []
+        if not namespace:
+            namespace = self.namespace
+        for i in range(0, len(vector_ids), 1000):
+            batch = vector_ids[i:i+1000]
+            fetch_response = self.index.fetch(ids=batch, namespace=namespace)
+            vectors.extend(fetch_response['vectors'])
         return vectors
-
