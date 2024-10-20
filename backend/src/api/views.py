@@ -169,25 +169,28 @@ class SentimentChecker:
         try:
             data = request.json
             tickets = data.get('tickets', [])
-            if not tickets:
-                return jsonify({'error': 'Missing ticket ids'}), 400
+            if not tickets or not isinstance(tickets, list):
+                return jsonify({'error': 'Invalid or missing ticket data'}), 400
+            ticket_ids = [ticket.get('ticketId') for ticket in tickets if ticket.get('ticketId')]
+            if not ticket_ids:
+                return jsonify({'error': 'No valid ticket IDs found'}), 400
         except Exception as e:
-            self.logger.error(f"Error getting ticket ids: {e}")
+            self.logger.error(f"Error processing ticket data: {e}")
             return jsonify({'error': 'Invalid request data'}), 400
 
-        self.logger.info(f"Processing {len(tickets)} tickets")
+        self.logger.info(f"Processing {len(ticket_ids)} tickets")
         total_score = 0
         total_comments = 0
 
-        for ticket_id in tickets:
+        for ticket_id in ticket_ids:
             self.logger.info(f"Processing ticket: {ticket_id}")
-            vector_list = self.pinecone_service.list_ticket_vectors(ticket_id)
+            vector_list = self.pinecone_service.list_ticket_vectors(str(ticket_id))
             vector_ids = [getattr(vector, 'id', vector.get('id')) if isinstance(vector, dict) else vector.id for vector in vector_list]
             comment_vectors = self.pinecone_service.fetch_vectors(vector_ids)
             
-            for vector_id in comment_vectors:
-                if 'metadata' in comment_vectors[vector_id] and 'emotion_score' in comment_vectors[vector_id]['metadata']:
-                    total_score += comment_vectors[vector_id]['metadata']['emotion_score']
+            for vector_id, vector_data in comment_vectors.items():
+                if 'metadata' in vector_data and 'emotion_score' in vector_data['metadata']:
+                    total_score += vector_data['metadata']['emotion_score']
                     total_comments += 1
 
         if total_comments > 0:
@@ -195,7 +198,7 @@ class SentimentChecker:
         else:
             emotion_score = 0
 
-        self.logger.info(f"Calculated score for {len(tickets)} tickets: {emotion_score}")
+        self.logger.info(f"Calculated score for {len(ticket_ids)} tickets: {emotion_score}")
         return jsonify({'score': emotion_score}), 200
 
     @auth_required
