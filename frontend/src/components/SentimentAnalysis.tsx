@@ -25,12 +25,14 @@ const SentimentAnalysis: React.FC<SentimentAnalysisProps> = ({ zafClient, onSent
         
         // Get the most recent customer comment
         const ticketComments = await zafClient.get('ticket.comments');
-        const latestCustomerComment = ticketComments
+        const comments = Array.isArray(ticketComments) ? ticketComments : []; 
+        const latestCustomerComment = comments
           .filter((comment: any) => comment.author.role === 'end-user')
           .pop();
 
         if (latestCustomerComment) {
           const latestCommentId = `${ticketId}#${latestCustomerComment.id}`;
+          console.log('latestCommentId', latestCommentId);
           
           // Check if the latest comment is already analyzed
           if (!storedVectors.some(vector => vector.id === latestCommentId)) {
