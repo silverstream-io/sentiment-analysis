@@ -5,6 +5,7 @@ from services.auth_service import auth_required, session_required
 from services.pinecone_service import PineconeService
 from models.emotions import emotions
 from utils import get_subdomain
+import html
 import logging
 import os
 
@@ -77,16 +78,21 @@ class SentimentChecker:
         results = []
     
         for comment_id, text in comments.items():
+            text = html.unescape(text)
+            text = ' '.join(text.split())
             embedding = self.pinecone_service.get_embedding(text)
             vector_id = f"{ticket_id}#{comment_id}"
             # Query emotions namespace
             emotion_matches = self.pinecone_service.query_vectors(embedding, namespace='emotions', top_k=10)
             emotion_sum = 0
-            for match in emotion_matches:
-                for emotion, is_present in match['metadata'].items():
-                    if is_present and emotion in emotions:
-                        emotion_sum += emotions[emotion].score
-            
+            if 'matches' in emotion_matches:
+                for match in emotion_matches['matches']:
+                    emotion_name = match['id']
+                    if emotion_name in emotions:
+                        emotion_sum += emotions[emotion_name].score
+                    else:
+                        self.logger.warning(f"Emotion {emotion_name} not found in emotions dictionary")
+            self.logger.info(f"Emotion sum for comment {comment_id}: {emotion_sum}")
             # Prepare metadata for upsert
             metadata = {
                 'text': text,
@@ -97,6 +103,7 @@ class SentimentChecker:
             upsert_response = self.pinecone_service.upsert_vector(vector_id, embedding, metadata)
             results.append({
                 'comment_id': comment_id,
+                'emotion_sum': emotion_sum,
                 'upsert_response': upsert_response
             })
         
