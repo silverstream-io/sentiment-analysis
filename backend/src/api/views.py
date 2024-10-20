@@ -90,35 +90,40 @@ class SentimentChecker:
             if existing_vector:
                 results.append({
                     'comment_id': comment_id,
-                    'emotion_sum': existing_vector['metadata']['emotion_sum'],
+                    'emotion_score': existing_vector['metadata']['emotion_score'],
                     'upserted_count': 0
                 })
             else:
                 embedding = self.pinecone_service.get_embedding(text)
                 # Query emotions namespace
-                emotion_matches = self.pinecone_service.query_vectors(embedding, namespace='emotions', top_k=10)
+                emotion_matches = self.pinecone_service.query_vectors(embedding, 
+                                                                      namespace='emotions', 
+                                                                      top_k=10, 
+                                                                      include_metadata=True, 
+                                                                      include_values=False)
                 emotion_sum = 0
                 if 'matches' in emotion_matches:
                     for match in emotion_matches['matches']:
-                        emotion_name = match['id']
-                        if emotion_name in emotions:
-                            emotion_sum += emotions[emotion_name].score
+                        for emotion_name in match['metadata']:
+                            if emotion_name in emotions:
+                                emotion_sum += emotions[emotion_name].score * match['score']
                         else:
                             self.logger.warning(f"Emotion {emotion_name} not found in emotions dictionary")
                 self.logger.info(f"Emotion sum for comment {comment_id}: {emotion_sum}")
                 # Prepare metadata for upsert
+                emotion_score = emotion_sum / len(emotion_matches['matches'])
                 metadata = {
-                'text': text,
-                'timestamp': int(datetime.timestamp(datetime.now())),
-                    'emotion_sum': emotion_sum
+                    'text': text,
+                    'timestamp': int(datetime.timestamp(datetime.now())),
+                    'emotion_score': emotion_score
                 }
                 # Upsert vector to Zendesk subdomain namespace
                 upsert_response = self.pinecone_service.upsert_vector(vector_id, embedding, metadata)
                 results.append({
                     'comment_id': comment_id,
-                    'emotion_sum': emotion_sum,
+                    'emotion_score': emotion_score,
                     'upserted_count': upsert_response.upserted_count
-            })
+                })
         
         self.logger.info(f"Finished processing comments for ticket: {ticket_id}")
         return jsonify({'message': 'Comments analyzed and stored successfully', 'results': results}), 200
@@ -167,8 +172,8 @@ class SentimentChecker:
         comment_vectors = self.pinecone_service.fetch_vectors(vector_ids)
         total_score = 0 
         for vector_id in comment_vectors:
-            if 'metadata' in comment_vectors[vector_id] and 'emotion_sum' in comment_vectors[vector_id]['metadata']:
-                total_score += comment_vectors[vector_id]['metadata']['emotion_sum']
+            if 'metadata' in comment_vectors[vector_id] and 'emotion_score' in comment_vectors[vector_id]['metadata']:
+                total_score += comment_vectors[vector_id]['metadata']['emotion_score']
         if len(comment_vectors) > 0:
             emotion_score = total_score / len(comment_vectors)
         else:
