@@ -76,11 +76,11 @@ class PineconeService:
         return vectors
 
     def fetch_vectors(self, vector_ids, namespace=None):
-        vectors = []
+        vectors = {}
         if not namespace:
             namespace = self.namespace
         for i in range(0, len(vector_ids), 1000):
             batch = vector_ids[i:i+1000]
             fetch_response = self.index.fetch(ids=list(batch), namespace=namespace)
-            vectors.append(fetch_response.vectors)
+            vectors.update(fetch_response.vectors)
         return vectors
