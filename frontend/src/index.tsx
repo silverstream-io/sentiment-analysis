@@ -3,7 +3,6 @@ import ReactDOM from 'react-dom';
 import App from './components/App';
 import './tailwind.css';
 import { initializeApp as initializeApiService } from './services/apiService';
-import { setCookie } from './services/cookieService';
 
 declare global {
   interface Window {

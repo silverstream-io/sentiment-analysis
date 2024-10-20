@@ -17,24 +17,29 @@ const SentimentAnalysis: React.FC<SentimentAnalysisProps> = ({ zafClient, onSent
           throw new Error('ZAFClient is not initialized');
         }
 
-        const ticketId = await zafClient.get('ticket.id');
+        const ticketId = await zafClient.context('ticketId');
         debugLog('Analyzing sentiment for ticket:', ticketId);
 
+        // Get all vectors associated with the current ticket
         const storedVectors = await listTicketVectors(zafClient, ticketId);
-        const ticketComments = await zafClient.get('ticket.comments');
         
-        const missingComments: { [id: string]: string } = {};
-        ticketComments.forEach((comment: any) => {
-          if (!storedVectors.includes(`${ticketId}#${comment.id}`)) {
-            missingComments[comment.id] = comment.value;
-          }
-        });
+        // Get the most recent customer comment
+        const ticketComments = await zafClient.get('ticket.comments');
+        const latestCustomerComment = ticketComments
+          .filter((comment: any) => comment.author.role === 'end-user')
+          .pop();
 
-        if (Object.keys(missingComments).length > 0) {
-          debugLog('Analyzing missing comments:', missingComments);
-          await analyzeComments(zafClient, ticketId, missingComments);
+        if (latestCustomerComment) {
+          const latestCommentId = `${ticketId}#${latestCustomerComment.id}`;
+          
+          // Check if the latest comment is already analyzed
+          if (!storedVectors.some(vector => vector.id === latestCommentId)) {
+            debugLog('Analyzing latest comment:', latestCustomerComment.value);
+            await analyzeComments(zafClient, ticketId, { [latestCustomerComment.id]: latestCustomerComment.value });
+          }
         }
 
+        // Get the updated score for the ticket
         const totalScore = await getScore(zafClient, ticketId);
         debugLog('Total score:', totalScore);
         setScore(totalScore);
@@ -49,22 +54,16 @@ const SentimentAnalysis: React.FC<SentimentAnalysisProps> = ({ zafClient, onSent
   }, [zafClient, onSentimentUpdate]);
 
   if (error) {
-    return <div className="error-message">Error: {error}. Please check your API key and try again.</div>;
+    return <div>Error: {error}</div>;
   }
-
-  if (score === null) {
-    return <div>Loading sentiment analysis...</div>;
-  }
-
-  const calculateAngle = (score: number) => {
-    return (score + 2) * 45;
-  };
-
-  const angle = calculateAngle(score);
 
   return (
-    <div className="sentiment-display" style={{ transform: `rotate(${angle}deg)` }}>
-      {/* Add your sentiment display UI here */}
+    <div>
+      {score !== null ? (
+        <div>Sentiment Score: {score.toFixed(2)}</div>
+      ) : (
+        <div>Analyzing sentiment...</div>
+      )}
     </div>
   );
 };
