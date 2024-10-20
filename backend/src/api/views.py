@@ -135,15 +135,15 @@ class SentimentChecker:
 
         data = request.json
         ticket = data.get('ticket', {})
-        ticket_id = ticket.get('id')
+        ticket_id = ticket.get('id')['ticketId']
 
-        comments = self.pinecone_service.list_tickets(ticket_id)
-        emotion_score = 0 
+        comments = self.pinecone_service.list_ticket_vectors(ticket_id)
+        total_score = 0 
         for comment in comments:
-            emotion_score += comment['metadata']['emotion_sum']
-        emotion_score = emotion_score / len(comments)
+            total_score += comment['metadata']['emotion_sum']
+        emotion_score = total_score / len(comments)
 
-        self.logger.info(f"Calculated score: {emotion_score}")
+        self.logger.info(f"Calculated score: {total_score}")
         return jsonify({'score': emotion_score}), 200
 
     @auth_required
