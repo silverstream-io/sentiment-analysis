@@ -10,6 +10,7 @@ dotenv.load_dotenv()
 logger = logging.getLogger(__name__)
 app = Flask(__name__)
 app.template_folder = '../templates'
+app.static_folder = '../static'
 app.config['SESSION_TYPE'] = 'filesystem'
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
 app.register_blueprint(root_blueprint)
