@@ -1,11 +1,12 @@
 from typing import Tuple, Dict
-from flask import jsonify, request, render_template
+from flask import jsonify, request, render_template, make_response, session
 from datetime import datetime
-from services.auth_service import auth_required
+from services.auth_service import auth_required, session_required
 from services.pinecone_service import PineconeService
 from models.emotions import emotions
 from utils import get_subdomain
 import logging
+import os
 
 logger = logging.getLogger('api.server')
 
@@ -55,6 +56,7 @@ class SentimentChecker:
         self.logger.info(f"Initialized SentimentChecker with subdomain: {self.subdomain}")
 
     @auth_required
+    @session_required
     def analyze_comments(self) -> Tuple[Dict[str, str], int]:
         """
         Analyze the comments of a ticket and store them in the database.
@@ -103,6 +105,7 @@ class SentimentChecker:
         return jsonify({'message': 'Comments analyzed and stored successfully', 'results': results}), 200
 
     @auth_required
+    @session_required
     def get_ticket_vectors(self) -> Tuple[Dict[str, str], int]:
         """
         Get the vectors of a ticket or tickets.
@@ -120,6 +123,7 @@ class SentimentChecker:
         return jsonify({'vectors': vectors}), 200
 
     @auth_required
+    @session_required
     def get_score(self) -> Tuple[Dict[str, str], int]:
         """
         Get the score of a ticket or tickets based on the emotions of the comments.
@@ -150,9 +154,17 @@ class SentimentChecker:
         self.init()
         self.logger.info("Received request for entry point")
         
-        form_data = request.form
+        original_query_string = request.query_string.decode()
+        session_token = os.urandom(24).hex()
+        session['session_token'] = session_token
+        response = make_response(render_template(
+            f'{self.templates}/entry.html', 
+            subdomain=self.subdomain,
+            original_query_string=original_query_string
+        ))
+        response.set_cookie('session_token', session_token, secure=True, httponly=True, samesite='None')
 
-        return render_template(f'{self.templates}/entry.html', subdomain=self.subdomain, form_data=dict(form_data))
+        return response
     
     def health(self):
         return render_template(f'{self.templates}/health.html')

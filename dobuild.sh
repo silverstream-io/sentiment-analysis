@@ -1,6 +1,5 @@
 #!/bin/bash
 
 cd frontend && npm run build && cd ..
-for i in js css;do
-cp frontend/build/static/$i/main.*.$i app/assets/main.$i
-done
+cp frontend/build/static/js/main.*.js backend/src/static/js/sentiment-checker.js
+cp frontend/build/static/css/main.*.css backend/src/static/css/main.css

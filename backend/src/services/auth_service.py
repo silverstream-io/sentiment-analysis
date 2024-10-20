@@ -1,5 +1,5 @@
 from functools import wraps
-from flask import request, jsonify, session, make_response
+from flask import session, request, jsonify, make_response
 import jwt
 import os
 import logging
@@ -59,4 +59,13 @@ def auth_required(f):
         response = make_response(f(*args, **kwargs))
         response.set_cookie('jwt_token', token, httponly=True, secure=True, samesite='Strict')
         return response
+    return decorated_function
+
+
+def session_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'session_token' not in session or session['session_token'] != request.cookies.get('session_token'):
+            return jsonify({'error': 'Invalid or missing session'}), 401
+        return f(*args, **kwargs)
     return decorated_function

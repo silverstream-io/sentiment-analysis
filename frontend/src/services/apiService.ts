@@ -1,15 +1,17 @@
-import { formatDiagnostic } from 'typescript'; import { Sentiment, Comment } from '../types';
-import { getCookie, setCookie } from './cookieService';
+import { formatDiagnostic } from 'typescript';
+import { Sentiment, Comment } from '../types';
+import Cookies from 'js-cookie';
 
-const BACKEND_URL = 'https://api.silverstream.io';
-// const BACKEND_URL = 'https://silverstream.onrender.com';
-// const BACKEND_URL = 'http://localhost:4000';
+const BACKEND_URL = 'https://api.silverstream.io/sentiment-checker';
 const DEBUG = process.env.REACT_APP_DEBUG === 'true';
 
-export async function initializeApp(zafClient: any): Promise<void> {
+let originalQueryString = '';
+
+export async function initializeApp(zafClient: any, queryString: string): Promise<void> {
   if (!zafClient) {
     throw new Error('ZAFClient is not initialized');
   }
+  originalQueryString = queryString;
   console.log('App initialized');
 }
 
@@ -19,31 +21,17 @@ async function makeApiRequest(zafClient: any, endpoint: string, method: string, 
 
   debugLog(`Making API request to ${BACKEND_URL}${endpoint}`, { method, subdomain, body });
 
-  const formData = new FormData();
+  const sessionToken = Cookies.get('session_token');
+  console.log('Session token in cookie:', sessionToken);
 
-  if (body) {
-    for (const key in body) {
-      formData.append(key, JSON.stringify(body[key]));
-    }
-  }
+  const url = new URL(`${BACKEND_URL}${endpoint}`);
+  url.search = originalQueryString;
 
-  const token = getCookie('token');
-  console.log('Token in cookie:', token);
-  const headers: HeadersInit = {
-    'X-Zendesk-Subdomain': subdomain,
-  };
-
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-
-  debugLog(`Trying to fetch ${BACKEND_URL}${endpoint} with method ${method}`);
-  debugLog(`With form data: ${formData}`);
+  debugLog(`Trying to fetch ${url.toString()} with method ${method}`);
   try {
-    const response = await fetch(`${BACKEND_URL}${endpoint}`, {
+    const response = await fetch(url.toString(), {
       method,
-      headers,
-      body: formData,
+      body,
       credentials: 'include',
     });
 
@@ -55,13 +43,7 @@ async function makeApiRequest(zafClient: any, endpoint: string, method: string, 
 
     const responseData = await response.json();
     
-    // Check if the response includes a new token
-    const newToken = response.headers.get('X-JWT-Token');
-    if (newToken) {
-      setCookie('jwt_token', newToken, { secure: true, sameSite: 'strict' });
-    }
-
-    debugLog(`API response from ${BACKEND_URL}${endpoint}:`, responseData);
+    debugLog(`API response from ${url.toString()}:`, responseData);
     return responseData;
   } catch (error) {
     debugLog(`API request failed: ${error}`);
@@ -69,7 +51,7 @@ async function makeApiRequest(zafClient: any, endpoint: string, method: string, 
   }
 }
 
-export async function listTicketVectors(zafClient: any, ticketId: string): Promise<string[]> {
+export async function listTicketVectors(zafClient: any, ticketId: string): Promise<any[]> {
   debugLog('Listing ticket vectors for ticket:', ticketId);
   const data = await makeApiRequest(zafClient, '/api/get-ticket-vectors', 'POST', { ticket: { id: ticketId } });
   return data.vectors;

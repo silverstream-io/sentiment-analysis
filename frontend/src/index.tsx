@@ -7,31 +7,13 @@ import { setCookie } from './services/cookieService';
 
 declare global {
   interface Window {
-    initializeApp: (client: any) => void;
+    initializeApp: (client: any, originalQueryString: string) => void;
   }
 }
 
-window.initializeApp = async (client) => {
+window.initializeApp = async (client, originalQueryString) => {
   try {
-    console.log('Getting form data');
-    const form = document.querySelector('form');
-
-    if (form) {
-      const formData = new FormData(form);
-
-      // Iterate over all form data entries and log them to the console
-      formData.forEach((value, key) => {
-        console.log(`${key}: ${value}`);
-      });
-    } else {
-      console.error('No form found');
-    }
-  } catch (error) {
-    console.error('Error getting form data:', error);
-  }
-
-  try {
-    await initializeApiService(client);
+    await initializeApiService(client, originalQueryString);
 
     ReactDOM.render(
       <React.StrictMode>
