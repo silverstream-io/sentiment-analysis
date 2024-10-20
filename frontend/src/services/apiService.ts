@@ -82,11 +82,14 @@ export async function getLast30DaysSentiment(zafClient: any): Promise<number> {
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
+  const ticketData = await zafClient.get('ticket');
+  const requesterId = ticketData.ticket.requester.id;
+
   const ticketsResponse = await zafClient.request({
     url: '/api/v2/search.json',
     type: 'GET',
     data: {
-      query: `type:ticket created>${thirtyDaysAgo.toISOString()} requester:current_user`,
+      query: `type:ticket created>${thirtyDaysAgo.toISOString()} requester:${requesterId}`,
     },
   });
 
