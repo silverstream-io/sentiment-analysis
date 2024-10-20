@@ -92,9 +92,9 @@ export async function getLast30DaysSentiment(zafClient: any): Promise<number> {
 
   const ticketIds = ticketsResponse.results.map((ticket: any) => ticket.id);
   
+  console.log('Ticket IDs for last 30 days:', ticketIds);
   if (ticketIds.length === 0) {
     return 0;
   }
-
   return await getScore(zafClient, ticketIds);
 }
