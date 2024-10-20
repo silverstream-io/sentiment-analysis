@@ -82,5 +82,5 @@ class PineconeService:
         for i in range(0, len(vector_ids), 1000):
             batch = vector_ids[i:i+1000]
             fetch_response = self.index.fetch(ids=list(batch), namespace=namespace)
-            vectors.extend(fetch_response['vectors'])
+            vectors.append(fetch_response.vectors)
         return vectors
