@@ -73,6 +73,7 @@ class SentimentChecker:
         if not comments or not ticket_id:
             self.logger.info("Missing comments or ticket id in request data")
             return jsonify({'error': 'Missing comments or ticket id'}), 400
+        ticket_id = ticket_id['ticketId']
 
         self.logger.info(f"Processing comments for ticket: {ticket_id}")
         results = []
@@ -80,31 +81,43 @@ class SentimentChecker:
         for comment_id, text in comments.items():
             text = html.unescape(text)
             text = ' '.join(text.split())
-            embedding = self.pinecone_service.get_embedding(text)
             vector_id = f"{ticket_id}#{comment_id}"
-            # Query emotions namespace
-            emotion_matches = self.pinecone_service.query_vectors(embedding, namespace='emotions', top_k=10)
-            emotion_sum = 0
-            if 'matches' in emotion_matches:
-                for match in emotion_matches['matches']:
-                    emotion_name = match['id']
-                    if emotion_name in emotions:
-                        emotion_sum += emotions[emotion_name].score
-                    else:
-                        self.logger.warning(f"Emotion {emotion_name} not found in emotions dictionary")
-            self.logger.info(f"Emotion sum for comment {comment_id}: {emotion_sum}")
-            # Prepare metadata for upsert
-            metadata = {
+            try:
+                existing_vector = self.pinecone_service.fetch_vector(vector_id)
+            except Exception as e:
+                self.logger.warning(f"Error fetching vector {vector_id}: {e}")
+                existing_vector = None
+            if existing_vector:
+                results.append({
+                    'comment_id': comment_id,
+                    'emotion_sum': existing_vector['metadata']['emotion_sum'],
+                    'upserted_count': 0
+                })
+            else:
+                embedding = self.pinecone_service.get_embedding(text)
+                # Query emotions namespace
+                emotion_matches = self.pinecone_service.query_vectors(embedding, namespace='emotions', top_k=10)
+                emotion_sum = 0
+                if 'matches' in emotion_matches:
+                    for match in emotion_matches['matches']:
+                        emotion_name = match['id']
+                        if emotion_name in emotions:
+                            emotion_sum += emotions[emotion_name].score
+                        else:
+                            self.logger.warning(f"Emotion {emotion_name} not found in emotions dictionary")
+                self.logger.info(f"Emotion sum for comment {comment_id}: {emotion_sum}")
+                # Prepare metadata for upsert
+                metadata = {
                 'text': text,
                 'timestamp': int(datetime.timestamp(datetime.now())),
-                'emotion_sum': emotion_sum
-            }
-            # Upsert vector to Zendesk subdomain namespace
-            upsert_response = self.pinecone_service.upsert_vector(vector_id, embedding, metadata)
-            results.append({
-                'comment_id': comment_id,
-                'emotion_sum': emotion_sum,
-                'upserted_count': upsert_response.upserted_count
+                    'emotion_sum': emotion_sum
+                }
+                # Upsert vector to Zendesk subdomain namespace
+                upsert_response = self.pinecone_service.upsert_vector(vector_id, embedding, metadata)
+                results.append({
+                    'comment_id': comment_id,
+                    'emotion_sum': emotion_sum,
+                    'upserted_count': upsert_response.upserted_count
             })
         
         self.logger.info(f"Finished processing comments for ticket: {ticket_id}")
