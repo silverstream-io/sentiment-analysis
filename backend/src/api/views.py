@@ -163,7 +163,8 @@ class SentimentChecker:
             return jsonify({'error': 'Missing ticket id', 'data': data, 'ticket': ticket}), 400
 
         vector_list = self.pinecone_service.list_ticket_vectors(ticket_id)
-        comment_vectors = self.pinecone_service.fetch_vectors(vector_list)
+        vector_ids = [vector['id'] for vector in vector_list]
+        comment_vectors = self.pinecone_service.fetch_vectors(vector_ids)
         total_score = 0 
         for vector_id in comment_vectors:
             if 'metadata' in comment_vectors[vector_id] and 'emotion_sum' in comment_vectors[vector_id]['metadata']:
