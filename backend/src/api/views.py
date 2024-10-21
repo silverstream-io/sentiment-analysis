@@ -120,14 +120,14 @@ class SentimentChecker:
                     emotion_score = emotion_sum / matched_count
                 else:
                     emotion_score = 0
-                if emotion_score > 10:
-                    emotion_score = 10
-                elif emotion_score < -10:
-                    emotion_score = -10
+                if emotion_score > 1:
+                    emotion_score = 1
+                elif emotion_score < -1:
+                    emotion_score = -1
                 self.logger.debug(f"Emotion score for comment {comment_id}: {emotion_score}, request remote addr: {request.remote_addr}")
                 metadata = {
                     'text': text,
-                    'timestamp': int(datetime.timestamp(datetime.now())),
+                    'timestamp': int(comments[comment_id].get('timestamp', datetime.timestamp(datetime.now()))),
                     'emotion_score': emotion_score
                 }
                 # Upsert vector to Zendesk subdomain namespace
@@ -186,7 +186,7 @@ class SentimentChecker:
         
         total_weighted_score = 0
         total_weight = 0
-        lambda_factor = 0.1  # Adjust this value to control the decay rate
+        lambda_factor = 0.5  # Adjust this value to control the decay rate
 
         for ticket_id in ticket_ids:
             self.logger.debug(f"Processing ticket: {ticket_id}, request remote addr: {request.remote_addr}")
@@ -238,3 +238,4 @@ class SentimentChecker:
     
     def health(self):
         return render_template(f'{self.templates}/health.html')
+
