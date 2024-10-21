@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { listTicketVectors, analyzeComments, getScore, debugLog, getLast30DaysSentiment } from '../services/apiService';
+import { listTicketVectors, analyzeComments, getScore, debugLog, getLast30DaysSentiment, errorLog } from '../services/apiService';
 
 interface SentimentAnalysisProps {
   zafClient: any;
@@ -11,8 +11,8 @@ const SentimentAnalysis: React.FC<SentimentAnalysisProps> = ({ zafClient, onSent
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function analyzeSentiment() {
-      try {
+      async function analyzeSentiment() {
+        try {
         if (!zafClient) {
           throw new Error('ZAFClient is not initialized');
         }
@@ -25,17 +25,17 @@ const SentimentAnalysis: React.FC<SentimentAnalysisProps> = ({ zafClient, onSent
         
         // Get all customer comments
         const ticketCommentsData = await zafClient.get('ticket.comments');
-        console.log('ticketCommentsData', ticketCommentsData);
+        debugLog('ticketCommentsData', ticketCommentsData);
         const ticketComments = ticketCommentsData['ticket.comments'];
         const customerComments = Array.isArray(ticketComments) 
           ? ticketComments.filter((comment: any) => comment.author.role === 'end-user')
           : [];
 
-        console.log('customerComments', customerComments);
+        debugLog('customerComments', customerComments);
         const commentsToAnalyze: { [id: string]: string } = {};
 
-        console.log('storedVectors', storedVectors);
-        console.log('storedVectors.length', storedVectors.length);
+        debugLog('storedVectors', storedVectors);
+        debugLog('storedVectors.length', storedVectors.length);
         if (storedVectors.length === 0 || storedVectors.length === undefined) {
           // If no vectors exist, analyze all customer comments
           customerComments.forEach((comment: any) => {
@@ -50,7 +50,7 @@ const SentimentAnalysis: React.FC<SentimentAnalysisProps> = ({ zafClient, onSent
             }
           });
         }
-        console.log('commentsToAnalyze', commentsToAnalyze);
+        debugLog('commentsToAnalyze', commentsToAnalyze);
 
         // Analyze new comments if any
         if (Object.keys(commentsToAnalyze).length > 0) {
@@ -71,10 +71,10 @@ const SentimentAnalysis: React.FC<SentimentAnalysisProps> = ({ zafClient, onSent
       } catch (error) {
         console.error('Error analyzing sentiment:', error);
         setError(error instanceof Error ? error.message : 'An unknown error occurred');
+        }
       }
-    }
 
-    analyzeSentiment();
+      analyzeSentiment();
   }, [zafClient, onSentimentUpdate]);
 
   if (error) {

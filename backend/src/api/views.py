@@ -51,10 +51,10 @@ class SentimentChecker:
     def init(self):
         self.subdomain, error = get_subdomain(request)
         if error:
-            self.logger.error(f"Error getting subdomain: {error}")
+            self.logger.error(f"Error getting subdomain: {error}, request remote addr: {request.remote_addr}")
             raise Exception(error)
         self.pinecone_service = PineconeService(self.subdomain)
-        self.logger.info(f"Initialized SentimentChecker with subdomain: {self.subdomain}")
+        self.logger.info(f"Initialized SentimentChecker with subdomain: {self.subdomain}, request remote addr: {request.remote_addr}")
 
     @session_required
     def analyze_comments(self) -> Tuple[Dict[str, str], int]:
@@ -64,18 +64,18 @@ class SentimentChecker:
 
         self.init()
 
-        self.logger.info("Received request for analyze_comments")
+        self.logger.info(f"Received request for analyze_comments, request remote addr: {request.remote_addr}")
 
         data = request.json
         ticket = data.get('ticket', {})
         comments = ticket.get('comments', {})
         ticket_id = ticket.get('id')
         if not comments or not ticket_id:
-            self.logger.info("Missing comments or ticket id in request data")
+            self.logger.warning(f"Missing comments or ticket id in request data, request remote addr: {request.remote_addr}")
             return jsonify({'error': 'Missing comments or ticket id'}), 400
         ticket_id = ticket_id['ticketId']
 
-        self.logger.info(f"Processing comments for ticket: {ticket_id}")
+        self.logger.info(f"Processing comments for ticket: {ticket_id}, request remote addr: {request.remote_addr}")
         results = []
     
         for comment_id, text in comments.items():
@@ -85,17 +85,17 @@ class SentimentChecker:
             try:
                 existing_vector = self.pinecone_service.fetch_vector(vector_id)
             except Exception as e:
-                self.logger.error(f"Error fetching vector {vector_id}: {e}")
+                self.logger.debug(f"Error fetching vector {vector_id}: {e}, request remote addr: {request.remote_addr}")
                 existing_vector = None
             if existing_vector:
-                self.logger.error(f"Existing vector found for comment {comment_id}: {existing_vector}")
+                self.logger.debug(f"Existing vector found for comment {comment_id}: {existing_vector}, request remote addr: {request.remote_addr}")
                 results.append({
                     'comment_id': comment_id,
                     'emotion_score': existing_vector['metadata']['emotion_score'],
                     'upserted_count': 0
                 })
             else:
-                self.logger.error(f"No existing vector found for comment {comment_id}")
+                self.logger.debug(f"No existing vector found for comment {comment_id}, request remote addr: {request.remote_addr}")
                 embedding = self.pinecone_service.get_embedding(text)
                 # Query emotions namespace
                 emotion_matches = self.pinecone_service.query_vectors(embedding, 
@@ -103,7 +103,7 @@ class SentimentChecker:
                                                                       top_k=10, 
                                                                       include_metadata=True, 
                                                                       include_values=False)
-                self.logger.error(f"Emotion matches: {emotion_matches}")
+                self.logger.debug(f"Emotion matches: {emotion_matches}, request remote addr: {request.remote_addr}")
                 emotion_sum = 0
                 matched_count = 0
                 for match in emotion_matches:
@@ -112,14 +112,14 @@ class SentimentChecker:
                             emotion_sum += emotions[emotion_name].score * match['score']
                             matched_count += 1
                         else:
-                            self.logger.warning(f"Emotion {emotion_name} not found in emotions dictionary")
-                self.logger.error(f"Emotion sum for comment {comment_id}: {emotion_sum}")
+                            self.logger.warning(f"Emotion {emotion_name} not found in emotions dictionary, request remote addr: {request.remote_addr}")
+                self.logger.debug(f"Emotion sum for comment {comment_id}: {emotion_sum}, request remote addr: {request.remote_addr}")
                 # Prepare metadata for upsert
                 if matched_count > 0:   
                     emotion_score = emotion_sum / matched_count
                 else:
                     emotion_score = 0
-                self.logger.error(f"Emotion score for comment {comment_id}: {emotion_score}")
+                self.logger.debug(f"Emotion score for comment {comment_id}: {emotion_score}, request remote addr: {request.remote_addr}")
                 metadata = {
                     'text': text,
                     'timestamp': int(datetime.timestamp(datetime.now())),
@@ -133,7 +133,7 @@ class SentimentChecker:
                     'upserted_count': upsert_response.upserted_count
                 })
         
-        self.logger.info(f"Finished processing comments for ticket: {ticket_id}")
+        self.logger.info(f"Finished processing comments for ticket: {ticket_id}, request remote addr: {request.remote_addr}")
         return jsonify({'message': 'Comments analyzed and stored successfully', 'results': results}), 200
 
     @session_required
@@ -143,7 +143,7 @@ class SentimentChecker:
         """
 
         self.init()
-        self.logger.info("Received request for get_ticket_vectors")
+        self.logger.info(f"Received request for get_ticket_vectors, request remote addr: {request.remote_addr}")
 
         data = request.json
         ticket = data.get('ticket', {})
@@ -164,7 +164,7 @@ class SentimentChecker:
         """
 
         self.init()
-        self.logger.info("Received request for get_score")
+        self.logger.info(f"Received request for get_score, request remote addr: {request.remote_addr}")
 
         try:
             data = request.json
@@ -175,15 +175,15 @@ class SentimentChecker:
             if not ticket_ids:
                 return jsonify({'error': 'No valid ticket IDs found'}), 400
         except Exception as e:
-            self.logger.error(f"Error processing ticket data: {e}")
+            self.logger.error(f"Error processing ticket data: {e}, request remote addr: {request.remote_addr}")
             return jsonify({'error': 'Invalid request data'}), 400
 
-        self.logger.info(f"Processing {len(ticket_ids)} tickets")
+        self.logger.debug(f"Processing {len(ticket_ids)} tickets for score calculation, request remote addr: {request.remote_addr}")
         total_score = 0
         total_comments = 0
 
         for ticket_id in ticket_ids:
-            self.logger.info(f"Processing ticket: {ticket_id}")
+            self.logger.debug(f"Processing ticket: {ticket_id}, request remote addr: {request.remote_addr}")
             vector_list = self.pinecone_service.list_ticket_vectors(str(ticket_id))
             vector_ids = [getattr(vector, 'id', vector.get('id')) if isinstance(vector, dict) else vector.id for vector in vector_list]
             comment_vectors = self.pinecone_service.fetch_vectors(vector_ids)
@@ -198,7 +198,7 @@ class SentimentChecker:
         else:
             emotion_score = 0
 
-        self.logger.info(f"Calculated score for {len(ticket_ids)} tickets: {emotion_score}")
+        self.logger.info(f"Calculated score for {len(ticket_ids)} tickets: {emotion_score}, request remote addr: {request.remote_addr}")
         return jsonify({'score': emotion_score}), 200
 
     @auth_required
@@ -208,7 +208,7 @@ class SentimentChecker:
         """
 
         self.init()
-        self.logger.info("Received request for entry point")
+        self.logger.info(f"Received request for entry point, request remote addr: {request.remote_addr}")
         
         original_query_string = request.query_string.decode()
         session_token = os.urandom(24).hex()
@@ -224,4 +224,5 @@ class SentimentChecker:
     
     def health(self):
         return render_template(f'{self.templates}/health.html')
+
 

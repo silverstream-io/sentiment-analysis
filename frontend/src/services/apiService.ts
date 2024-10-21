@@ -1,7 +1,4 @@
-import { formatDiagnostic } from 'typescript';
-import { Sentiment, Comment } from '../types';
 import Cookies from 'js-cookie';
-
 const BACKEND_URL = 'https://api.silverstream.io/sentiment-checker';
 const DEBUG = process.env.REACT_APP_DEBUG === 'true';
 
@@ -12,7 +9,7 @@ export async function initializeApp(zafClient: any, queryString: string): Promis
     throw new Error('ZAFClient is not initialized');
   }
   originalQueryString = queryString;
-  console.log('App initialized');
+  debugLog('App initialized');
 }
 
 async function makeApiRequest(zafClient: any, endpoint: string, method: string, body?: any) {
@@ -22,7 +19,7 @@ async function makeApiRequest(zafClient: any, endpoint: string, method: string, 
   debugLog(`Making API request to ${BACKEND_URL}${endpoint}`, { method, subdomain, body });
 
   const sessionToken = Cookies.get('session_token');
-  console.log('Session token in cookie:', sessionToken);
+  debugLog('Session token in cookie:', sessionToken);
 
   const url = new URL(`${BACKEND_URL}${endpoint}`);
   url.search = originalQueryString;
@@ -40,7 +37,7 @@ async function makeApiRequest(zafClient: any, endpoint: string, method: string, 
 
     if (!response.ok) {
       const errorText = await response.text();
-      debugLog(`API request failed: ${response.status} ${response.statusText}`, errorText);
+      errorLog(`API request failed: ${response.status} ${response.statusText}`, errorText);
       throw new Error(`API request failed: ${response.status} ${response.statusText}`);
     }
 
@@ -86,6 +83,18 @@ export function debugLog(...args: any[]) {
   }
 }
 
+export function errorLog(...args: any[]) {
+  console.error('[ERROR]', ...args);
+}
+
+export function infoLog(...args: any[]) {
+  console.info('[INFO]', ...args);
+}
+
+export function warnLog(...args: any[]) {
+  console.warn('[WARN]', ...args);
+} 
+
 export async function getLast30DaysSentiment(zafClient: any): Promise<number> {
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -103,9 +112,11 @@ export async function getLast30DaysSentiment(zafClient: any): Promise<number> {
 
   const ticketIds = searchResponse.results.map((result: any) => result.id);
   
-  console.log('Ticket IDs for last 30 days:', ticketIds);
   if (ticketIds.length === 0) {
+    warnLog('No ticket IDs found for last 30 days');
     return 0;
+  } else {
+    debugLog('Ticket IDs for last 30 days:', ticketIds);
   }
   return await getScore(zafClient, ticketIds);
 }
