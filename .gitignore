@@ -179,3 +179,10 @@ frontend/build/
 # Flask
 .flaskenv
 flask_session/
+
+# Ignore Zendesk app config and zip file
+app/zcli.apps.config.json
+app.zip
+
+# Ignore Mac DS_Store file
+.DS_Store
