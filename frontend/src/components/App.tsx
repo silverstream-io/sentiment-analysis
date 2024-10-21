@@ -40,13 +40,19 @@ const App: React.FC<AppProps> = ({ zafClient }) => {
         <div>
           <h2 className="text-base font-semibold mb-1">Current Ticket</h2>
           {currentSentiment !== null && (
-            <SentimentDisplay sentiment={currentSentiment} greyscale={greyscale} />
+            <>
+              <p>Raw Score: {currentSentiment.toFixed(2)}</p>
+              <SentimentDisplay sentiment={currentSentiment} greyscale={greyscale} />
+            </>
           )}
         </div>
         <div>
           <h2 className="text-base font-semibold mb-1">Last 30 Days</h2>
           {lastThirtySentiment !== null && (
-            <SentimentDisplay sentiment={lastThirtySentiment} greyscale={greyscale} />
+            <>
+              <p>Raw Score: {lastThirtySentiment.toFixed(2)}</p>
+              <SentimentDisplay sentiment={lastThirtySentiment} greyscale={greyscale} />
+            </>
           )}
         </div>
       </div>
