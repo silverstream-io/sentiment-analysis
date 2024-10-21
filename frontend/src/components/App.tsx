@@ -1,18 +1,18 @@
 import React, { useState } from 'react';
 import SentimentAnalysis from './SentimentAnalysis';
 import SentimentDisplay from './SentimentDisplay';
-
+import { SentimentRange } from '../types';
 interface AppProps {
   zafClient: any;
 }
 
 const App: React.FC<AppProps> = ({ zafClient }) => {
-  const [currentSentiment, setCurrentSentiment] = useState<number | null>(null);
-  const [lastThirtySentiment, setLastThirtySentiment] = useState<number | null>(null);
+  const [currentSentiment, setCurrentSentiment] = useState<SentimentRange | null>(null);
+  const [lastThirtySentiment, setLastThirtySentiment] = useState<SentimentRange | null>(null);
   const [isAnalysisComplete, setIsAnalysisComplete] = useState(false);
   const [greyscale] = useState(false);
 
-  const handleSentimentUpdate = (ticketId: string | null, sentiment: number) => {
+  const handleSentimentUpdate = (ticketId: string | null, sentiment: SentimentRange) => {
     if (ticketId === null) {
       setLastThirtySentiment(sentiment);
     } else {
