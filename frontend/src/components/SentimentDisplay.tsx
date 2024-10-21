@@ -58,6 +58,7 @@ const SentimentDisplay: React.FC<Props> = ({ sentiment, greyscale = false }) => 
   };
 
   const drawPointer = (ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, degree: number) => {
+    console.log('Drawing pointer with degree:', degree);
     const centerX = canvas.width / 2;
     const centerY = canvas.height - 10;
     const radius = 90; // Same as the half-circle radius
@@ -98,7 +99,10 @@ const SentimentDisplay: React.FC<Props> = ({ sentiment, greyscale = false }) => 
 
   const getSentimentDegree = (sentiment: number): number => {
     // Map sentiment from [-2, 2] to [0, 180]
-    return ((sentiment + 2) / 4) * 180;
+    console.log('Getting sentiment degree for:', sentiment);
+    const degree = ((sentiment + 2) / 4) * 180;
+    console.log('Calculated degree:', degree);
+    return degree;
   };
 
   return (
