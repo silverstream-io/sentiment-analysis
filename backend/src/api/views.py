@@ -62,11 +62,8 @@ class SentimentChecker:
         """
         Analyze the comments of a ticket and store them in the database.
         """
-
         self.init()
-
         self.logger.info(f"Received request for analyze_comments, request remote addr: {request.remote_addr}")
-
         data = request.json
         ticket = data.get('ticket', {})
         comments = ticket.get('comments', {})
@@ -74,20 +71,26 @@ class SentimentChecker:
         if not comments or not ticket_id:
             self.logger.warning(f"Missing comments or ticket id in request data, request remote addr: {request.remote_addr}")
             return jsonify({'error': 'Missing comments or ticket id'}), 400
-        ticket_id = ticket_id['ticketId']
 
         self.logger.info(f"Processing comments for ticket: {ticket_id}, request remote addr: {request.remote_addr}")
         results = []
-    
-        for comment_id, text in comments.items():
+        for comment_id, comment_data in comments.items():
+            text = comment_data.get('text', '')
+            timestamp = comment_data.get('timestamp')
+            
+            if not text:
+                continue
+
             text = bs(text, 'html.parser').get_text()
             text = ' '.join(text.split())
             vector_id = f"{ticket_id}#{comment_id}"
+
             try:
                 existing_vector = self.pinecone_service.fetch_vector(vector_id)
             except Exception as e:
                 self.logger.debug(f"Error fetching vector {vector_id}: {e}, request remote addr: {request.remote_addr}")
                 existing_vector = None
+
             if existing_vector:
                 self.logger.debug(f"Existing vector found for comment {comment_id}: {existing_vector}, request remote addr: {request.remote_addr}")
                 results.append({
@@ -127,7 +130,7 @@ class SentimentChecker:
                 self.logger.debug(f"Emotion score for comment {comment_id}: {emotion_score}, request remote addr: {request.remote_addr}")
                 metadata = {
                     'text': text,
-                    'timestamp': int(comments[comment_id].get('timestamp', datetime.timestamp(datetime.now()))),
+                    'timestamp': int(timestamp) if timestamp else int(datetime.timestamp(datetime.now())),
                     'emotion_score': emotion_score
                 }
                 # Upsert vector to Zendesk subdomain namespace
@@ -137,7 +140,7 @@ class SentimentChecker:
                     'emotion_score': emotion_score,
                     'upserted_count': upsert_response.upserted_count
                 })
-        
+
         self.logger.info(f"Finished processing comments for ticket: {ticket_id}, request remote addr: {request.remote_addr}")
         return jsonify({'message': 'Comments analyzed and stored successfully', 'results': results}), 200
 
@@ -238,4 +241,3 @@ class SentimentChecker:
     
     def health(self):
         return render_template(f'{self.templates}/health.html')
-
