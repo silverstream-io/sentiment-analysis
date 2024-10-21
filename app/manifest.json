@@ -1,0 +1,20 @@
+{
+  "name": "Sentiment Checker",
+  "signedUrls": true,
+  "author": {
+    "name": "Silverstream",
+    "email": "support@silverstream.io"
+  },
+  "defaultLocale": "en",
+  "private": true,
+  "location": {
+    "support": {
+      "ticket_sidebar": {
+        "url": "https://api.silverstream.io/sentiment-checker/",
+        "flexible": true
+      }
+    }
+  },
+  "version": "1.0.0",
+  "frameworkVersion": "2.0"
+}

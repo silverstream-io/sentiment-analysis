@@ -1,45 +1,127 @@
-# SatCom
+# Sentiment Checker
 
-SatCom is a Zendesk app designed to provide real-time sentiment analysis for support tickets, enhancing customer service quality and agent performance.
+Sentiment Checker is a powerful tool that provides real-time sentiment analysis for your Zendesk tickets. Leverage AI and machine learning to understand your customers' sentiments and improve their experience.
 
 ## Features
 
-- Real-time sentiment feedback for support tickets
-- Periodic sentiment reports
-- Sentiment analysis by customer
-- Sentiment analysis by agent or team
+- Real-time sentiment analysis of ticket comments
+- Historical sentiment tracking for the last 30 days
+- Visual representation of sentiment scores
+- Greyscale mode for accessibility
+- Seamless integration with Zendesk Support
 
-## Description
+## Technology Stack
 
-SatCom integrates seamlessly with Zendesk to offer valuable insights into customer interactions. By analyzing the sentiment of support tickets in real-time, it enables agents to gauge customer emotions and adjust their responses accordingly. This leads to improved customer satisfaction and more effective support.
-
-## Key Benefits
-
-1. **Immediate Insight**: Agents can see sentiment feedback as they interact with customers, allowing for on-the-fly adjustments in communication style.
-2. **Performance Tracking**: Periodic reports help identify trends in customer sentiment, highlighting areas for improvement or recognizing exceptional performance.
-3. **Customer-Centric Analysis**: Track sentiment patterns for individual customers to personalize support strategies.
-4. **Team Optimization**: Analyze sentiment data by agent or team to identify training needs or share best practices.
+- Backend: Python with Flask
+- Frontend: React with TypeScript
+- AI/ML: OpenAI for sentiment analysis
+- Vector Database: Pinecone
+- Authentication: JWT and session-based auth
 
 ## Installation
 
-[Include installation instructions here]
+1. Clone the repository
+2. Install backend dependencies:
 
-## Usage
+   ```bash
+   cd backend
+   pip install -r requirements.txt
+   ```
 
-[Provide basic usage instructions or link to documentation]
+3. Build and install frontend dependencies:
+
+   ```bash
+   ./dobuild.sh
+   ```
 
 ## Configuration
 
-[Explain any necessary configuration steps]
+1. Set up environment variables:
+   - Create a `.env` file in the `backend` directory
+   - Add the following variables:
 
-## Support
+     ```bash
+     SECRET_KEY=your_secret_key
+     OPENAI_API_KEY=your_openai_api_key
+     PINECONE_API_KEY=your_pinecone_api_key
+     PINECONE_INDEX=your_pinecone_index_name
+     ZENDESK_APP_AUD=your_zendesk_app_audience
+     ZENDESK_APP_PUBLIC_KEY=your_zendesk_app_public_key
+     ```
 
-[Provide information on how users can get support or report issues]
+    See the [Zendesk documentation](https://developer.zendesk.com/documentation/apps/build-an-app/building-a-server-side-app/part-5-secure-the-app/) for more information on how to get these values.
+
+2. Configure Zendesk app settings:
+   - Update the `manifest.json` file with your app details
+
+## Running the Application
+
+1. Start the backend server:
+
+   ```bash
+   cd backend/src
+   python api/run.py
+   ```
+
+2. Start the frontend development server:
+
+   ```bash
+   cd frontend
+   npm start
+   ```
+
+3. Build the Zendesk app:
+
+   ```bash
+   cd app
+   zcli apps:create
+   ```
+
+## Usage
+
+1. Install the Sentiment Checker app in your Zendesk account
+2. Open a ticket in Zendesk Support
+3. The Sentiment Checker will appear in the ticket sidebar
+4. View real-time sentiment analysis for the current ticket and historical data
+
+## Development
+
+### Backend
+
+The main backend logic is implemented in the `SentimentChecker` class:
+
+```python
+python:backend/src/api/views.py
+startLine: 21
+endLine: 57
+```
+
+### Frontend
+
+The main frontend component is implemented in `SentimentAnalysis.tsx`:
+
+```typescript
+typescript:frontend/src/components/SentimentAnalysis.tsx
+startLine: 1
+endLine: 9
+```
+
+### Zendesk API Integration
+
+The Zendesk API integration is handled by the frontend's use of the ZAFClient. See the [Zendesk documentation](https://developer.zendesk.com/documentation/apps/build-an-app/building-a-client-side-app/part-3-use-the-zaf-client/) for more information.
+
+### Zendesk App Integration
+
+The Zendesk app is implemented in the `app` directory. Be sure to update the `manifest.json` file with the correct app details including the correct `app_settings_url`.
 
 ## Contributing
 
-[If applicable, include guidelines for contributing to the project]
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
 
 ## License
 
-[Specify the license under which SatCom is distributed]
+This project is licensed under the Apache License - see the [LICENSE.md](LICENSE.md) file for details.
+
+## Support
+
+For support, please email <support@silverstream.io> or open an issue in the GitHub repository.
