@@ -8,6 +8,7 @@ from models.emotions import emotions
 from utils import get_subdomain
 import logging
 import os
+import math
 
 logger = logging.getLogger('sentiment_checker')
 
@@ -164,9 +165,8 @@ class SentimentChecker:
     @session_required
     def get_score(self) -> Tuple[Dict[str, str], int]:
         """
-        Get the score of a ticket or multiple tickets based on the emotions of the comments.
+        Get the weighted score of a ticket or multiple tickets based on the emotions of the comments.
         """
-
         self.init()
         self.logger.info(f"Received request for get_score, request remote addr: {request.remote_addr}")
 
@@ -183,8 +183,10 @@ class SentimentChecker:
             return jsonify({'error': 'Invalid request data'}), 400
 
         self.logger.debug(f"Processing {len(ticket_ids)} tickets for score calculation, request remote addr: {request.remote_addr}")
-        total_score = 0
-        total_comments = 0
+        
+        total_weighted_score = 0
+        total_weight = 0
+        lambda_factor = 0.1  # Adjust this value to control the decay rate
 
         for ticket_id in ticket_ids:
             self.logger.debug(f"Processing ticket: {ticket_id}, request remote addr: {request.remote_addr}")
@@ -192,17 +194,25 @@ class SentimentChecker:
             vector_ids = [getattr(vector, 'id', vector.get('id')) if isinstance(vector, dict) else vector.id for vector in vector_list]
             comment_vectors = self.pinecone_service.fetch_vectors(vector_ids)
             
-            for vector_id, vector_data in comment_vectors.items():
-                if 'metadata' in vector_data and 'emotion_score' in vector_data['metadata']:
-                    total_score += vector_data['metadata']['emotion_score']
-                    total_comments += 1
+            # Sort vectors by timestamp (newest first)
+            sorted_vectors = sorted(comment_vectors.items(), key=lambda x: x[1]['metadata']['timestamp'], reverse=True)
+            
+            if sorted_vectors:
+                newest_timestamp = sorted_vectors[0][1]['metadata']['timestamp']
+                
+                for vector_id, vector_data in sorted_vectors:
+                    if 'metadata' in vector_data and 'emotion_score' in vector_data['metadata']:
+                        time_diff = (newest_timestamp - vector_data['metadata']['timestamp']) / (24 * 3600)  # Convert to days
+                        weight = math.exp(-lambda_factor * time_diff)
+                        total_weighted_score += vector_data['metadata']['emotion_score'] * weight
+                        total_weight += weight
 
-        if total_comments > 0:
-            emotion_score = total_score / total_comments
+        if total_weight > 0:
+            emotion_score = total_weighted_score / total_weight
         else:
             emotion_score = 0
 
-        self.logger.info(f"Calculated score for {len(ticket_ids)} tickets: {emotion_score}, request remote addr: {request.remote_addr}")
+        self.logger.info(f"Calculated weighted score for {len(ticket_ids)} tickets: {emotion_score}, request remote addr: {request.remote_addr}")
         return jsonify({'score': emotion_score}), 200
 
     @auth_required
@@ -228,5 +238,3 @@ class SentimentChecker:
     
     def health(self):
         return render_template(f'{self.templates}/health.html')
-
-
