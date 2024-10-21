@@ -7,12 +7,12 @@ interface SentimentAnalysisProps {
 }
 
 const SentimentAnalysis: React.FC<SentimentAnalysisProps> = ({ zafClient, onSentimentUpdate }) => {
-  const [score, setScore] = useState<number | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-      async function analyzeSentiment() {
-        try {
+    async function analyzeSentiment() {
+      try {
         if (!zafClient) {
           throw new Error('ZAFClient is not initialized');
         }
@@ -61,35 +61,33 @@ const SentimentAnalysis: React.FC<SentimentAnalysisProps> = ({ zafClient, onSent
         // Get the updated score for the current ticket
         const currentTicketScore = await getScore(zafClient, ticketId);
         debugLog('Current ticket score:', currentTicketScore);
-        setScore(currentTicketScore);
         onSentimentUpdate(ticketId, currentTicketScore);
 
         // Get the sentiment for the last 30 days
         const last30DaysScore = await getLast30DaysSentiment(zafClient);
         debugLog('Last 30 days score:', last30DaysScore);
         onSentimentUpdate(null, last30DaysScore);
+
+        setIsAnalyzing(false);
       } catch (error) {
         console.error('Error analyzing sentiment:', error);
         setError(error instanceof Error ? error.message : 'An unknown error occurred');
-        }
+        setIsAnalyzing(false);
       }
+    }
 
-      analyzeSentiment();
+    analyzeSentiment();
   }, [zafClient, onSentimentUpdate]);
 
   if (error) {
     return <div>Error: {error}</div>;
   }
 
-  return (
-    <div>
-      {score !== null ? (
-        <div>Sentiment Score: {score.toFixed(2)}</div>
-      ) : (
-        <div>Analyzing sentiment...</div>
-      )}
-    </div>
-  );
+  if (isAnalyzing) {
+    return <div>Analyzing sentiment...</div>;
+  }
+
+  return null;
 };
 
 export default SentimentAnalysis;
