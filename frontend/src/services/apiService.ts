@@ -65,10 +65,17 @@ export async function analyzeComments(zafClient: any, ticketId: string, comments
   await makeApiRequest(zafClient, '/analyze-comments', 'POST', { ticket: { id: ticketId, comments } });
 }
 
-export async function getScore(zafClient: any, ticketIds: string | string[]): Promise<number> {
+export async function getScore(zafClient: any, ticketIds: string | string[] | { ticketId: string }): Promise<number> {
   debugLog('Getting score for tickets:', ticketIds);
-  const tickets = Array.isArray(ticketIds) ? ticketIds.map(id => ({ ticketId: id })) : [{ ticketId: ticketIds }];
-  const data = await makeApiRequest(zafClient, '/get-score', 'POST', { tickets });
+  let formattedTickets;
+  if (Array.isArray(ticketIds)) {
+    formattedTickets = ticketIds.map(id => ({ ticketId: id }));
+  } else if (typeof ticketIds === 'object' && 'ticketId' in ticketIds) {
+    formattedTickets = [{ ticketId: ticketIds.ticketId }];
+  } else {
+    formattedTickets = [{ ticketId: ticketIds }];
+  }
+  const data = await makeApiRequest(zafClient, '/get-score', 'POST', { tickets: formattedTickets });
   debugLog('Score data:', data.score);
   return data.score;
 }
