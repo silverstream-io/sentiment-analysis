@@ -57,7 +57,7 @@ export async function listTicketVectors(zafClient: any, ticketId: string): Promi
   return data.vectors;
 }
 
-export async function analyzeComments(zafClient: any, ticketId: string, comments: { [id: string]: string }): Promise<void> {
+export async function analyzeComments(zafClient: any, ticketId: string, comments: { [id: string]: { text: string, timestamp: number } }): Promise<void> {
   debugLog('Analyzing comments for ticket:', ticketId, comments);
   await makeApiRequest(zafClient, '/analyze-comments', 'POST', { ticket: { id: ticketId, comments } });
 }
@@ -120,3 +120,4 @@ export async function getLast30DaysSentiment(zafClient: any): Promise<number> {
   }
   return await getScore(zafClient, ticketIds);
 }
+

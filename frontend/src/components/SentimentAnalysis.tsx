@@ -32,21 +32,27 @@ const SentimentAnalysis: React.FC<SentimentAnalysisProps> = ({ zafClient, onSent
           : [];
 
         debugLog('customerComments', customerComments);
-        const commentsToAnalyze: { [id: string]: string } = {};
+        const commentsToAnalyze: { [id: string]: { text: string, timestamp: number } } = {};
 
         debugLog('storedVectors', storedVectors);
         debugLog('storedVectors.length', storedVectors.length);
         if (storedVectors.length === 0 || storedVectors.length === undefined) {
           // If no vectors exist, analyze all customer comments
           customerComments.forEach((comment: any) => {
-            commentsToAnalyze[comment.id] = comment.value;
+            commentsToAnalyze[comment.id] = {
+              text: comment.value,
+              timestamp: new Date(comment.created_at).getTime() / 1000
+            };
           });
         } else {
           // Compare existing vectors with customer comments
           customerComments.forEach((comment: any) => {
             const commentVectorId = `${ticketId}#${comment.id}`;
             if (!storedVectors.some(vector => vector.id === commentVectorId)) {
-              commentsToAnalyze[comment.id] = comment.value;
+              commentsToAnalyze[comment.id] = {
+                text: comment.value,
+                timestamp: new Date(comment.created_at).getTime() / 1000
+              };
             }
           });
         }
