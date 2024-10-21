@@ -1,98 +1,61 @@
-import React, { useEffect, useState } from 'react';
-import { PineconeService } from '../services/pineconeService';
-import { OpenAIService } from '../services/openAIService';
-import { analyzeSentiment } from '../utils/sentimentAnalysis';
+import React, { useState } from 'react';
+import SentimentAnalysis from './SentimentAnalysis';
 import SentimentDisplay from './SentimentDisplay';
-import { Comment, Sentiment } from '../types';
 
 interface AppProps {
-  pineconeService: PineconeService;
+  zafClient: any;
 }
 
-declare const ZAFClient: {
-  init: () => Promise<any>;
-};
+const App: React.FC<AppProps> = ({ zafClient }) => {
+  const [currentSentiment, setCurrentSentiment] = useState<number | null>(null);
+  const [lastThirtySentiment, setLastThirtySentiment] = useState<number | null>(null);
+  const [greyscale, setGreyscale] = useState(false);
 
-const App: React.FC<AppProps> = ({ pineconeService }) => {
-  const [client, setClient] = useState<any | null>(null);
-  const [ticketId, setTicketId] = useState<string | null>(null);
-  const [sentiment, setSentiment] = useState<Sentiment>('neutral');
-
-  useEffect(() => {
-    const script = document.createElement('script');
-    script.src = 'https://static.zdassets.com/zendesk_app_framework_sdk/2.0/zaf_sdk.min.js';
-    script.async = true;
-    script.onload = initializeApp;
-    document.body.appendChild(script);
-
-    return () => {
-      document.body.removeChild(script);
-    };
-  }, []);
-
-  const initializeApp = async () => {
-    const zafClient = await ZAFClient.init();
-    setClient(zafClient);
-
-    zafClient.on('ticket.updated', handleTicketUpdate);
-    zafClient.invoke('resize', { width: '100%', height: '200px' });
-
-    const context = await zafClient.context();
-    setTicketId(context.ticketId);
-  };
-
-  useEffect(() => {
-    if (client && ticketId) {
-      updateSentiment();
-    }
-  }, [client, ticketId]);
-
-  const handleTicketUpdate = async () => {
-    if (client) {
-      const context = await client.context();
-      setTicketId(context.ticketId);
-      updateSentiment();
-    }
-  };
-
-  const storeComment = async (ticketId: string, text: string, isCustomer: boolean) => {
-    const embedding = await OpenAIService.getEmbedding(text);
-    const commentIndex = await pineconeService.getNextCommentIndex(ticketId);
-    const metadata = {
-      text,
-      timestamp: new Date().toISOString(),
-      author: isCustomer ? 'customer' : 'agent',
-    };
-
-    await pineconeService.upsertVector(`${ticketId}#${commentIndex}`, embedding, metadata);
-  };
-
-  const updateSentiment = async () => {
-    if (!ticketId || !client) return;
-
-    try {
-      const ticket = await client.get('ticket');
-      const comments: Comment[] = await client.get('ticket.comments');
-
-      const customerComments = comments
-        .filter(comment => comment.author.role === 'end-user')
-        .map(comment => ({ text: comment.text, author: comment.author, isCustomer: true }));
-
-      const newSentiment = await analyzeSentiment(customerComments);
-      setSentiment(newSentiment);
-
-      // Store the latest comment
-      const latestComment = comments[comments.length - 1];
-      await storeComment(ticketId, latestComment.text, latestComment.author.role === 'end-user');
-    } catch (error) {
-      console.error('Error fetching ticket comments:', error);
+  const handleSentimentUpdate = (ticketId: string | null, sentiment: number) => {
+    if (ticketId === null) {
+      setLastThirtySentiment(sentiment);
+    } else {
+      setCurrentSentiment(sentiment);
     }
   };
 
   return (
-    <div className="p-4">
-      <h1 className="text-2xl font-bold mb-4">SatCom Sentiment Analysis</h1>
-      <SentimentDisplay sentiment={sentiment} />
+    <div className="p-2">
+      <div className="mb-2">
+        <label className="flex items-center text-xs">
+          <input
+            type="checkbox"
+            checked={greyscale}
+            onChange={(e) => setGreyscale(e.target.checked)}
+            className="mr-1 h-3 w-3"
+          />
+          <span className="text-gray-600">Greyscale Mode</span>
+        </label>
+      </div>
+      <SentimentAnalysis 
+        zafClient={zafClient} 
+        onSentimentUpdate={handleSentimentUpdate} 
+      />
+      <div className="flex flex-col space-y-2">
+        <div>
+          <h2 className="text-base font-semibold mb-1">Current Ticket</h2>
+          {currentSentiment !== null && (
+            <>
+              <p>Raw Score: {currentSentiment.toFixed(2)}</p>
+              <SentimentDisplay sentiment={currentSentiment} greyscale={greyscale} />
+            </>
+          )}
+        </div>
+        <div>
+          <h2 className="text-base font-semibold mb-1">Last 30 Days</h2>
+          {lastThirtySentiment !== null && (
+            <>
+              <p>Raw Score: {lastThirtySentiment.toFixed(2)}</p>
+              <SentimentDisplay sentiment={lastThirtySentiment} greyscale={greyscale} />
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 };

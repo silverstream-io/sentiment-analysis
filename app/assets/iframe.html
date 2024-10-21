@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sentiment Checker</title>
+  <!-- Add any additional meta tags or stylesheets here -->
+  <link rel="stylesheet" href="main.css">
+</head>
+<body>
+  <div id="root"></div>
+  <!-- The app will be rendered inside this div -->
+
+  <!-- Include the Zendesk App Framework SDK -->
+  <script src="https://static.zdassets.com/zendesk_app_framework_sdk/2.0/zaf_sdk.min.js"></script>
+  <script src="main.js"></script>
+  <script>
+    const client = ZAFClient.init();
+    client.invoke('resize', { width: '100%', height: '200px' });
+    
+    // Initialize your React app here
+    window.initializeApp(client);
+  </script>
+</body>
+</html>

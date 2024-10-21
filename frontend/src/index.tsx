@@ -1,14 +1,32 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 import App from './components/App';
-import './index.css';
-import { createPineconeService } from './services/pineconeService';
+import './tailwind.css';
+import { initializeApp as initializeApiService } from './services/apiService';
 
-createPineconeService('your-api-key-here').then((pineconeService) => {
-  ReactDOM.render(
-    <React.StrictMode>
-      <App pineconeService={pineconeService} />
-    </React.StrictMode>,
-    document.getElementById('root')
-  );
-});
+declare global {
+  interface Window {
+    initializeApp: (client: any, originalQueryString: string) => void;
+  }
+}
+
+window.initializeApp = async (client, originalQueryString) => {
+  try {
+    await initializeApiService(client, originalQueryString);
+
+    ReactDOM.render(
+      <React.StrictMode>
+        <App zafClient={client} />
+      </React.StrictMode>,
+      document.getElementById('root')
+    );
+  } catch (error) {
+    console.error('Error initializing the application:', error);
+    ReactDOM.render(
+      <div className="error-message">
+        Error: Unable to initialize the application. Please check the console for more details.
+      </div>,
+      document.getElementById('root')
+    );
+  }
+};

@@ -1,62 +1,45 @@
-from flask import Flask, request, jsonify
-from functools import wraps
-from api.openai import analyze_sentiment
-from services.pinecone_service import PineconeService
+from flask import Flask, render_template
+from flask_session import Session
+from flask_cors import CORS
+import dotenv
+import logging
+import os
+import sys
+from .routes import root as root_blueprint, sentiment_checker as sentiment_checker_blueprint
 
-app = Flask(__name__)
+dotenv.load_dotenv()
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler(sys.stdout)]
+)
+logger = logging.getLogger('sentiment_checker')
 
-def validate_api_key(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        api_key = request.headers.get('Authorization')
-        if api_key and api_key.startswith('Bearer '):
-            api_key = api_key.split('Bearer ')[1]
-            if is_valid_api_key(api_key):
-                return f(*args, **kwargs)
-        return jsonify({'error': 'Unauthorized'}), 401
-    return decorated_function
+def create_app():
+    app = Flask(__name__)
+    app.template_folder = '../templates'
+    app.static_folder = '../static'
+    app.config['SESSION_TYPE'] = 'filesystem'
+    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
+    app.config['SESSION_COOKIE_HTTPONLY'] = True
+    app.config['SESSION_COOKIE_SECURE'] = True
+    app.config['SESSION_COOKIE_SAMESITE'] = 'None'
+    app.register_blueprint(root_blueprint)
+    app.register_blueprint(sentiment_checker_blueprint)
+    CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
+    Session(app)
 
-def is_valid_api_key(api_key):
-    # TODO: Implement actual API key validation
-    return True  # Placeholder: always return True for now
+    @app.errorhandler(404)
+    def page_not_found(error):
+        return render_template('errors/404.html'), 404
 
-@app.route('/analyze_sentiment', methods=['POST'])
-@validate_api_key
-def analyze_comment_sentiment():
-    data = request.json
-    
-    if not all(key in data for key in ['ticket_id', 'comment_id', 'customer_id', 'agent_id', 'text']):
-        return jsonify({'error': 'Missing required fields'}), 400
-
-    ticket_id = data['ticket_id']
-    comment_id = data['comment_id']
-    customer_id = data['customer_id']
-    agent_id = data['agent_id']
-    text = data['text']
-
-    # Analyze sentiment
-    sentiment_score = analyze_sentiment(text)
-
-    # Store the embedding
-    pinecone_service = PineconeService(customer_id)
-    embedding = pinecone_service.get_embedding(text)
-    metadata = {
-        'ticket_id': ticket_id,
-        'comment_id': comment_id,
-        'customer_id': customer_id,
-        'agent_id': agent_id,
-        'text': text,
-        'sentiment': sentiment_score
-    }
-    pinecone_service.upsert_vector(f"{ticket_id}#{comment_id}", embedding, metadata)
-
-    response = {
-        'ticket_id': ticket_id,
-        'comment_id': comment_id,
-        'sentiment': sentiment_score
-    }
-
-    return jsonify(response)
+    return app
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    debug_mode = os.environ.get('FLASK_DEBUG')
+    if debug_mode:
+        app = create_app()
+        app.run(debug=debug_mode)
+    else:
+        app = create_app()
+        app.run()
