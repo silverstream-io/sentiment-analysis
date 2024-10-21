@@ -119,6 +119,10 @@ class SentimentChecker:
                     emotion_score = emotion_sum / matched_count
                 else:
                     emotion_score = 0
+                if emotion_score > 2:
+                    emotion_score = 2
+                elif emotion_score < -2:
+                    emotion_score = -2
                 self.logger.debug(f"Emotion score for comment {comment_id}: {emotion_score}, request remote addr: {request.remote_addr}")
                 metadata = {
                     'text': text,
