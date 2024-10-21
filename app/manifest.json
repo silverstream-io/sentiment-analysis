@@ -3,10 +3,11 @@
   "signedUrls": true,
   "author": {
     "name": "Silverstream",
-    "email": "support@silverstream.io"
+    "email": "support@silverstream.io",
+    "url": "https://silverstream.io"
   },
   "defaultLocale": "en",
-  "private": true,
+  "private": false,
   "location": {
     "support": {
       "ticket_sidebar": {
