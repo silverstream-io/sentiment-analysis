@@ -1,8 +1,8 @@
 import React, { useEffect, useRef } from 'react';
-import { Sentiment } from '../types';
+import { SentimentRange, MIN_SENTIMENT, MAX_SENTIMENT } from '../types';
 
 interface Props {
-  sentiment: number;
+  sentiment: SentimentRange;
   greyscale?: boolean;
 }
 const SentimentDisplay: React.FC<Props> = ({ sentiment, greyscale = false }) => {
@@ -83,9 +83,9 @@ const SentimentDisplay: React.FC<Props> = ({ sentiment, greyscale = false }) => 
     ctx.fill();
   };
 
-  const getSentimentDegree = (sentiment: number): number => {
-    const degree = ((sentiment + 2) / 4) * 180;
-    return degree;
+  const getSentimentDegree = (sentiment: SentimentRange): number => {
+    const normalizedSentiment = (sentiment - MIN_SENTIMENT) / (MAX_SENTIMENT - MIN_SENTIMENT);
+    return normalizedSentiment * 180;
   };
 
   return (
