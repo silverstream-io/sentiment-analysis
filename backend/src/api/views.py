@@ -100,7 +100,7 @@ class SentimentChecker:
                 # Query emotions namespace
                 emotion_matches = self.pinecone_service.query_vectors(embedding, 
                                                                       namespace='emotions', 
-                                                                      top_k=10, 
+                                                                      top_k=100, 
                                                                       include_metadata=True, 
                                                                       include_values=False)
                 self.logger.debug(f"Emotion matches: {emotion_matches}, request remote addr: {request.remote_addr}")
@@ -119,10 +119,10 @@ class SentimentChecker:
                     emotion_score = emotion_sum / matched_count
                 else:
                     emotion_score = 0
-                if emotion_score > 2:
-                    emotion_score = 2
-                elif emotion_score < -2:
-                    emotion_score = -2
+                if emotion_score > 10:
+                    emotion_score = 10
+                elif emotion_score < -10:
+                    emotion_score = -10
                 self.logger.debug(f"Emotion score for comment {comment_id}: {emotion_score}, request remote addr: {request.remote_addr}")
                 metadata = {
                     'text': text,
