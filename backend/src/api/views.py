@@ -309,7 +309,6 @@ class SentimentChecker:
         Serve the health check page for the Zendesk application. This will:
         - Check the health of the Pinecone service
         """
-        self.init()
         check_pinecone = self.pinecone_service.check_health()
         self.logger.debug(f"Pinecone health check: {check_pinecone}, request remote addr: {self.remote_addr}")
         if check_pinecone.get('status', {}).get('ready', True):  
