@@ -48,7 +48,6 @@ class SentimentChecker:
     def __init__(self):
         self.logger = logger
         self.templates = 'sentiment-checker'
-        self.remote_addr = request.headers.get('X-Forwarded-For', request.remote_addr)
     
     def init(self):
         self.subdomain, error = get_subdomain(request)
@@ -57,6 +56,7 @@ class SentimentChecker:
             raise Exception(error)
         self.pinecone_service = PineconeService(self.subdomain)
         self.logger.info(f"Initialized SentimentChecker with subdomain: {self.subdomain}, request remote addr: {self.remote_addr}")
+        self.remote_addr = request.headers.get('X-Forwarded-For', request.remote_addr)
 
     @session_required
     def analyze_comments(self) -> Tuple[Dict[str, str], int]:
