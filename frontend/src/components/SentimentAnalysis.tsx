@@ -43,36 +43,28 @@ const SentimentAnalysis: React.FC<SentimentAnalysisProps> = ({ zafClient, onSent
         : [];
 
       debugLog('customerComments', customerComments);
-      const commentsToAnalyze: { [id: string]: { text: string, created_at: Date } } = {};
 
-      debugLog('storedVectors', storedVectors);
-      debugLog('storedVectors.length', storedVectors.length);
-      if (storedVectors.length === 0 || storedVectors.length === undefined) {
-        // If no vectors exist, analyze all customer comments
-        customerComments.forEach((comment: any) => {
-          commentsToAnalyze[comment.id] = {
+      // Create a set of existing vector IDs for efficient lookup
+      const existingVectorIds = new Set(storedVectors.map(vector => vector.id));
+
+      // Create the commentsToAdd object
+      const commentsToAdd: { [id: string]: { text: string, created_at: Date } } = {};
+
+      customerComments.forEach(comment => {
+        if (!existingVectorIds.has(`${ticketId}#${comment.id}`)) {
+          commentsToAdd[comment.id] = {
             text: comment.value,
             created_at: new Date(comment.created_at)
           };
-        });
-      } else {
-        // Compare existing vectors with customer comments
-        customerComments.forEach((comment: any) => {
-          const commentVectorId = `${ticketId}#${comment.id}`;
-          if (!storedVectors.some(vector => vector.id === commentVectorId)) {
-            commentsToAnalyze[comment.id] = {
-              text: comment.value,
-              created_at: new Date(comment.created_at)
-            };
-          }
-        });
-      }
-      debugLog('commentsToAnalyze', commentsToAnalyze);
+        }
+      });
+
+      debugLog('commentsToAdd', commentsToAdd);
 
       // Analyze new comments if any
-      if (Object.keys(commentsToAnalyze).length > 0) {
-        debugLog('Analyzing comments:', commentsToAnalyze);
-        await analyzeComments(zafClient, ticketId, commentsToAnalyze);
+      if (Object.keys(commentsToAdd).length > 0) {
+        debugLog('Analyzing comments:', commentsToAdd);
+        await analyzeComments(zafClient, ticketId, commentsToAdd);
       }
 
       // Get the updated score for the current ticket
