@@ -58,7 +58,7 @@ class SentimentChecker:
             self.logger.error(f"Error getting subdomain: {error}, request remote addr: {self.remote_addr}")
             raise Exception(error)
         self.pinecone_service = PineconeService(self.subdomain)
-        self.logger.info(f"Initialized SentimentChecker with subdomain: {self.subdomain}, request remote addr: {self.remote_addr}")
+        self.logger.debug(f"Initialized SentimentChecker with subdomain: {self.subdomain}, request remote addr: {self.remote_addr}")
         try:
             self.data = request.json
             self.ticket = self.data.get('ticket', {})
@@ -81,7 +81,7 @@ class SentimentChecker:
             self.logger.warning(f"Missing comments or ticket id in request data, data is {self.data}, request remote addr: {self.remote_addr}")
             return jsonify({'error': 'Missing comments or ticket id'}), 400
 
-        self.logger.info(f"Processing comments for ticket: {self.ticket_id}, request remote addr: {self.remote_addr}")
+        self.logger.debug(f"Processing comments for ticket: {self.ticket_id}, request remote addr: {self.remote_addr}")
         results = []
         for comment_id, comment_data in self.comments.items():
             text = comment_data.get('text', '')
@@ -104,18 +104,18 @@ class SentimentChecker:
             try:
                 existing_vector = self.pinecone_service.fetch_vectors([vector_id])
             except Exception as e:
-                self.logger.info(f"Error fetching vector {vector_id}: {e}, request remote addr: {self.remote_addr}")
+                self.logger.debug(f"Error fetching vector {vector_id}: {e}, request remote addr: {self.remote_addr}")
                 existing_vector = None
 
             if existing_vector:
-                self.logger.info(f"Existing vector found for comment {comment_id}: {existing_vector}, request remote addr: {self.remote_addr}")
+                self.logger.debug(f"Existing vector found for comment {comment_id}: {existing_vector}, request remote addr: {self.remote_addr}")
                 results.append({
                     'comment_id': comment_id,
                     'emotion_score': existing_vector['metadata']['emotion_score'],
                     'upserted_count': 0
                 })
             else:
-                self.logger.info(f"No existing vector found for comment {comment_id}, request remote addr: {self.remote_addr}")
+                self.logger.debug(f"No existing vector found for comment {comment_id}, request remote addr: {self.remote_addr}")
                 embedding = self.pinecone_service.get_embedding(text)
                 # Query emotions namespace
                 emotion_matches = self.pinecone_service.query_vectors(embedding, 
@@ -134,7 +134,7 @@ class SentimentChecker:
                                 matched_count += 1
                         else:
                             self.logger.debug(f"Emotion \"{emotion_name}\" not found in emotions dictionary or has no value. Request remote addr: {self.remote_addr}")
-                self.logger.info(f"Emotion sum for comment {comment_id}: {emotion_sum}, request remote addr: {self.remote_addr}")
+                self.logger.debug(f"Emotion sum for comment {comment_id}: {emotion_sum}, request remote addr: {self.remote_addr}")
                 # Prepare metadata for upsert
                 if matched_count > 0:   
                     emotion_score = emotion_sum / matched_count
@@ -144,7 +144,7 @@ class SentimentChecker:
                     emotion_score = 10
                 elif emotion_score < -10:
                     emotion_score = -10
-                self.logger.info(f"Emotion score for comment {comment_id}: {emotion_score}, request remote addr: {self.remote_addr}")
+                self.logger.debug(f"Emotion score for comment {comment_id}: {emotion_score}, request remote addr: {self.remote_addr}")
                 metadata = {
                     'text': text,
                     'timestamp': timestamp,
@@ -161,7 +161,7 @@ class SentimentChecker:
                     'upserted_count': upsert_response.upserted_count
                 })
 
-        self.logger.info(f"Finished processing comments for ticket: {self.ticket_id}, request remote addr: {self.remote_addr}")
+        self.logger.debug(f"Finished processing comments for ticket: {self.ticket_id}, request remote addr: {self.remote_addr}")
         return jsonify({'message': 'Comments analyzed and stored successfully', 'results': results}), 200
 
 
@@ -207,7 +207,7 @@ class SentimentChecker:
             self.logger.error(f"Error processing ticket data: {e}, request remote addr: {self.remote_addr}")
             return jsonify({'error': 'Invalid request data'}), 400
 
-        self.logger.info(f"Processing {len(ticket_ids)} tickets for score calculation, request remote addr: {self.remote_addr}")
+        self.logger.debug(f"Processing {len(ticket_ids)} tickets for score calculation, request remote addr: {self.remote_addr}")
         
         total_weighted_score = 0
         total_weight = 0
@@ -215,7 +215,7 @@ class SentimentChecker:
         all_scores = []
 
         for ticket_id in ticket_ids:
-            self.logger.info(f"Processing ticket: {ticket_id}, request remote addr: {self.remote_addr}")
+            self.logger.debug(f"Processing ticket: {ticket_id}, request remote addr: {self.remote_addr}")
             vector_list = self.pinecone_service.list_ticket_vectors(str(ticket_id))
             vector_ids = [getattr(vector, 'id', vector.get('id')) if isinstance(vector, dict) else vector.id for vector in vector_list]
             comment_vectors = self.pinecone_service.fetch_vectors(vector_ids)
@@ -254,7 +254,7 @@ class SentimentChecker:
             
         weighted_score = max(min(weighted_score, 1), -1)
         
-        self.logger.info(f"Calculated weighted score for {len(ticket_ids)} tickets: {weighted_score}, request remote addr: {self.remote_addr}")
+        self.logger.debug(f"Calculated weighted score for {len(ticket_ids)} tickets: {weighted_score}, request remote addr: {self.remote_addr}")
         return jsonify({'score': weighted_score}), 200
 
 
@@ -265,7 +265,7 @@ class SentimentChecker:
         """
 
         self.init()
-        self.logger.info(f"Received request for entry point, request remote addr: {self.remote_addr}")
+        self.logger.debug(f"Received request for entry point, request remote addr: {self.remote_addr}")
         
         original_query_string = request.query_string.decode()
         session_token = os.urandom(24).hex()
@@ -287,7 +287,7 @@ class SentimentChecker:
         """
         self.init()
         check_pinecone = self.pinecone_service.check_health()
-        self.logger.info(f"Pinecone health check: {check_pinecone}, request remote addr: {self.remote_addr}")
+        self.logger.debug(f"Pinecone health check: {check_pinecone}, request remote addr: {self.remote_addr}")
         if check_pinecone.get('status', {}).get('ready', True):  
             return render_template(f'{self.templates}/health.html')
         else:
