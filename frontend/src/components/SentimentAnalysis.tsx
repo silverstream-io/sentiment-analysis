@@ -65,14 +65,14 @@ const SentimentAnalysis: React.FC<SentimentAnalysisProps> = ({ zafClient, onSent
       const storedVectors = await listTicketVectors(zafClient, ticketId);
       debugLog('storedVectors', storedVectors);
 
-      if (storedVectors.length === 0) {
+      if (Object.keys(storedVectors).length === 0) {
         debugLog('No vectors found for ticket:', ticketId);
         // Create vectors for every comment on the ticket
         await analyzeComments(zafClient, ticketId, ticketComments);
       } else {
         // Analyze new comments if any
         const newComments = ticketComments['ticket.comments'].filter((comment: any) => 
-          !storedVectors.some((vector: any) => vector.id === `${ticketId}#${comment.id}`)
+          !Object.values(storedVectors).some((vector: any) => vector.id === `${ticketId}#${comment.id}`)
         );
         if (newComments.length > 0) {
           debugLog('Analyzing new comments:', newComments);

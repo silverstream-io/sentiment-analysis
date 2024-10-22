@@ -210,8 +210,7 @@ class SentimentChecker:
             self.logger.debug(f"Ticket {ticket_id} has vectors: {vectors_list}, request remote addr: {self.remote_addr}")
             vector_ids = [getattr(vector, 'id', vector.get('id')) if isinstance(vector, dict) else vector.id for vector in vectors_list]
             try:
-                vectors = self.pinecone_service.fetch_vectors(vector_ids)
-                all_vectors[ticket_id] = vectors
+                all_vectors[ticket_id] = self.pinecone_service.fetch_vectors(vector_ids)
             except Exception as e:
                 self.logger.error(f"Error fetching vectors for ticket {ticket_id}: {e}, request remote addr: {self.remote_addr}")
 
