@@ -224,6 +224,8 @@ class SentimentChecker:
                         weight = math.exp(-lambda_factor * time_diff)
                         total_weighted_score += vector_data['metadata']['emotion_score'] * weight
                         total_weight += weight
+                    else:
+                        self.logger.warning(f"No metadata or emotion_score found for vector {vector_id}, request remote addr: {self.remote_addr}")
 
         if total_weight > 0:
             emotion_score = total_weighted_score / total_weight
