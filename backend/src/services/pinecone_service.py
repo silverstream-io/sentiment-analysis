@@ -102,5 +102,10 @@ class PineconeService:
         return vectors
 
 
+    def fetch_vector(self, vector_id, namespace=None):
+        fetch_response = self.index.fetch(ids=[vector_id], namespace=namespace)
+        return fetch_response.vectors[vector_id]
+
+
     def check_health(self):
         return self.pc.describe_index(self.index.name)
