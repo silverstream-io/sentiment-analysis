@@ -116,13 +116,13 @@ class SentimentChecker:
                 emotion_sum = 0
                 matched_count = 0
                 for match in emotion_matches:
-                    for emotion_name in match['metadata']:
+                    for emotion_name, emotion_value in match['metadata'].items():
                         normalized_emotion = emotion_name.lower().strip()
-                        if normalized_emotion in emotions and match['metadata'][emotion_name]:
+                        if normalized_emotion in emotions and emotion_value:
                             emotion_sum += emotions[normalized_emotion].score * match['score']
                             matched_count += 1
                         else:
-                            self.logger.warning(f"Emotion \"{emotion_name}\" or \"{normalized_emotion}\" not found in emotions dictionary {emotions}, request remote addr: {self.remote_addr}")
+                            self.logger.warning(f"Emotion \"{emotion_name}\" (normalized: \"{normalized_emotion}\") not found in emotions dictionary or has no value. Available emotions: {list(emotions.keys())}, request remote addr: {self.remote_addr}")
                 self.logger.info(f"Emotion sum for comment {comment_id}: {emotion_sum}, request remote addr: {self.remote_addr}")
                 # Prepare metadata for upsert
                 if matched_count > 0:   
@@ -141,7 +141,7 @@ class SentimentChecker:
                 }
                 # Upsert vector to Zendesk subdomain namespace
                 upsert_response = self.pinecone_service.upsert_vector(vector_id, embedding, metadata)
-                if not upsert_response.get('upserted_count') or upsert_response.get('upserted_count') == 0:
+                if not hasattr(upsert_response, 'upserted_count') or upsert_response.upserted_count == 0:
                     self.logger.error(f"No vector upserted for comment {comment_id}, upsert response: {upsert_response}, request remote addr: {self.remote_addr}")
                     return jsonify({'error': f'No vector upserted for comment {comment_id}'}), 500
                 results.append({
