@@ -8,7 +8,7 @@ dotenv.load_dotenv()
 logger = logging.getLogger('sentiment_checker')
 
 class PineconeService:
-    def __init__(self, subdomain):
+    def __init__(self, subdomain=None):
         self.pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
         self.index = self.pc.Index(os.getenv("PINECONE_INDEX_NAME"))
         self.namespace = subdomain
