@@ -93,18 +93,18 @@ class SentimentChecker:
             try:
                 existing_vector = self.pinecone_service.fetch_vector(vector_id)
             except Exception as e:
-                self.logger.debug(f"Error fetching vector {vector_id}: {e}, request remote addr: {self.remote_addr}")
+                self.logger.info(f"Error fetching vector {vector_id}: {e}, request remote addr: {self.remote_addr}")
                 existing_vector = None
 
             if existing_vector:
-                self.logger.debug(f"Existing vector found for comment {comment_id}: {existing_vector}, request remote addr: {self.remote_addr}")
+                self.logger.info(f"Existing vector found for comment {comment_id}: {existing_vector}, request remote addr: {self.remote_addr}")
                 results.append({
                     'comment_id': comment_id,
                     'emotion_score': existing_vector['metadata']['emotion_score'],
                     'upserted_count': 0
                 })
             else:
-                self.logger.debug(f"No existing vector found for comment {comment_id}, request remote addr: {self.remote_addr}")
+                self.logger.info(f"No existing vector found for comment {comment_id}, request remote addr: {self.remote_addr}")
                 embedding = self.pinecone_service.get_embedding(text)
                 # Query emotions namespace
                 emotion_matches = self.pinecone_service.query_vectors(embedding, 
@@ -112,7 +112,7 @@ class SentimentChecker:
                                                                       top_k=100, 
                                                                       include_metadata=True, 
                                                                       include_values=False)
-                self.logger.debug(f"Emotion matches: {emotion_matches}, request remote addr: {self.remote_addr}")
+                self.logger.info(f"Emotion matches: {emotion_matches}, request remote addr: {self.remote_addr}")
                 emotion_sum = 0
                 matched_count = 0
                 for match in emotion_matches:
@@ -123,7 +123,7 @@ class SentimentChecker:
                             matched_count += 1
                         else:
                             self.logger.warning(f"Emotion \"{emotion_name}\" or \"{normalized_emotion}\" not found in emotions dictionary {emotions}, request remote addr: {self.remote_addr}")
-                self.logger.debug(f"Emotion sum for comment {comment_id}: {emotion_sum}, request remote addr: {self.remote_addr}")
+                self.logger.info(f"Emotion sum for comment {comment_id}: {emotion_sum}, request remote addr: {self.remote_addr}")
                 # Prepare metadata for upsert
                 if matched_count > 0:   
                     emotion_score = emotion_sum / matched_count
@@ -133,7 +133,7 @@ class SentimentChecker:
                     emotion_score = 1
                 elif emotion_score < -1:
                     emotion_score = -1
-                self.logger.debug(f"Emotion score for comment {comment_id}: {emotion_score}, request remote addr: {self.remote_addr}")
+                self.logger.info(f"Emotion score for comment {comment_id}: {emotion_score}, request remote addr: {self.remote_addr}")
                 metadata = {
                     'text': text,
                     'timestamp': timestamp,
@@ -200,14 +200,14 @@ class SentimentChecker:
             self.logger.error(f"Error processing ticket data: {e}, request remote addr: {self.remote_addr}")
             return jsonify({'error': 'Invalid request data'}), 400
 
-        self.logger.debug(f"Processing {len(ticket_ids)} tickets for score calculation, request remote addr: {self.remote_addr}")
+        self.logger.info(f"Processing {len(ticket_ids)} tickets for score calculation, request remote addr: {self.remote_addr}")
         
         total_weighted_score = 0
         total_weight = 0
         lambda_factor = 0.5  # Adjust this value to control the decay rate
 
         for ticket_id in ticket_ids:
-            self.logger.debug(f"Processing ticket: {ticket_id}, request remote addr: {self.remote_addr}")
+            self.logger.info(f"Processing ticket: {ticket_id}, request remote addr: {self.remote_addr}")
             vector_list = self.pinecone_service.list_ticket_vectors(str(ticket_id))
             vector_ids = [getattr(vector, 'id', vector.get('id')) if isinstance(vector, dict) else vector.id for vector in vector_list]
             comment_vectors = self.pinecone_service.fetch_vectors(vector_ids)
