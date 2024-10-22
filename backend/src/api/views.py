@@ -167,10 +167,15 @@ class SentimentChecker:
         ticket_id = ticket.get('ticketId')
 
         vectors = self.pinecone_service.list_ticket_vectors(ticket_id)
+        serialized_vectors = {}
         if vectors:
             vectors_ids = [getattr(vector, 'id', vector.get('id')) if isinstance(vector, dict) else vector.id for vector in vectors]
             vectors = self.pinecone_service.fetch_vectors(vectors_ids)
-            serialized_vectors = {k: v for k, v in vectors.items() if v is not None}
+            for k, v in vectors.items():
+                if v is None:
+                    self.logger.warning(f"Vector {k} is None, request remote addr: {self.remote_addr}")
+                else:
+                    serialized_vectors[k] = v
             return jsonify({'vectors': serialized_vectors}), 200
         else:
             return jsonify({'vectors': {}}), 200
