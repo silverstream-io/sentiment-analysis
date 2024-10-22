@@ -43,7 +43,7 @@ const SentimentAnalysis: React.FC<SentimentAnalysisProps> = ({ zafClient, onSent
         : [];
 
       debugLog('customerComments', customerComments);
-      const commentsToAnalyze: { [id: string]: { text: string, timestamp: number } } = {};
+      const commentsToAnalyze: { [id: string]: { text: string, created_at: Date } } = {};
 
       debugLog('storedVectors', storedVectors);
       debugLog('storedVectors.length', storedVectors.length);
@@ -52,7 +52,7 @@ const SentimentAnalysis: React.FC<SentimentAnalysisProps> = ({ zafClient, onSent
         customerComments.forEach((comment: any) => {
           commentsToAnalyze[comment.id] = {
             text: comment.value,
-            timestamp: new Date(comment.created_at).getTime() / 1000
+            created_at: new Date(comment.created_at)
           };
         });
       } else {
@@ -62,7 +62,7 @@ const SentimentAnalysis: React.FC<SentimentAnalysisProps> = ({ zafClient, onSent
           if (!storedVectors.some(vector => vector.id === commentVectorId)) {
             commentsToAnalyze[comment.id] = {
               text: comment.value,
-              timestamp: new Date(comment.created_at).getTime() / 1000
+              created_at: new Date(comment.created_at)
             };
           }
         });
