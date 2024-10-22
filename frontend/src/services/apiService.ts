@@ -53,7 +53,7 @@ async function makeApiRequest(zafClient: any, endpoint: string, method: string, 
 
 export async function listTicketVectors(zafClient: any, ticketId: string): Promise<any[]> {
   debugLog('Listing ticket vectors for ticket:', ticketId);
-  const data = await makeApiRequest(zafClient, '/get-ticket-vectors', 'POST', { ticket: { id: ticketId } });
+  const data = await makeApiRequest(zafClient, '/get-ticket-vectors', 'POST', { ticket: { ticketId } });
   return data.vectors;
 }
 
