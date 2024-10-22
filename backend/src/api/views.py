@@ -62,10 +62,16 @@ class SentimentChecker:
         try:
             self.data = request.json
             self.ticket_ids = []
-            if 'ticket' in self.data and isinstance(self.data['ticket'], str):
-                self.ticket_ids.append(self.data['ticket'])
-            if 'tickets' in self.data and isinstance(self.data['tickets'], list):
-                self.ticket_ids.extend([ticket for ticket in self.data['tickets'] if isinstance(ticket, str)])
+            if 'ticket' in self.data:
+                if isinstance(self.data['ticket'], str):
+                    self.ticket_ids.append(self.data['ticket'])
+                elif isinstance(self.data['ticket'], dict) and 'ticketId' in self.data['ticket']:
+                    self.ticket_ids.append(self.data['ticket']['ticketId'])
+            if 'tickets' in self.data:
+                if isinstance(self.data['tickets'], list):
+                    self.ticket_ids.extend([str(ticket) for ticket in self.data['tickets'] if isinstance(ticket, (str, int))])
+                elif isinstance(self.data['tickets'], dict):
+                    self.ticket_ids.extend([str(ticket_id) for ticket_id in self.data['tickets'].keys()])
             self.ticket_ids = list(set(self.ticket_ids))  # Remove duplicates
         except Exception as e:
             self.logger.debug(f"Error getting request data: {e}, request remote addr: {self.remote_addr}")
@@ -309,6 +315,7 @@ class SentimentChecker:
             return render_template(f'{self.templates}/health.html')
         else:
             return jsonify({'error': 'Pinecone service is not healthy'}), 500
+
 
 
 
