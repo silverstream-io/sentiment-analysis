@@ -33,7 +33,13 @@ const SentimentAnalysis: React.FC<SentimentAnalysisProps> = ({ zafClient, onSent
 
       // Get all vectors associated with the current ticket
       const storedVectors = await listTicketVectors(zafClient, ticketId);
-      
+
+      // Create a set of existing vector IDs for efficient lookup
+      const existingVectorIds = Array.isArray(storedVectors) && storedVectors.length > 0 
+        ? storedVectors.map(vector => vector.id)
+        : [];
+
+
       // Get all customer comments
       const ticketCommentsData = await zafClient.get('ticket.comments');
       debugLog('ticketCommentsData', ticketCommentsData);
@@ -44,14 +50,11 @@ const SentimentAnalysis: React.FC<SentimentAnalysisProps> = ({ zafClient, onSent
 
       debugLog('customerComments', customerComments);
 
-      // Create a set of existing vector IDs for efficient lookup
-      const existingVectorIds = new Set(storedVectors.map(vector => vector.id));
-
       // Create the commentsToAdd object
       const commentsToAdd: { [id: string]: { text: string, created_at: Date } } = {};
 
       customerComments.forEach(comment => {
-        if (!existingVectorIds.has(`${ticketId}#${comment.id}`)) {
+        if (!existingVectorIds.includes(`${ticketId}#${comment.id}`)) {
           commentsToAdd[comment.id] = {
             text: comment.value,
             created_at: new Date(comment.created_at)
