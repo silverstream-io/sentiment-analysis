@@ -65,6 +65,7 @@ class SentimentChecker:
         """
         self.init()
         self.logger.info(f"Received request for analyze_comments, request remote addr: {self.remote_addr}")
+
         data = request.json
         ticket = data.get('ticket', {})
         comments = ticket.get('comments', {})
@@ -166,11 +167,16 @@ class SentimentChecker:
         ticket = data.get('ticket', {})
         ticket_id = ticket.get('ticketId')
 
-        vectors = self.pinecone_service.list_ticket_vectors(ticket_id)
-        vectors_ids = [getattr(vector, 'id', vector.get('id')) if isinstance(vector, dict) else vector.id for vector in vectors]
+        vectors_list = self.pinecone_service.list_ticket_vectors(ticket_id)
+        self.logger.info(f"Ticket {ticket_id} has vectors: {vectors_list}, request remote addr: {self.remote_addr}")
+        vectors_ids = [getattr(vector, 'id', vector.get('id')) if isinstance(vector, dict) else vector.id for vector in vectors_list]
         vectors = self.pinecone_service.fetch_vectors(vectors_ids)
         if vectors: 
-            return jsonify({'vectors': vectors}), 200
+            try:
+                return jsonify({'vectors': vectors}), 200
+            except Exception as e:
+                self.logger.error(f"Error serializing vectors: {e}, request remote addr: {self.remote_addr}")
+                return jsonify({'Error': e}), 500
         else:
             return jsonify({'vectors': {}}), 200
 
