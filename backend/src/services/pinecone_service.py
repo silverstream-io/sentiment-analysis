@@ -69,11 +69,12 @@ class PineconeService:
 
     def list_ticket_vectors(self, ticket_id=None):
         vectors = []
+        prefix = ""
         if ticket_id:
-            ticket_id = f"{ticket_id}#"
-        response = self.index.list_paginated(prefix=ticket_id, namespace=self.namespace)
+            prefix = f"{ticket_id}#"
+        response = self.index.list_paginated(prefix=prefix, namespace=self.namespace)
         vectors.extend(response.vectors)
-        while response.pagination and len(vectors) < 1000:
+        while response.pagination and len(vectors) < 1000: # Cap total number of vectors to 1000
             response = self.index.list_paginated(prefix=ticket_id, namespace=self.namespace, pagination_token=response.pagination.next)
             vectors.extend(response.vectors)
         return vectors
@@ -86,4 +87,6 @@ class PineconeService:
             batch = vector_ids[i:i+1000]
             fetch_response = self.index.fetch(ids=list(batch), namespace=namespace)
             vectors.update(fetch_response.vectors)
+        if not vectors:
+            return None
         return vectors
