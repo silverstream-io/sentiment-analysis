@@ -178,7 +178,7 @@ class SentimentChecker:
                     serialized_vectors[k] = v
             return jsonify({'vectors': serialized_vectors}), 200
         else:
-            return jsonify({'vectors': {}}), 200
+            return jsonify({'vectors': []}), 200
 
     @session_required
     def get_score(self) -> Tuple[Dict[str, str], int]:
