@@ -4,6 +4,7 @@ from datetime import datetime
 from bs4 import BeautifulSoup as bs
 from services.auth_service import auth_required, session_required
 from services.pinecone_service import PineconeService
+import numpy as np
 from models.emotions import emotions
 from utils import get_subdomain
 import logging
@@ -48,6 +49,7 @@ class SentimentChecker:
     def __init__(self):
         self.logger = logger
         self.templates = 'sentiment-checker'
+
     
     def init(self):
         self.remote_addr = request.headers.get('X-Forwarded-For', request.remote_addr)
@@ -57,6 +59,15 @@ class SentimentChecker:
             raise Exception(error)
         self.pinecone_service = PineconeService(self.subdomain)
         self.logger.info(f"Initialized SentimentChecker with subdomain: {self.subdomain}, request remote addr: {self.remote_addr}")
+        try:
+            self.data = request.json
+            self.ticket = self.data.get('ticket', {})
+            self.ticket_id = self.ticket.get('ticketId')
+            self.comments = self.ticket.get('comments', {})
+        except Exception as e:
+            self.logger.debug(f"Error getting request data: {e}, request remote addr: {self.remote_addr}")
+            self.data = {}
+
 
     @session_required
     def analyze_comments(self) -> Tuple[Dict[str, str], int]:
@@ -66,17 +77,13 @@ class SentimentChecker:
         self.init()
         self.logger.info(f"Received request for analyze_comments, request remote addr: {self.remote_addr}")
 
-        data = request.json
-        ticket = data.get('ticket', {})
-        comments = ticket.get('comments', {})
-        ticket_id = ticket.get('id')
-        if not comments or not ticket_id:
-            self.logger.warning(f"Missing comments or ticket id in request data, data is {data}, request remote addr: {self.remote_addr}")
+        if not self.comments or not self.ticket_id:
+            self.logger.warning(f"Missing comments or ticket id in request data, data is {self.data}, request remote addr: {self.remote_addr}")
             return jsonify({'error': 'Missing comments or ticket id'}), 400
 
-        self.logger.info(f"Processing comments for ticket: {ticket_id}, request remote addr: {self.remote_addr}")
+        self.logger.info(f"Processing comments for ticket: {self.ticket_id}, request remote addr: {self.remote_addr}")
         results = []
-        for comment_id, comment_data in comments.items():
+        for comment_id, comment_data in self.comments.items():
             text = comment_data.get('text', '')
             try:    
                 timestamp = int(datetime.timestamp(comment_data.get('created_at')))
@@ -89,7 +96,7 @@ class SentimentChecker:
 
             text = bs(text, 'html.parser').get_text()
             text = ' '.join(text.split())
-            vector_id = f"{ticket_id}#{comment_id}"
+            vector_id = f"{self.ticket_id}#{comment_id}"
 
             try:
                 existing_vector = self.pinecone_service.fetch_vector(vector_id)
@@ -151,8 +158,9 @@ class SentimentChecker:
                     'upserted_count': upsert_response.upserted_count
                 })
 
-        self.logger.info(f"Finished processing comments for ticket: {ticket_id}, request remote addr: {self.remote_addr}")
+        self.logger.info(f"Finished processing comments for ticket: {self.ticket_id}, request remote addr: {self.remote_addr}")
         return jsonify({'message': 'Comments analyzed and stored successfully', 'results': results}), 200
+
 
     @session_required
     def get_ticket_vectors(self) -> Tuple[Dict[str, str], int]:
@@ -163,22 +171,20 @@ class SentimentChecker:
         self.init()
         self.logger.info(f"Received request for get_ticket_vectors, request remote addr: {self.remote_addr}")
 
-        data = request.json
-        ticket = data.get('ticket', {})
-        ticket_id = ticket.get('ticketId')
+        if not self.ticket_id:
+            self.logger.warning(f"Missing ticket id in request data, data is {self.data}, request remote addr: {self.remote_addr}")
+            return jsonify({'error': 'Missing ticket id'}), 400
 
-        vectors_list = self.pinecone_service.list_ticket_vectors(ticket_id)
-        self.logger.info(f"Ticket {ticket_id} has vectors: {vectors_list}, request remote addr: {self.remote_addr}")
+        vectors_list = self.pinecone_service.list_ticket_vectors(self.ticket_id)
+        self.logger.debug(f"Ticket {self.ticket_id} has vectors: {vectors_list}, request remote addr: {self.remote_addr}")
         vectors_ids = [getattr(vector, 'id', vector.get('id')) if isinstance(vector, dict) else vector.id for vector in vectors_list]
-        vectors = self.pinecone_service.fetch_vectors(vectors_ids)
-        if vectors: 
-            try:
-                return jsonify({'vectors': vectors}), 200
-            except Exception as e:
-                self.logger.error(f"Error serializing vectors: {e}, request remote addr: {self.remote_addr}")
-                return jsonify({'Error': e}), 500
-        else:
-            return jsonify({'vectors': {}}), 200
+        try:
+            vectors = self.pinecone_service.fetch_vectors(vectors_ids)
+            return jsonify({'vectors': vectors}), 200
+        except Exception as e:
+            self.logger.error(f"Error fetching vectors: {e}, request remote addr: {self.remote_addr}")
+            return jsonify({'Error': e}), 500
+
 
     @session_required
     def get_score(self) -> Tuple[Dict[str, str], int]:
@@ -189,13 +195,11 @@ class SentimentChecker:
         self.logger.info(f"Received request for get_score, request remote addr: {self.remote_addr}")
 
         try:
-            data = request.json
-            tickets = data.get('tickets', [])
-            if not tickets or not isinstance(tickets, list):
+            if not self.ticket_id:
                 return jsonify({'error': 'Invalid or missing ticket data'}), 400
-            ticket_ids = [ticket.get('ticketId') for ticket in tickets if ticket.get('ticketId')]
-            if not ticket_ids:
-                return jsonify({'error': 'No valid ticket IDs found'}), 400
+            ticket_ids = [self.ticket_id]
+            if not isinstance(ticket_ids, list):
+                ticket_ids = [ticket_ids]
         except Exception as e:
             self.logger.error(f"Error processing ticket data: {e}, request remote addr: {self.remote_addr}")
             return jsonify({'error': 'Invalid request data'}), 400
@@ -205,6 +209,7 @@ class SentimentChecker:
         total_weighted_score = 0
         total_weight = 0
         lambda_factor = 0.5  # Adjust this value to control the decay rate
+        all_scores = []
 
         for ticket_id in ticket_ids:
             self.logger.info(f"Processing ticket: {ticket_id}, request remote addr: {self.remote_addr}")
@@ -222,22 +227,33 @@ class SentimentChecker:
                     if 'metadata' in vector_data and 'emotion_score' in vector_data['metadata']:
                         time_diff = (newest_timestamp - vector_data['metadata']['timestamp']) / (24 * 3600)  # Convert to days
                         weight = math.exp(-lambda_factor * time_diff)
-                        total_weighted_score += vector_data['metadata']['emotion_score'] * weight
+                        score = vector_data['metadata']['emotion_score']
+                        total_weighted_score += score * weight
                         total_weight += weight
+                        all_scores.append(score)
                     else:
                         self.logger.debug(f"No metadata or emotion_score found for vector {vector_id}, request remote addr: {self.remote_addr}")
 
         if total_weight > 0:
-            emotion_score = total_weighted_score / total_weight
+            weighted_score = total_weighted_score / total_weight
         else:
-            emotion_score = 0
-        if emotion_score > 1:
-            emotion_score = 1
-        elif emotion_score < -1:
-            emotion_score = -1
+            weighted_score = 0
+        
+        if all_scores:
+            all_scores_np = np.array(all_scores)
+            std_dev = np.std(all_scores_np)
+            most_recent_score = all_scores_np[0]
 
-        self.logger.info(f"Calculated weighted score for {len(ticket_ids)} tickets: {emotion_score}, request remote addr: {self.remote_addr}")
-        return jsonify({'score': emotion_score}), 200
+            if abs(most_recent_score - weighted_score) > std_dev:
+                weighted_score = most_recent_score
+            elif abs(weighted_score - most_recent_score) > std_dev:
+                weighted_score = most_recent_score
+            
+        weighted_score = max(min(weighted_score, 1), -1)
+        
+        self.logger.info(f"Calculated weighted score for {len(ticket_ids)} tickets: {weighted_score}, request remote addr: {self.remote_addr}")
+        return jsonify({'score': weighted_score}), 200
+
 
     @auth_required
     def entry(self):
@@ -259,6 +275,17 @@ class SentimentChecker:
         response.set_cookie('session_token', session_token, secure=True, httponly=True, samesite='None')
 
         return response
+
     
     def health(self):
-        return render_template(f'{self.templates}/health.html')
+        """
+        Serve the health check page for the Zendesk application. This will:
+        - Check the health of the Pinecone service
+        """
+        self.init()
+        check_pinecone = self.pinecone_service.check_health()
+        self.logger.info(f"Pinecone health check: {check_pinecone}, request remote addr: {self.remote_addr}")
+        if check_pinecone.get('status', {}).get('ready', True):  
+            return render_template(f'{self.templates}/health.html')
+        else:
+            return jsonify({'error': 'Pinecone service is not healthy'}), 500
