@@ -236,28 +236,30 @@ class SentimentChecker:
         lambda_factor = 0.5  # Adjust this value to control the decay rate
         all_scores = []
 
+        vector_ids = []
         for ticket_id in self.ticket_ids:
             self.logger.debug(f"Processing ticket: {ticket_id}, request remote addr: {self.remote_addr}")
             vector_list = self.pinecone_service.list_ticket_vectors(str(ticket_id))
-            vector_ids = [getattr(vector, 'id', vector.get('id')) if isinstance(vector, dict) else vector.id for vector in vector_list]
-            comment_vectors = self.pinecone_service.fetch_vectors(vector_ids)
+            for vector_id in vector_list:
+                vector_ids.append(vector_id)
+        comment_vectors = self.pinecone_service.fetch_vectors(vector_ids)
             
-            # Sort vectors by timestamp (newest first)
-            sorted_vectors = sorted(comment_vectors.items(), key=lambda x: x[1]['metadata']['timestamp'], reverse=True)
+        # Sort vectors by timestamp (newest first)
+        sorted_vectors = sorted(comment_vectors.items(), key=lambda x: x[1]['metadata']['timestamp'], reverse=True)
             
-            if sorted_vectors:
-                newest_timestamp = sorted_vectors[0][1]['metadata']['timestamp']
+        if sorted_vectors:
+            newest_timestamp = sorted_vectors[0][1]['metadata']['timestamp']
                 
-                for vector_id, vector_data in sorted_vectors:
-                    if 'metadata' in vector_data and 'emotion_score' in vector_data['metadata']:
-                        time_diff = (newest_timestamp - vector_data['metadata']['timestamp']) / (24 * 3600)  # Convert to days
-                        weight = math.exp(-lambda_factor * time_diff)
-                        score = vector_data['metadata']['emotion_score']
-                        total_weighted_score += score * weight
-                        total_weight += weight
-                        all_scores.append(score)
-                    else:
-                        self.logger.debug(f"No metadata or emotion_score found for vector {vector_id}, request remote addr: {self.remote_addr}")
+            for vector_id, vector_data in sorted_vectors:
+                if 'metadata' in vector_data and 'emotion_score' in vector_data['metadata']:
+                    time_diff = (newest_timestamp - vector_data['metadata']['timestamp']) / (24 * 3600)  # Convert to days
+                    weight = math.exp(-lambda_factor * time_diff)
+                    score = vector_data['metadata']['emotion_score']
+                    total_weighted_score += score * weight
+                    total_weight += weight
+                    all_scores.append(score)
+                else:
+                    self.logger.debug(f"No metadata or emotion_score found for vector {vector_id}, request remote addr: {self.remote_addr}")
 
         if total_weight > 0:
             weighted_score = total_weighted_score / total_weight

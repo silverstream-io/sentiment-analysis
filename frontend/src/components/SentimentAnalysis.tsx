@@ -48,14 +48,13 @@ const SentimentAnalysis: React.FC<SentimentAnalysisProps> = ({ zafClient, onSent
         type: 'GET'
       });
 
-      let commentCreationTimes: { [id: string]: string } = {};
-
       if (ticketDetails && ticketDetails.comments && Array.isArray(ticketDetails.comments)) {
-        for (const comment of ticketDetails.comments) {
-          if (comment && comment.id && comment.created_at) {
-            commentCreationTimes[comment.id] = comment.created_at;
+        const detailedComments = new Map(ticketDetails.comments.map((comment: any) => [comment.id, comment.created_at]));
+        ticketComments['ticket.comments'].forEach((comment: any) => {
+          if (detailedComments.has(comment.id)) {
+            comment.created_at = detailedComments.get(comment.id);
           }
-        }
+        });
       } else {
         debugLog('Unexpected structure in ticketDetails:', ticketDetails);
         throw new Error('Unexpected structure in ticketDetails: ' + JSON.stringify(ticketDetails));

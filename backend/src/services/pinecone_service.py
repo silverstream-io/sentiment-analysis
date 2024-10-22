@@ -99,7 +99,7 @@ class PineconeService:
         return vectors
 
 
-    def fetch_vectors(self, vector_ids, namespace=None):
+    def fetch_vectors(self, vector_ids, namespace=None, include_metadata=True, include_values=False):
         vectors = {}
         if not namespace:
             namespace = self.namespace
@@ -109,8 +109,8 @@ class PineconeService:
             for id, vector in fetch_response.vectors.items():
                 vectors[id] = {
                     "id": id,
-                    "values": vector.values,
-                    "metadata": vector.metadata
+                    "values": vector.values if include_values else None,
+                    "metadata": vector.metadata if include_metadata else None
                 }
         return vectors
 
