@@ -231,6 +231,10 @@ class SentimentChecker:
             emotion_score = total_weighted_score / total_weight
         else:
             emotion_score = 0
+        if emotion_score > 1:
+            emotion_score = 1
+        elif emotion_score < -1:
+            emotion_score = -1
 
         self.logger.info(f"Calculated weighted score for {len(ticket_ids)} tickets: {emotion_score}, request remote addr: {self.remote_addr}")
         return jsonify({'score': emotion_score}), 200
