@@ -57,7 +57,7 @@ export async function listTicketVectors(zafClient: any, ticketId: string): Promi
   return data.vectors;
 }
 
-export async function analyzeComments(zafClient: any, ticketId: string, comments: { [id: string]: { text: string, created_at: Date } }): Promise<void> {
+export async function analyzeComments(zafClient: any, ticketId: string, comments: { [id: string]: { text: string, created_at: string } }): Promise<void> {
   debugLog('Analyzing comments for ticket:', ticketId, comments);
   await makeApiRequest(zafClient, '/analyze-comments', 'POST', { ticket: { ticketId, comments } });
 }
