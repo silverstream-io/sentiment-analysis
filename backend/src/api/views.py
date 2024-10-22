@@ -67,7 +67,7 @@ class SentimentChecker:
         data = request.json
         ticket = data.get('ticket', {})
         comments = ticket.get('comments', {})
-        ticket_id = ticket.get('id')
+        ticket_id = ticket.get('ticketId')
         if not comments or not ticket_id:
             self.logger.warning(f"Missing comments or ticket id in request data, request remote addr: {request.remote_addr}")
             return jsonify({'error': 'Missing comments or ticket id'}), 400
@@ -76,7 +76,11 @@ class SentimentChecker:
         results = []
         for comment_id, comment_data in comments.items():
             text = comment_data.get('text', '')
-            timestamp = comment_data.get('timestamp')
+            try:    
+                timestamp = int(datetime.timestamp(comment_data.get('created_at')))
+            except Exception as e:
+                self.logger.error(f"Error getting timestamp for comment {comment_id}: {e}, request remote addr: {request.remote_addr}")
+                timestamp = int(datetime.timestamp(datetime.now()))
             
             if not text:
                 continue
@@ -130,11 +134,14 @@ class SentimentChecker:
                 self.logger.debug(f"Emotion score for comment {comment_id}: {emotion_score}, request remote addr: {request.remote_addr}")
                 metadata = {
                     'text': text,
-                    'timestamp': int(timestamp) if timestamp else int(datetime.timestamp(datetime.now())),
+                    'timestamp': timestamp,
                     'emotion_score': emotion_score
                 }
                 # Upsert vector to Zendesk subdomain namespace
                 upsert_response = self.pinecone_service.upsert_vector(vector_id, embedding, metadata)
+                if not upsert_response.get('upserted_count') or upsert_response.get('upserted_count') == 0:
+                    self.logger.error(f"No vector upserted for comment {comment_id}, upsert response: {upsert_response}, request remote addr: {request.remote_addr}")
+                    return jsonify({'error': f'No vector upserted for comment {comment_id}'}), 500
                 results.append({
                     'comment_id': comment_id,
                     'emotion_score': emotion_score,
@@ -155,7 +162,7 @@ class SentimentChecker:
 
         data = request.json
         ticket = data.get('ticket', {})
-        ticket_id = ticket.get('id')
+        ticket_id = ticket.get('ticketId')
 
         vectors = self.pinecone_service.list_ticket_vectors(ticket_id)
         if vectors:
