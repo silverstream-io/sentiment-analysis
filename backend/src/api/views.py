@@ -167,18 +167,12 @@ class SentimentChecker:
         ticket_id = ticket.get('ticketId')
 
         vectors = self.pinecone_service.list_ticket_vectors(ticket_id)
-        serialized_vectors = {}
-        if vectors:
-            vectors_ids = [getattr(vector, 'id', vector.get('id')) if isinstance(vector, dict) else vector.id for vector in vectors]
-            vectors = self.pinecone_service.fetch_vectors(vectors_ids)
-            for k, v in vectors.items():
-                if v is None:
-                    self.logger.debug(f"Vector {k} is None, request remote addr: {self.remote_addr}")
-                else:
-                    serialized_vectors[k] = v
-            return jsonify({'vectors': serialized_vectors}), 200
+        vectors_ids = [getattr(vector, 'id', vector.get('id')) if isinstance(vector, dict) else vector.id for vector in vectors]
+        vectors = self.pinecone_service.fetch_vectors(vectors_ids)
+        if vectors: 
+            return jsonify({'vectors': vectors}), 200
         else:
-            return jsonify({'vectors': []}), 200
+            return jsonify({'vectors': {}}), 200
 
     @session_required
     def get_score(self) -> Tuple[Dict[str, str], int]:
