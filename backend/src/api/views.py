@@ -68,7 +68,7 @@ class SentimentChecker:
         data = request.json
         ticket = data.get('ticket', {})
         comments = ticket.get('comments', {})
-        ticket_id = ticket.get('ticketId')
+        ticket_id = ticket.get('id')
         if not comments or not ticket_id:
             self.logger.warning(f"Missing comments or ticket id in request data, request remote addr: {self.remote_addr}")
             return jsonify({'error': 'Missing comments or ticket id'}), 400
@@ -170,7 +170,8 @@ class SentimentChecker:
         if vectors:
             vectors_ids = [getattr(vector, 'id', vector.get('id')) if isinstance(vector, dict) else vector.id for vector in vectors]
             vectors = self.pinecone_service.fetch_vectors(vectors_ids)
-            return jsonify({'vectors': vectors}), 200
+            serialized_vectors = {k: v for k, v in vectors.items() if v is not None}
+            return jsonify({'vectors': serialized_vectors}), 200
         else:
             return jsonify({'vectors': {}}), 200
 
