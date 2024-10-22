@@ -9,6 +9,7 @@ interface SentimentAnalysisProps {
 const SentimentAnalysis: React.FC<SentimentAnalysisProps> = ({ zafClient, onSentimentUpdate }) => {
   const [error, setError] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisMessage, setAnalysisMessage] = useState<string | null>(null);
 
   useEffect(() => {
     analyzeSentiment();
@@ -27,12 +28,28 @@ const SentimentAnalysis: React.FC<SentimentAnalysisProps> = ({ zafClient, onSent
       if (!zafClient) {
         throw new Error('ZAFClient is not initialized');
       }
+      setIsAnalyzing(true);
+      rotateMessages();
 
       const ticketId = await zafClient.get('ticket.id');
       debugLog('Analyzing sentiment for ticket:', ticketId);
 
       const ticketComments = await zafClient.get('ticket.comments');
+      if (ticketComments.length === 0) {
+        debugLog('No comments found for ticket:', ticketId);
+        return "No comments found, check back later.";
+      }
       debugLog('ticketComments', ticketComments);
+          // Fetch ticket details to get comment creation times
+      const ticketDetails = await zafClient.request({
+        url: `/api/v2/tickets/${ticketId}.json?include=comments`,
+        type: 'GET'
+      });
+      const commentCreationTimes = ticketDetails.ticket.comments.reduce((acc: { [id: string]: string }, comment: any) => {
+        acc[comment.id] = comment.created_at;
+        return acc;
+      }, {});
+
       // Get all vectors associated with the current ticket
       const storedVectors = await listTicketVectors(zafClient, ticketId);
       debugLog('storedVectors', storedVectors);
@@ -43,8 +60,16 @@ const SentimentAnalysis: React.FC<SentimentAnalysisProps> = ({ zafClient, onSent
         await analyzeComments(zafClient, ticketId, ticketComments);
       } else {
         // Analyze new comments if any
-        const newComments = ticketComments.filter((comment: any) => !storedVectors.some((vector: any) => vector.id === `${ticketId}#${comment.id}`));
-        if (newComments.length > 0) {
+        const newComments: { [id: string]: { text: string, created_at: string } } = {};
+        for (const comment of ticketComments['ticket.comments']) { 
+          if (!storedVectors.some((vector: any) => vector.id === `${ticketId}#${comment.id}`)) {
+            newComments[comment.id] = {
+              text: comment.value,
+              created_at: commentCreationTimes[comment.id]
+            };
+          }
+        }
+        if (Object.keys(newComments).length > 0) {
           debugLog('Analyzing new comments:', newComments);
           await analyzeComments(zafClient, ticketId, newComments);
         }
@@ -68,12 +93,30 @@ const SentimentAnalysis: React.FC<SentimentAnalysisProps> = ({ zafClient, onSent
     }
   }
 
+  const rotateMessages = () => {
+    const messages = [
+      'Analyzing ticket sentiment...',
+      'Getting list of comments...',
+      'Scoring sentiment of each comment...',
+      'Comparing to tickets over the last 30 days...'
+    ];
+    let currentIndex = 0;
+
+    const intervalId = setInterval(() => {
+      setAnalysisMessage(messages[currentIndex]);
+      currentIndex = (currentIndex + 1) % messages.length;
+    }, 2500); // Change message every 2.5 seconds
+
+    // Clear the interval after 10 seconds
+    setTimeout(() => clearInterval(intervalId), 10000);
+  };
+
   if (error) {
     return <div>Error: {error}</div>;
   }
 
   if (isAnalyzing) {
-    return <div>Analyzing sentiment...</div>;
+    return <div>{analysisMessage}</div>;
   }
 
   return null;
