@@ -110,7 +110,7 @@ class SentimentChecker:
                         timestamp = int(datetime.fromisoformat(comment_data.get('created_at').replace('Z', '+00:00')).timestamp())
                     else:
                         self.logger.error(f"Invalid created_at format for comment {comment_id}, created_at: {comment_data.get('created_at')}, request remote addr: {self.remote_addr}")
-                        return jsonify({'error': f'Invalid created_at format for comment {comment_id}, created_at: {comment_data.get('created_at')}'}), 400
+                        return jsonify({'error': f"Invalid created_at format for comment {comment_id}, created_at: {comment_data.get('created_at')}"}), 400
                 except Exception as e:
                     self.logger.error(f"Error getting timestamp for comment {comment_id}: {e}, request remote addr: {self.remote_addr}")
                     timestamp = int(datetime.now().timestamp())
