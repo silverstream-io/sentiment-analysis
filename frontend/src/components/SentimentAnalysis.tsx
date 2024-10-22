@@ -44,10 +44,11 @@ const SentimentAnalysis: React.FC<SentimentAnalysisProps> = ({ zafClient, onSent
 
       // Fetch ticket details to get comment creation times
       const ticketDetails = await zafClient.request({
-        url: `/api/v2/tickets/${ticketId}.json?include=comments`,
+        url: `/api/v2/tickets/${ticketId}/comments.json`,
+        contentType: 'application/json',
         type: 'GET'
       });
-      const commentCreationTimes = ticketDetails.ticket.comments.reduce((acc: { [id: string]: string }, comment: any) => {
+      const commentCreationTimes = ticketDetails.comments.reduce((acc: { [id: string]: string }, comment: any) => {
         acc[comment.id] = comment.created_at;
         return acc;
       }, {});
