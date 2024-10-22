@@ -87,7 +87,7 @@ class SentimentChecker:
             text = comment_data.get('text', '')
             try:    
                 if isinstance(comment_data.get('created_at'), str):
-                    timestamp = int(datetime.fromisoformat(comment_data.get('created_at')).timestamp())
+                    timestamp = int(datetime.fromisoformat(comment_data.get('created_at').replace('Z', '+00:00')).timestamp())
                 else:
                     timestamp = int(comment_data.get('created_at').timestamp())
             except Exception as e:
@@ -102,18 +102,21 @@ class SentimentChecker:
             vector_id = f"{self.ticket_id}#{comment_id}"
 
             try:
-                existing_vector = self.pinecone_service.fetch_vectors([vector_id])
+                existing_vector = self.pinecone_service.fetch_vector(vector_id)
             except Exception as e:
                 self.logger.debug(f"Error fetching vector {vector_id}: {e}, request remote addr: {self.remote_addr}")
                 existing_vector = None
 
             if existing_vector:
                 self.logger.debug(f"Existing vector found for comment {comment_id}: {existing_vector}, request remote addr: {self.remote_addr}")
-                results.append({
-                    'comment_id': comment_id,
+                if 'metadata' in existing_vector and 'emotion_score' in existing_vector['metadata']:
+                    results.append({
+                        'comment_id': comment_id,
                     'emotion_score': existing_vector['metadata']['emotion_score'],
-                    'upserted_count': 0
-                })
+                        'upserted_count': 0
+                    })
+                else:
+                    self.logger.debug(f"No metadata or emotion_score found for vector {vector_id}, request remote addr: {self.remote_addr}")
             else:
                 self.logger.debug(f"No existing vector found for comment {comment_id}, request remote addr: {self.remote_addr}")
                 embedding = self.pinecone_service.get_embedding(text)
@@ -292,4 +295,5 @@ class SentimentChecker:
             return render_template(f'{self.templates}/health.html')
         else:
             return jsonify({'error': 'Pinecone service is not healthy'}), 500
+
 
