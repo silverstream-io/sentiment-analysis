@@ -64,10 +64,12 @@ class SentimentChecker:
             self.ticket = self.data.get('ticket', {})
             self.ticket_id = self.ticket.get('ticketId')
             self.comments = self.ticket.get('comments', {})
+            self.tickets = self.data.get('tickets', [])
+            self.ticket_ids = [ticket.get('ticketId') for ticket in self.tickets if ticket.get('ticketId')]
         except Exception as e:
             self.logger.debug(f"Error getting request data: {e}, request remote addr: {self.remote_addr}")
             self.data = {}
-        if not self.ticket_id:
+        if not self.ticket_id and not self.ticket_ids:
             self.logger.warning(f"Missing ticket id in request data, data is {self.data}, request remote addr: {self.remote_addr}")
             return jsonify({'error': 'Missing ticket id'}), 400
 
@@ -204,11 +206,13 @@ class SentimentChecker:
         self.logger.info(f"Received request for get_score, request remote addr: {self.remote_addr}")
 
         try:
-            if not self.ticket_id:
-                return jsonify({'error': 'Invalid or missing ticket data'}), 400
-            ticket_ids = self.ticket_id
-            if not isinstance(ticket_ids, list):
-                ticket_ids = [ticket_ids]
+            if not hasattr(self, 'ticket_ids') and not hasattr(self, 'ticket_id'):
+                self.logger.warning(f"Missing ticket id in request data, data is {self.data}, request remote addr: {self.remote_addr}")
+                return jsonify({'error': 'Missing ticket id'}), 400
+            if hasattr(self, 'ticket_ids'):
+                ticket_ids = self.ticket_ids
+            else:
+                ticket_ids = [self.ticket_id]
         except Exception as e:
             self.logger.error(f"Error processing ticket data: {e}, request remote addr: {self.remote_addr}")
             return jsonify({'error': 'Invalid request data'}), 400
