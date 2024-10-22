@@ -279,7 +279,8 @@ class SentimentChecker:
             
         weighted_score = max(min(weighted_score, 1), -1)
         
-        self.logger.debug(f"Calculated weighted score for {len(self.ticket_ids)} tickets: {weighted_score}, request remote addr: {self.remote_addr}")
+        self.logger.info(f"Calculated weighted score for {len(self.ticket_ids)} tickets: {weighted_score}, request remote addr: {self.remote_addr}")
+        #self.logger.debug(f"Calculated weighted score for {len(self.ticket_ids)} tickets: {weighted_score}, request remote addr: {self.remote_addr}")
         return jsonify({'score': weighted_score}), 200
 
 
