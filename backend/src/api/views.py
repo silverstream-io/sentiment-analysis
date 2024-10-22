@@ -86,10 +86,13 @@ class SentimentChecker:
         for comment_id, comment_data in self.comments.items():
             text = comment_data.get('text', '')
             try:    
-                timestamp = int(datetime.timestamp(comment_data.get('created_at')))
+                if isinstance(comment_data.get('created_at'), str):
+                    timestamp = int(datetime.fromisoformat(comment_data.get('created_at')).timestamp())
+                else:
+                    timestamp = int(comment_data.get('created_at').timestamp())
             except Exception as e:
                 self.logger.error(f"Error getting timestamp for comment {comment_id}: {e}, request remote addr: {self.remote_addr}")
-                timestamp = int(datetime.timestamp(datetime.now()))
+                timestamp = int(datetime.now().timestamp())
             
             if not text:
                 continue
@@ -99,7 +102,7 @@ class SentimentChecker:
             vector_id = f"{self.ticket_id}#{comment_id}"
 
             try:
-                existing_vector = self.pinecone_service.fetch_vector(vector_id)
+                existing_vector = self.pinecone_service.fetch_vectors([vector_id])
             except Exception as e:
                 self.logger.info(f"Error fetching vector {vector_id}: {e}, request remote addr: {self.remote_addr}")
                 existing_vector = None
@@ -120,7 +123,7 @@ class SentimentChecker:
                                                                       top_k=100, 
                                                                       include_metadata=True, 
                                                                       include_values=False)
-                self.logger.info(f"Emotion matches: {emotion_matches}, request remote addr: {self.remote_addr}")
+                self.logger.debug(f"Emotion matches: {emotion_matches}, request remote addr: {self.remote_addr}")
                 emotion_sum = 0
                 matched_count = 0
                 for match in emotion_matches:
@@ -289,3 +292,4 @@ class SentimentChecker:
             return render_template(f'{self.templates}/health.html')
         else:
             return jsonify({'error': 'Pinecone service is not healthy'}), 500
+
