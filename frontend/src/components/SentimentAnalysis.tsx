@@ -31,16 +31,18 @@ const SentimentAnalysis: React.FC<SentimentAnalysisProps> = ({ zafClient, onSent
       setIsAnalyzing(true);
       rotateMessages();
 
-      const ticketId = await zafClient.get('ticket.id');
+      const ticketIdObject = await zafClient.get('ticket.id');
+      const ticketId = ticketIdObject['ticket.id'];
       debugLog('Analyzing sentiment for ticket:', ticketId);
 
       const ticketComments = await zafClient.get('ticket.comments');
-      if (ticketComments.length === 0) {
+      if (ticketComments['ticket.comments'].length === 0) {
         debugLog('No comments found for ticket:', ticketId);
         return "No comments found, check back later.";
       }
       debugLog('ticketComments', ticketComments);
-          // Fetch ticket details to get comment creation times
+
+      // Fetch ticket details to get comment creation times
       const ticketDetails = await zafClient.request({
         url: `/api/v2/tickets/${ticketId}.json?include=comments`,
         type: 'GET'
