@@ -28,7 +28,7 @@ const SentimentAnalysis: React.FC<SentimentAnalysisProps> = ({ zafClient, onSent
         throw new Error('ZAFClient is not initialized');
       }
 
-      const ticketId = await zafClient.context('ticketId');
+      const ticketId = await zafClient.get('ticket.id');
       debugLog('Analyzing sentiment for ticket:', ticketId);
 
       // Get all vectors associated with the current ticket
@@ -39,11 +39,9 @@ const SentimentAnalysis: React.FC<SentimentAnalysisProps> = ({ zafClient, onSent
         ? storedVectors.map(vector => vector.id)
         : [];
 
-
       // Get all customer comments
-      const ticketCommentsData = await zafClient.get('ticket.comments');
-      debugLog('ticketCommentsData', ticketCommentsData);
-      const ticketComments = ticketCommentsData['ticket.comments'];
+      const ticketComments = await zafClient.get('ticket.comments');
+      debugLog('ticketComments', ticketComments);
       const customerComments = Array.isArray(ticketComments) 
         ? ticketComments.filter((comment: any) => comment.author.role === 'end-user')
         : [];
@@ -51,13 +49,13 @@ const SentimentAnalysis: React.FC<SentimentAnalysisProps> = ({ zafClient, onSent
       debugLog('customerComments', customerComments);
 
       // Create the commentsToAdd object
-      const commentsToAdd: { [id: string]: { text: string, created_at: Date } } = {};
+      const commentsToAdd: { [id: string]: { text: string, created_at: string } } = {};
 
       customerComments.forEach(comment => {
         if (!existingVectorIds.includes(`${ticketId}#${comment.id}`)) {
           commentsToAdd[comment.id] = {
             text: comment.value,
-            created_at: new Date(comment.created_at)
+            created_at: comment.created_at
           };
         }
       });
