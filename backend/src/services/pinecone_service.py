@@ -14,12 +14,14 @@ class PineconeService:
         self.namespace = subdomain
         self.openai_client = OpenAI()
 
+
     def get_embedding(self, text):
         response = self.openai_client.embeddings.create(
             model="text-embedding-3-small",
             input=text
         )
         return response.data[0].embedding
+
 
     def upsert_vector(self, id, vector, metadata):
         upsert_response = self.index.upsert(
@@ -34,6 +36,7 @@ class PineconeService:
         )
         return upsert_response
 
+
     def query_vectors(self, vector, top_k=10, namespace=None, include_metadata=False, include_values=False):
         query_response = self.index.query(
             vector=vector,
@@ -44,6 +47,7 @@ class PineconeService:
         )
         return query_response.matches
 
+
     def get_comment_ids(self, ticket_id):
         query_response = self.index.query(
             vector=[0] * 1536,  # Dummy vector, we're only interested in metadata
@@ -53,6 +57,7 @@ class PineconeService:
             namespace=self.namespace
         )
         return [match.id.split('#')[1] for match in query_response.matches]
+
 
     def get_vector_ids_by_date_range(self, start_date, end_date):
         start_timestamp = int(datetime.fromisoformat(start_date).timestamp())
@@ -67,6 +72,7 @@ class PineconeService:
         )
         return [match.id for match in query_response.matches]
 
+
     def list_ticket_vectors(self, ticket_id=None):
         vectors = []
         prefix = ""
@@ -79,6 +85,7 @@ class PineconeService:
             vectors.extend(response.vectors)
         return vectors
 
+
     def fetch_vectors(self, vector_ids, namespace=None):
         vectors = {}
         if not namespace:
@@ -86,7 +93,14 @@ class PineconeService:
         for i in range(0, len(vector_ids), 1000):
             batch = vector_ids[i:i+1000]
             fetch_response = self.index.fetch(ids=list(batch), namespace=namespace)
-            vectors.update(fetch_response.vectors)
-        if not vectors:
-            return None
+            for id, vector in fetch_response.vectors.items():
+                vectors[id] = {
+                    "id": id,
+                    "values": vector.values,
+                    "metadata": vector.metadata
+                }
         return vectors
+
+
+    def check_health(self):
+        return self.pc.describe_index(self.index.name)

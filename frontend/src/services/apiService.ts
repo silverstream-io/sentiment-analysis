@@ -59,7 +59,7 @@ export async function listTicketVectors(zafClient: any, ticketId: string): Promi
 
 export async function analyzeComments(zafClient: any, ticketId: string, ticketComments: any): Promise<void> {
   debugLog('Analyzing comments for ticket:', ticketId, ticketComments);
-  const formattedComments: { [id: string]: { text: string, created_at: string } } = {};
+  const formattedComments: { [commentId: string]: { text: string, created_at: string } } = {};
   
   ticketComments['ticket.comments'].forEach((comment: any) => {
     formattedComments[comment.id] = {
@@ -70,7 +70,7 @@ export async function analyzeComments(zafClient: any, ticketId: string, ticketCo
 
   await makeApiRequest(zafClient, '/analyze-comments', 'POST', { 
     ticket: { 
-      id: ticketId, 
+      ticketId: ticketId, 
       comments: formattedComments 
     } 
   });
