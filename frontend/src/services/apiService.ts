@@ -53,9 +53,9 @@ async function makeApiRequest(zafClient: any, endpoint: string, method: string, 
 
 export async function listTicketVectors(zafClient: any, ticketId: string): Promise<any[]> {
   debugLog('Listing ticket vectors for ticket:', ticketId);
-  const data = await makeApiRequest(zafClient, '/get-ticket-vectors', 'POST', { ticket: { ticketId } });
-  if (data.vectors && Array.isArray(data.vectors)) {
-    return data.vectors;
+  const data = await makeApiRequest(zafClient, '/get-ticket-vectors', 'POST', { tickets: [ticketId] });
+  if (data.vectors && typeof data.vectors === 'object') {
+    return data.vectors[ticketId] || [];
   } else if (data.Error) {
     errorLog('Error fetching vectors:', data.Error);
     return [];
@@ -77,22 +77,23 @@ export async function analyzeComments(zafClient: any, ticketId: string, ticketCo
   });
 
   await makeApiRequest(zafClient, '/analyze-comments', 'POST', { 
-    ticket: { 
-      ticketId: ticketId, 
-      comments: formattedComments 
+    tickets: { 
+      [ticketId]: { 
+        comments: formattedComments 
+      }
     } 
   });
 }
 
 export async function getScore(zafClient: any, ticketIds: string | string[] | { ticketId: string }): Promise<number> {
   debugLog('Getting score for tickets:', ticketIds);
-  let formattedTickets;
+  let formattedTickets: string[];
   if (Array.isArray(ticketIds)) {
-    formattedTickets = ticketIds.map(id => ({ ticketId: id }));
+    formattedTickets = ticketIds;
   } else if (typeof ticketIds === 'object' && 'ticketId' in ticketIds) {
-    formattedTickets = [{ ticketId: ticketIds.ticketId }];
+    formattedTickets = [ticketIds.ticketId];
   } else {
-    formattedTickets = [{ ticketId: ticketIds }];
+    formattedTickets = [ticketIds as string];
   }
   const data = await makeApiRequest(zafClient, '/get-score', 'POST', { tickets: formattedTickets });
   debugLog('Score data:', data.score);
