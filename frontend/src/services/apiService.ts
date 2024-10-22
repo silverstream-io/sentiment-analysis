@@ -54,7 +54,15 @@ async function makeApiRequest(zafClient: any, endpoint: string, method: string, 
 export async function listTicketVectors(zafClient: any, ticketId: string): Promise<any[]> {
   debugLog('Listing ticket vectors for ticket:', ticketId);
   const data = await makeApiRequest(zafClient, '/get-ticket-vectors', 'POST', { ticket: { ticketId } });
-  return data.vectors;
+  if (data.vectors && Array.isArray(data.vectors)) {
+    return data.vectors;
+  } else if (data.Error) {
+    errorLog('Error fetching vectors:', data.Error);
+    return [];
+  } else {
+    errorLog('Unexpected response from API:', data);
+    return [];
+  }
 }
 
 export async function analyzeComments(zafClient: any, ticketId: string, ticketComments: any): Promise<void> {
