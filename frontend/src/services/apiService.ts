@@ -57,9 +57,23 @@ export async function listTicketVectors(zafClient: any, ticketId: string): Promi
   return data.vectors;
 }
 
-export async function analyzeComments(zafClient: any, ticketId: string, comments: { [id: string]: { text: string, created_at: string } }): Promise<void> {
-  debugLog('Analyzing comments for ticket:', ticketId, comments);
-  await makeApiRequest(zafClient, '/analyze-comments', 'POST', { ticket: { ticketId, comments } });
+export async function analyzeComments(zafClient: any, ticketId: string, ticketComments: any): Promise<void> {
+  debugLog('Analyzing comments for ticket:', ticketId, ticketComments);
+  const formattedComments: { [id: string]: { text: string, created_at: string } } = {};
+  
+  ticketComments['ticket.comments'].forEach((comment: any) => {
+    formattedComments[comment.id] = {
+      text: comment.value,
+      created_at: comment.created_at || new Date().toISOString()
+    };
+  });
+
+  await makeApiRequest(zafClient, '/analyze-comments', 'POST', { 
+    ticket: { 
+      id: ticketId, 
+      comments: formattedComments 
+    } 
+  });
 }
 
 export async function getScore(zafClient: any, ticketIds: string | string[] | { ticketId: string }): Promise<number> {
@@ -120,4 +134,3 @@ export async function getLast30DaysSentiment(zafClient: any): Promise<number> {
   }
   return await getScore(zafClient, ticketIds);
 }
-
