@@ -67,6 +67,9 @@ class SentimentChecker:
         except Exception as e:
             self.logger.debug(f"Error getting request data: {e}, request remote addr: {self.remote_addr}")
             self.data = {}
+        if not self.ticket_id:
+            self.logger.warning(f"Missing ticket id in request data, data is {self.data}, request remote addr: {self.remote_addr}")
+            return jsonify({'error': 'Missing ticket id'}), 400
 
 
     @session_required
@@ -203,7 +206,7 @@ class SentimentChecker:
         try:
             if not self.ticket_id:
                 return jsonify({'error': 'Invalid or missing ticket data'}), 400
-            ticket_ids = [self.ticket_id]
+            ticket_ids = self.ticket_id
             if not isinstance(ticket_ids, list):
                 ticket_ids = [ticket_ids]
         except Exception as e:
