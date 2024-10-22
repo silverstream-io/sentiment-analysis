@@ -70,7 +70,7 @@ class SentimentChecker:
         comments = ticket.get('comments', {})
         ticket_id = ticket.get('id')
         if not comments or not ticket_id:
-            self.logger.warning(f"Missing comments or ticket id in request data, request remote addr: {self.remote_addr}")
+            self.logger.warning(f"Missing comments or ticket id in request data, data is {data}, request remote addr: {self.remote_addr}")
             return jsonify({'error': 'Missing comments or ticket id'}), 400
 
         self.logger.info(f"Processing comments for ticket: {ticket_id}, request remote addr: {self.remote_addr}")
