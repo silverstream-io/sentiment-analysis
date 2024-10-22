@@ -168,7 +168,7 @@ class SentimentChecker:
 
         vectors = self.pinecone_service.list_ticket_vectors(ticket_id)
         if vectors:
-            vectors_ids = [vector['id'] for vector in vectors]
+            vectors_ids = [getattr(vector, 'id', vector.get('id')) if isinstance(vector, dict) else vector.id for vector in vectors]
             vectors = self.pinecone_service.fetch_vectors(vectors_ids)
             return jsonify({'vectors': vectors}), 200
         else:
