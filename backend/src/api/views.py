@@ -117,22 +117,22 @@ class SentimentChecker:
                 matched_count = 0
                 for match in emotion_matches:
                     for emotion_name, emotion_value in match['metadata'].items():
-                        normalized_emotion = emotion_name.lower().strip()
-                        if normalized_emotion in emotions and emotion_value:
-                            emotion_sum += emotions[normalized_emotion].score * match['score']
-                            matched_count += 1
+                        if emotion_name in emotions:
+                            if emotion_value:
+                                emotion_sum += emotions[emotion_name].score * match['score']
+                                matched_count += 1
                         else:
-                            self.logger.warning(f"Emotion \"{emotion_name}\" (normalized: \"{normalized_emotion}\") not found in emotions dictionary or has no value. Available emotions: {list(emotions.keys())}, request remote addr: {self.remote_addr}")
+                            self.logger.debug(f"Emotion \"{emotion_name}\" not found in emotions dictionary or has no value. Request remote addr: {self.remote_addr}")
                 self.logger.info(f"Emotion sum for comment {comment_id}: {emotion_sum}, request remote addr: {self.remote_addr}")
                 # Prepare metadata for upsert
                 if matched_count > 0:   
                     emotion_score = emotion_sum / matched_count
                 else:
                     emotion_score = 0
-                if emotion_score > 1:
-                    emotion_score = 1
-                elif emotion_score < -1:
-                    emotion_score = -1
+                if emotion_score > 10:
+                    emotion_score = 10
+                elif emotion_score < -10:
+                    emotion_score = -10
                 self.logger.info(f"Emotion score for comment {comment_id}: {emotion_score}, request remote addr: {self.remote_addr}")
                 metadata = {
                     'text': text,
@@ -173,7 +173,7 @@ class SentimentChecker:
             vectors = self.pinecone_service.fetch_vectors(vectors_ids)
             for k, v in vectors.items():
                 if v is None:
-                    self.logger.warning(f"Vector {k} is None, request remote addr: {self.remote_addr}")
+                    self.logger.debug(f"Vector {k} is None, request remote addr: {self.remote_addr}")
                 else:
                     serialized_vectors[k] = v
             return jsonify({'vectors': serialized_vectors}), 200
@@ -225,7 +225,7 @@ class SentimentChecker:
                         total_weighted_score += vector_data['metadata']['emotion_score'] * weight
                         total_weight += weight
                     else:
-                        self.logger.warning(f"No metadata or emotion_score found for vector {vector_id}, request remote addr: {self.remote_addr}")
+                        self.logger.debug(f"No metadata or emotion_score found for vector {vector_id}, request remote addr: {self.remote_addr}")
 
         if total_weight > 0:
             emotion_score = total_weighted_score / total_weight
