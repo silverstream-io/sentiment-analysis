@@ -31,41 +31,23 @@ const SentimentAnalysis: React.FC<SentimentAnalysisProps> = ({ zafClient, onSent
       const ticketId = await zafClient.get('ticket.id');
       debugLog('Analyzing sentiment for ticket:', ticketId);
 
-      // Get all vectors associated with the current ticket
-      const storedVectors = await listTicketVectors(zafClient, ticketId);
-
-      // Create a set of existing vector IDs for efficient lookup
-      const existingVectorIds = Array.isArray(storedVectors) && storedVectors.length > 0 
-        ? storedVectors.map(vector => vector.id)
-        : [];
-
-      // Get all customer comments
       const ticketComments = await zafClient.get('ticket.comments');
       debugLog('ticketComments', ticketComments);
-      const customerComments = Array.isArray(ticketComments) 
-        ? ticketComments.filter((comment: any) => comment.author.role === 'end-user')
-        : [];
+      // Get all vectors associated with the current ticket
+      const storedVectors = await listTicketVectors(zafClient, ticketId);
+      debugLog('storedVectors', storedVectors);
 
-      debugLog('customerComments', customerComments);
-
-      // Create the commentsToAdd object
-      const commentsToAdd: { [id: string]: { text: string, created_at: string } } = {};
-
-      customerComments.forEach(comment => {
-        if (!existingVectorIds.includes(`${ticketId}#${comment.id}`)) {
-          commentsToAdd[comment.id] = {
-            text: comment.value,
-            created_at: comment.created_at
-          };
+      if (storedVectors.length === 0) {
+        debugLog('No vectors found for ticket:', ticketId);
+        // Create vectors for every comment on the ticket
+        await analyzeComments(zafClient, ticketId, ticketComments);
+      } else {
+        // Analyze new comments if any
+        const newComments = ticketComments.filter((comment: any) => !storedVectors.some((vector: any) => vector.id === `${ticketId}#${comment.id}`));
+        if (newComments.length > 0) {
+          debugLog('Analyzing new comments:', newComments);
+          await analyzeComments(zafClient, ticketId, newComments);
         }
-      });
-
-      debugLog('commentsToAdd', commentsToAdd);
-
-      // Analyze new comments if any
-      if (Object.keys(commentsToAdd).length > 0) {
-        debugLog('Analyzing comments:', commentsToAdd);
-        await analyzeComments(zafClient, ticketId, commentsToAdd);
       }
 
       // Get the updated score for the current ticket
