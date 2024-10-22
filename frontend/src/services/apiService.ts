@@ -60,7 +60,6 @@ export async function listTicketVectors(zafClient: any, ticketId: string): Promi
 export async function analyzeComments(zafClient: any, ticketId: string, comments: { [id: string]: { text: string, created_at: Date } }): Promise<void> {
   debugLog('Analyzing comments for ticket:', ticketId, comments);
   await makeApiRequest(zafClient, '/analyze-comments', 'POST', { ticket: { ticketId, comments } });
-  await makeApiRequest(zafClient, '/analyze-comments', 'POST', { ticket: { id: ticketId, comments } });
 }
 
 export async function getScore(zafClient: any, ticketIds: string | string[] | { ticketId: string }): Promise<number> {
