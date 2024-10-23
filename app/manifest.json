@@ -13,11 +13,11 @@
       "ticket_sidebar": {
         "url": "https://api.silverstream.io/sentiment-checker/",
         "flexible": true
+      },
+      "background": {
+        "url": "https://api.silverstream.io/sentiment-checker/background-refresh",
+        "flexible": true
       }
-    },
-    "background": {
-      "url": "https://api.silverstream.io/sentiment-checker/background-refresh",
-      "flexible": true
     }
   },
   "version": "1.0.0",

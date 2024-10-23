@@ -59,27 +59,25 @@ class SentimentChecker:
             raise Exception(error)
         self.pinecone_service = PineconeService(self.subdomain)
         self.logger.debug(f"Initialized SentimentChecker with subdomain: {self.subdomain}, request remote addr: {self.remote_addr}")
-        try:
-            self.data = request.json
-            self.ticket_ids = []
-            if 'ticket' in self.data:
-                if isinstance(self.data['ticket'], str):
-                    self.ticket_ids.append(self.data['ticket'])
-                elif isinstance(self.data['ticket'], dict) and 'ticketId' in self.data['ticket']:
-                    self.ticket_ids.append(self.data['ticket']['ticketId'])
-            if 'tickets' in self.data:
-                if isinstance(self.data['tickets'], list):
-                    self.ticket_ids.extend([str(ticket) for ticket in self.data['tickets'] if isinstance(ticket, (str, int))])
-                elif isinstance(self.data['tickets'], dict):
-                    self.ticket_ids.extend([str(ticket_id) for ticket_id in self.data['tickets'].keys()])
+        self.ticket_ids = []
+        self.data = request.json
+        if 'ticket' in self.data:
+            if isinstance(self.data['ticket'], str):
+                self.ticket_ids.append(self.data['ticket'])
+            elif isinstance(self.data['ticket'], dict) and 'ticketId' in self.data['ticket']:
+                self.ticket_ids.append(self.data['ticket']['ticketId'])
+        if 'tickets' in self.data:
+            if isinstance(self.data['tickets'], list):
+                self.ticket_ids.extend([str(ticket) for ticket in self.data['tickets'] if isinstance(ticket, (str, int))])
+            elif isinstance(self.data['tickets'], dict):
+                self.ticket_ids.extend([str(ticket_id) for ticket_id in self.data['tickets'].keys()])
             self.ticket_ids = list(set(self.ticket_ids))  # Remove duplicates
-        except Exception as e:
-            self.logger.debug(f"Error getting request data: {e}, request remote addr: {self.remote_addr}")
-            self.data = {}
-            self.ticket_ids = []
         
-        if not self.ticket_ids:
+        if not self.ticket_ids and not request.path == '/background-refresh':
             self.logger.warning(f"Missing ticket id(s) in request data, data is {self.data}, request remote addr: {self.remote_addr}")
+        elif request.path == '/background-refresh':
+            self.logger.info(f"Received request for background refresh, request remote addr: {self.remote_addr}")
+
 
 
     @session_required
@@ -342,7 +340,6 @@ class SentimentChecker:
     @auth_required
     def background_refresh(self):
         self.init()
-        self.logger.info(f"Received request for background refresh, request remote addr: {self.remote_addr}")
         return render_template(f'{self.templates}/background.html')
 
 

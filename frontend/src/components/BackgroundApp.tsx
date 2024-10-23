@@ -27,9 +27,6 @@ const BackgroundApp: React.FC<BackgroundAppProps> = ({ zafClient }) => {
             await analyzeComments(zafClient, ticketId, { 'ticket.comments': newComments });
           }
         }
-
-        const updatedScore = await getScore(zafClient, ticketId);
-        debugLog(`Updated score for ticket ${ticketId}:`, updatedScore);
       } catch (error) {
         console.error('Error in background refresh:', error);
       }
