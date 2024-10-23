@@ -7,7 +7,7 @@ import BackgroundApp from './components/BackgroundApp';
 declare global {
   interface Window {
     initializeApp: (client: any, originalQueryString: string) => void;
-    initializeBackgroundApp: (client: any) => void;
+    initializeBackgroundApp: (client: any, originalQueryString: string) => void;
   }
 }
 
@@ -32,9 +32,9 @@ window.initializeApp = async (client, originalQueryString) => {
   }
 };
 
-window.initializeBackgroundApp = async (client) => {
+window.initializeBackgroundApp = async (client: any, originalQueryString: string) => {
   try {
-    await initializeApiService(client, '');
+    await initializeApiService(client, originalQueryString);
 
     ReactDOM.render(
       <React.StrictMode>

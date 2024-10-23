@@ -349,7 +349,13 @@ class SentimentChecker:
             else:
                 data = None
         
-        return render_template(f'{self.templates}/background.html')
+        original_query_string = request.query_string.decode()   
+        response = make_response(render_template(
+            f'{self.templates}/background.html', 
+            subdomain=self.subdomain,
+            original_query_string=original_query_string
+        ))
+        return response
 
 
 

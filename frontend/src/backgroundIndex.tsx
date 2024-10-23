@@ -3,10 +3,10 @@ import ReactDOM from 'react-dom';
 import BackgroundApp from './components/BackgroundApp';
 import { initializeApp as initializeApiService } from './services/apiService';
 
-window.initializeBackgroundApp = async (client) => {
+window.initializeBackgroundApp = async (client: any, originalQueryString: string) => {
   try {
     console.log('Starting background app initialization');
-    await initializeApiService(client, '');
+    await initializeApiService(client, originalQueryString);
     console.log('API service initialized');
 
     ReactDOM.render(
@@ -15,7 +15,7 @@ window.initializeBackgroundApp = async (client) => {
       </React.StrictMode>,
       document.getElementById('root')
     );
-    console.log('BackgroundApp rendered');
+    console.log('Background app rendered');
 
     // Add a test event listener here
     client.on('ticket.saved', (data: any) => {
@@ -26,10 +26,5 @@ window.initializeBackgroundApp = async (client) => {
     console.log('Background app initialization completed');
   } catch (error) {
     console.error('Error initializing the background application:', error);
-    if (error instanceof Error) {
-      console.error('Error name:', error.name);
-      console.error('Error message:', error.message);
-      console.error('Error stack:', error.stack);
-    }
   }
 };
