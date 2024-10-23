@@ -239,13 +239,17 @@ class SentimentChecker:
 
         for ticket_id in self.ticket_ids:
             vector_ids, comment_vectors = [], []
-            self.logger.debug(f"Processing ticket: {ticket_id}, request remote addr: {self.remote_addr}")
+            self.logger.info(f"Processing ticket: {ticket_id}, request remote addr: {self.remote_addr}")
             vector_list = self.pinecone_service.list_ticket_vectors(str(ticket_id))
             for vector in vector_list:
                 vector_ids.append(vector.id if hasattr(vector, 'id') else vector.get('id'))
             response = self.pinecone_service.fetch_vectors(vector_ids)
-            comment_vectors.append(response)
-            self.logger.info(f"Fetched vectors: {comment_vectors}")
+            if len(response.values()) > 0:
+                comment_vectors.append(response)
+                self.logger.info(f"Fetched vectors: {comment_vectors}")
+            else:
+                self.logger.warning(f"No vectors found for ticket {ticket_id}") 
+                continue
 
             if len(comment_vectors) == 0:
                 self.logger.warning(f"No vectors found for tickets: {self.ticket_ids}")
