@@ -340,6 +340,19 @@ class SentimentChecker:
     @auth_required
     def background_refresh(self):
         self.init()
+        if request.method == 'POST':
+            if request.is_json:
+                data = request.get_json()
+            elif request.form:
+                data = request.form.to_dict()
+            elif request.data:
+                data = request.data.decode('utf-8')
+            else:
+                data = None
+        
+        self.logger.info(f"Received background refresh request with data: {data}")
+    
+
         return render_template(f'{self.templates}/background.html')
 
 
