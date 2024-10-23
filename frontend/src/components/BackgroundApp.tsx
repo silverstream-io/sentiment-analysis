@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { listTicketVectors, analyzeComments, getScore, debugLog } from '../services/apiService';
+import { listTicketVectors, analyzeComments, getScore, debugLog, errorLog } from '../services/apiService';
 
 interface BackgroundAppProps {
   zafClient: any;
@@ -7,9 +7,9 @@ interface BackgroundAppProps {
 
 const BackgroundApp: React.FC<BackgroundAppProps> = ({ zafClient }) => {
   useEffect(() => {
-    const handleTicketSaved = async (data: any) => {
+    const handleTicketSaved = async (data: { ticket: { id: string } }) => {
       const ticketId = data.ticket.id;
-      debugLog(`Ticket ${ticketId} saved, triggering background refresh`);
+      errorLog(`Ticket ${ticketId} saved, triggering background refresh`);
 
       try {
         const storedVectors = await listTicketVectors(zafClient, ticketId);

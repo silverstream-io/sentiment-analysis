@@ -31,6 +31,7 @@ async function makeApiRequest(zafClient: any, endpoint: string, method: string, 
       method,
       headers: {
         'Content-Type': 'application/json',
+        'Accept': 'application/json',
       },
       body: JSON.stringify(body),
       credentials: 'include',

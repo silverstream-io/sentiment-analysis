@@ -13,6 +13,12 @@ window.initializeBackgroundApp = async (client) => {
       </React.StrictMode>,
       document.getElementById('root')
     );
+    console.log('Background app initialized successfully');
+
+    // Add a test event listener here
+    client.on('ticket.saved', (data: any) => {
+      console.log('Test: ticket ' + data.ticket.id + ' saved!');
+    });
   } catch (error) {
     console.error('Error initializing the background application:', error);
   }
