@@ -339,7 +339,6 @@ class SentimentChecker:
 
     @auth_required
     def background_refresh(self):
-        self.init()
         if request.method == 'POST':
             if request.is_json:
                 data = request.get_json()
