@@ -349,9 +349,6 @@ class SentimentChecker:
             else:
                 data = None
         
-        self.logger.info(f"Received background refresh request with data: {data}")
-    
-
         return render_template(f'{self.templates}/background.html')
 
 
