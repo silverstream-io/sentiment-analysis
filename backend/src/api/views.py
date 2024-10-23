@@ -242,7 +242,7 @@ class SentimentChecker:
             self.logger.debug(f"Processing ticket: {ticket_id}, request remote addr: {self.remote_addr}")
             vector_list = self.pinecone_service.list_ticket_vectors(str(ticket_id))
             for vector in vector_list:
-                vector_ids.append(vector['id'])
+                vector_ids.append(vector.id if hasattr(vector, 'id') else vector.get('id'))
             response = self.pinecone_service.fetch_vectors(vector_ids)
             comment_vectors.append(response)
             self.logger.info(f"Fetched vectors: {comment_vectors}")
