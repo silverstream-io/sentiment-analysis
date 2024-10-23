@@ -30,7 +30,7 @@ const SentimentAnalysis: React.FC<SentimentAnalysisProps> = ({ zafClient, onSent
         throw new Error('ZAFClient is not initialized');
       }
       setIsAnalyzing(true);
-      rotateMessages();
+      //rotateMessages(); // Uncomment to see the rotating messages
 
       const ticketIdObject = await zafClient.get('ticket.id');
       const ticketId = ticketIdObject['ticket.id'];
