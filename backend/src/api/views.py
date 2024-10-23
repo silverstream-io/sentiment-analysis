@@ -317,10 +317,15 @@ class SentimentChecker:
         """
         Serve the health check page for the Zendesk application. This will:
         - Check the health of the Pinecone service
+
+        Some variables that are normally set in the init() method are not 
+        set here, but that's okay. It just has to connect to Pinecone and 
+        return a response.
         """
+        remote_addr = request.headers.get('X-Forwarded-For', request.remote_addr)
         pinecone_service = PineconeService('emotions')
         check_pinecone = pinecone_service.check_health()
-        self.logger.debug(f"Pinecone health check: {check_pinecone}, request remote addr: {self.remote_addr}")
+        self.logger.debug(f"Pinecone health check: {check_pinecone}, request remote addr: {remote_addr}")
         if check_pinecone.get('status', {}).get('ready', True):  
             return render_template(f'{self.templates}/health.html')
         else:
