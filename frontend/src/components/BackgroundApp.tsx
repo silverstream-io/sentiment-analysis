@@ -7,8 +7,10 @@ interface BackgroundAppProps {
 
 const BackgroundApp: React.FC<BackgroundAppProps> = ({ zafClient }) => {
   useEffect(() => {
+    console.log('BackgroundApp useEffect triggered');
     const handleTicketSaved = async (data: { ticket: { id: string } }) => {
       const ticketId = data.ticket.id;
+      console.log(`Ticket ${ticketId} saved, triggering background refresh`);
       errorLog(`Ticket ${ticketId} saved, triggering background refresh`);
 
       try {
@@ -32,15 +34,17 @@ const BackgroundApp: React.FC<BackgroundAppProps> = ({ zafClient }) => {
       }
     };
 
+    console.log('Adding ticket.saved event listener');
     zafClient.on('ticket.saved', handleTicketSaved);
 
     return () => {
+      console.log('Removing ticket.saved event listener');
       zafClient.off('ticket.saved', handleTicketSaved);
     };
   }, [zafClient]);
 
+  console.log('BackgroundApp rendered');
   return null; // This component doesn't render anything
 };
 
 export default BackgroundApp;
-
