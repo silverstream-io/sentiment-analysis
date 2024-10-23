@@ -248,6 +248,7 @@ class SentimentChecker:
 
             if not comment_vectors:
                 self.logger.warning(f"No vectors found for tickets: {self.ticket_ids}")
+                self.logger.info(f"namespace: {self.pinecone_service.namespace}")
                 return jsonify({'score': 0}), 200
 
             sorted_vectors = sorted(comment_vectors.items(), key=lambda x: x[1]['metadata']['timestamp'], reverse=True)
