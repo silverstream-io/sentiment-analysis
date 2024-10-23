@@ -1,4 +1,5 @@
 import Cookies from 'js-cookie';
+import { SentimentRange, DEFAULT_SENTIMENT } from '../types';
 const BACKEND_URL = 'https://api.silverstream.io/sentiment-checker';
 const DEBUG = process.env.REACT_APP_DEBUG === 'true';
 
@@ -85,7 +86,7 @@ export async function analyzeComments(zafClient: any, ticketId: string, ticketCo
   });
 }
 
-export async function getScore(zafClient: any, ticketIds: string | string[] | { ticketId: string }): Promise<number> {
+export async function getScore(zafClient: any, ticketIds: string | string[] | { ticketId: string }): Promise<SentimentRange> {
   debugLog('Getting score for tickets:', ticketIds);
   let formattedTickets: string[];
   if (Array.isArray(ticketIds)) {
@@ -118,7 +119,7 @@ export function warnLog(...args: any[]) {
   console.warn('[WARN]', ...args);
 } 
 
-export async function getLast30DaysSentiment(zafClient: any): Promise<number> {
+export async function getLast30DaysSentiment(zafClient: any): Promise<SentimentRange> {
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
@@ -137,7 +138,7 @@ export async function getLast30DaysSentiment(zafClient: any): Promise<number> {
   
   if (ticketIds.length === 0) {
     warnLog('No ticket IDs found for last 30 days');
-    return 0;
+    return DEFAULT_SENTIMENT;
   } else {
     debugLog('Ticket IDs for last 30 days:', ticketIds);
   }
