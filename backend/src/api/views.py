@@ -237,30 +237,37 @@ class SentimentChecker:
         lambda_factor = 0.5  # Adjust this value to control the decay rate
         all_scores = []
 
-        vector_ids = []
         for ticket_id in self.ticket_ids:
+            vector_ids = []
             self.logger.debug(f"Processing ticket: {ticket_id}, request remote addr: {self.remote_addr}")
             vector_list = self.pinecone_service.list_ticket_vectors(str(ticket_id))
             for vector_id in vector_list:
                 vector_ids.append(vector_id)
-        comment_vectors = self.pinecone_service.fetch_vectors(vector_ids)
-            
-        # Sort vectors by timestamp (newest first)
-        sorted_vectors = sorted(comment_vectors.items(), key=lambda x: x[1]['metadata']['timestamp'], reverse=True)
-            
-        if sorted_vectors:
-            newest_timestamp = sorted_vectors[0][1]['metadata']['timestamp']
+            comment_vectors = self.pinecone_service.fetch_vectors(vector_ids)
+            self.logger.info(f"Fetched vectors: {comment_vectors}")
+
+            if not comment_vectors:
+                self.logger.warning(f"No vectors found for tickets: {self.ticket_ids}")
+                return jsonify({'score': 0}), 200
+
+            sorted_vectors = sorted(comment_vectors.items(), key=lambda x: x[1]['metadata']['timestamp'], reverse=True)
+            self.logger.info(f"Sorted vectors: {sorted_vectors}")
+
+            if sorted_vectors:
+                newest_timestamp = sorted_vectors[0][1]['metadata']['timestamp']
+                self.logger.info(f"Newest timestamp: {newest_timestamp}")
                 
-            for vector_id, vector_data in sorted_vectors:
-                if 'metadata' in vector_data and 'emotion_score' in vector_data['metadata']:
-                    time_diff = (newest_timestamp - vector_data['metadata']['timestamp']) / (24 * 3600)  # Convert to days
-                    weight = math.exp(-lambda_factor * time_diff)
-                    score = vector_data['metadata']['emotion_score']
-                    total_weighted_score += score * weight
-                    total_weight += weight
-                    all_scores.append(score)
+                for vector_id, vector_data in sorted_vectors:
+                    if 'metadata' in vector_data and 'emotion_score' in vector_data['metadata']:
+                        time_diff = (newest_timestamp - vector_data['metadata']['timestamp']) / (24 * 3600)  # Convert to days
+                        weight = math.exp(-lambda_factor * time_diff)
+                        score = vector_data['metadata']['emotion_score']
+                        total_weighted_score += score * weight
+                        total_weight += weight
+                        all_scores.append(score)
+                        self.logger.info(f"Vector {vector_id}: score={score}, weight={weight}")
                 else:
-                    self.logger.debug(f"No metadata or emotion_score found for vector {vector_id}, request remote addr: {self.remote_addr}")
+                    self.logger.warning(f"No metadata or emotion_score found for vector {vector_id}")
 
         if total_weight > 0:
             weighted_score = total_weighted_score / total_weight
@@ -318,6 +325,7 @@ class SentimentChecker:
             return render_template(f'{self.templates}/health.html')
         else:
             return jsonify({'error': 'Pinecone service is not healthy'}), 500
+
 
 
 
