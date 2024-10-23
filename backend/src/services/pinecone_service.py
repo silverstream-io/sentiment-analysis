@@ -85,7 +85,7 @@ class PineconeService:
             try:
                 response = self.index.list_paginated(
                     prefix=ticket_id,
-                namespace=self.namespace,
+                    namespace=self.namespace,
                     pagination_token=pagination_token
                 )
                 vectors.extend(response.vectors)
