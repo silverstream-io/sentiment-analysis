@@ -285,6 +285,7 @@ class SentimentChecker:
             all_scores_np = np.array(all_scores)
             std_dev = np.std(all_scores_np)
             most_recent_score = all_scores[0]
+            self.logger.info(f"Most recent score: {most_recent_score}, weighted score: {weighted_score}, std_dev: {std_dev}")
 
             if most_recent_score < weighted_score and abs(weighted_score - most_recent_score) > std_dev:
                 weighted_score = most_recent_score
