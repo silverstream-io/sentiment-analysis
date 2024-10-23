@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sentiment Checker Background Refresh</title>
+</head>
+<body>
+    <div id="root"></div>
+    <script src="https://static.zdassets.com/zendesk_app_framework_sdk/2.0/zaf_sdk.min.js"></script>
+    <script src="{{ url_for('static', filename='js/background.js') }}"></script>
+    <script>
+        const client = ZAFClient.init();
+        window.initializeBackgroundApp(client);
+    </script>
+</body>
+</html>

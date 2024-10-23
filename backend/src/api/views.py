@@ -339,6 +339,14 @@ class SentimentChecker:
             return jsonify({'error': 'Pinecone service is not healthy'}), 500
 
 
+    @auth_required
+    def background_refresh(self):
+        self.init()
+        self.logger.info(f"Received request for background refresh, request remote addr: {self.remote_addr}")
+        return render_template(f'{self.templates}/background.html')
+
+
+
 
 
 

@@ -20,3 +20,4 @@ sentiment_checker.add_url_rule('/get-ticket-vectors', 'get_ticket_vectors', sent
 sentiment_checker.add_url_rule('/', 'entry', sentiment_checker_obj.entry, methods=['POST'])
 sentiment_checker.add_url_rule('', 'entry', sentiment_checker_obj.entry, methods=['POST'])
 sentiment_checker.add_url_rule('/health', 'health', sentiment_checker_obj.health, methods=['GET'])
+sentiment_checker.add_url_rule('/background-refresh', 'background_refresh', sentiment_checker_obj.background_refresh, methods=['GET'])
