@@ -1,4 +1,10 @@
-export type Sentiment = -2 | -1 | 0 | 1 | 2;
+export type Sentiment = -10 | -5 | 0 | 5 | 10;
+
+export type SentimentRange = number;
+
+export const DEFAULT_SENTIMENT: SentimentRange = 0;
+export const MIN_SENTIMENT: SentimentRange = -1;
+export const MAX_SENTIMENT: SentimentRange = 1;
 
 interface ZendeskUser {
   id: number;

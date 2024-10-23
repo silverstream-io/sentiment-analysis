@@ -1,12 +1,14 @@
 import React, { useEffect, useRef } from 'react';
-import { Sentiment } from '../types';
+import { SentimentRange, MIN_SENTIMENT, MAX_SENTIMENT } from '../types';
 
 interface Props {
-  sentiment: number;
+  sentiment: SentimentRange | null;
   greyscale?: boolean;
 }
+
 const SentimentDisplay: React.FC<Props> = ({ sentiment, greyscale = false }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const animationRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (canvasRef.current) {
@@ -16,10 +18,16 @@ const SentimentDisplay: React.FC<Props> = ({ sentiment, greyscale = false }) => 
         canvas.width = 200;
         canvas.height = 120;
         drawHalfCircle(ctx, canvas);
-        drawPointer(ctx, canvas, getSentimentDegree(sentiment));
+        animatePointer(ctx, canvas);
       }
     }
-  }, [sentiment, greyscale]);
+
+    return () => {
+      if (animationRef.current !== null) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, [sentiment]);
 
   const drawHalfCircle = (ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement) => {
     const centerX = canvas.width / 2;
@@ -83,14 +91,46 @@ const SentimentDisplay: React.FC<Props> = ({ sentiment, greyscale = false }) => 
     ctx.fill();
   };
 
-  const getSentimentDegree = (sentiment: number): number => {
-    const degree = ((sentiment + 2) / 4) * 180;
-    return degree;
+  const animatePointer = (ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement) => {
+    let startTime: number | null = null;
+    let currentAngle = 180; // Start at 9 o'clock position
+    const animationDuration = 2000; // 2 seconds for full swing
+
+    const animate = (timestamp: number) => {
+      if (!startTime) startTime = timestamp;
+      const elapsed = timestamp - startTime;
+
+      if (elapsed < animationDuration) {
+        // Swing to 3 o'clock position
+        currentAngle = 180 - (180 * elapsed) / animationDuration;
+      } else if (elapsed < animationDuration * 2 && sentiment !== null) {
+        // Swing to actual sentiment score
+        const targetAngle = getSentimentDegree(sentiment);
+        const swingProgress = (elapsed - animationDuration) / animationDuration;
+        currentAngle = 0 + targetAngle * swingProgress;
+      } else {
+        // Animation complete
+        return;
+      }
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawHalfCircle(ctx, canvas);
+      drawPointer(ctx, canvas, currentAngle);
+
+      animationRef.current = requestAnimationFrame(animate);
+    };
+
+    animationRef.current = requestAnimationFrame(animate);
+  };
+
+  const getSentimentDegree = (sentiment: SentimentRange): number => {
+    const normalizedSentiment = (sentiment - MIN_SENTIMENT) / (MAX_SENTIMENT - MIN_SENTIMENT);
+    return normalizedSentiment * 180; // Convert to degrees (0 to 180)
   };
 
   return (
     <div>
-      <canvas ref={canvasRef} width={400} height={200} aria-label={`Sentiment meter showing ${sentiment}`} />
+      <canvas ref={canvasRef} width={200} height={120} aria-label={`Sentiment meter ${sentiment !== null ? `showing ${sentiment}` : 'animating'}`} />
     </div>
   );
 };
