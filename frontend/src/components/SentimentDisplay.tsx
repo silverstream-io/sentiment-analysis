@@ -93,7 +93,7 @@ const SentimentDisplay: React.FC<Props> = ({ sentiment, greyscale = false }) => 
 
   const animatePointer = (ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement) => {
     let startTime: number | null = null;
-    let currentAngle = -90; // Start at MIN_SENTIMENT (extreme left)
+    let currentAngle = 180; // Start at 9 o'clock position
     const animationDuration = 2000; // 2 seconds for full swing
 
     const animate = (timestamp: number) => {
@@ -101,13 +101,13 @@ const SentimentDisplay: React.FC<Props> = ({ sentiment, greyscale = false }) => 
       const elapsed = timestamp - startTime;
 
       if (elapsed < animationDuration) {
-        // Swing to MAX_SENTIMENT (extreme right)
-        currentAngle = -90 + (180 * elapsed) / animationDuration;
+        // Swing to 3 o'clock position
+        currentAngle = 180 - (180 * elapsed) / animationDuration;
       } else if (elapsed < animationDuration * 2 && sentiment !== null) {
         // Swing to actual sentiment score
         const targetAngle = getSentimentDegree(sentiment);
         const swingProgress = (elapsed - animationDuration) / animationDuration;
-        currentAngle = 90 + (targetAngle - 90) * swingProgress;
+        currentAngle = 0 + targetAngle * swingProgress;
       } else {
         // Animation complete
         return;
@@ -125,7 +125,7 @@ const SentimentDisplay: React.FC<Props> = ({ sentiment, greyscale = false }) => 
 
   const getSentimentDegree = (sentiment: SentimentRange): number => {
     const normalizedSentiment = (sentiment - MIN_SENTIMENT) / (MAX_SENTIMENT - MIN_SENTIMENT);
-    return -90 + normalizedSentiment * 180; // Convert to degrees (-90 to 90)
+    return normalizedSentiment * 180; // Convert to degrees (0 to 180)
   };
 
   return (
