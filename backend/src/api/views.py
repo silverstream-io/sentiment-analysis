@@ -286,9 +286,9 @@ class SentimentChecker:
             std_dev = np.std(all_scores_np)
             most_recent_score = all_scores[0]
 
-            if most_recent_score < weighted_score and abs(most_recent_score - weighted_score) > std_dev:
+            if most_recent_score < weighted_score and abs(weighted_score - most_recent_score) > std_dev:
                 weighted_score = most_recent_score
-            elif most_recent_score > weighted_score and abs(weighted_score - most_recent_score) > std_dev:
+            elif most_recent_score > weighted_score and abs(most_recent_score - weighted_score) > std_dev:
                 weighted_score = most_recent_score
             
         weighted_score = max(min(weighted_score, 1), -1)
