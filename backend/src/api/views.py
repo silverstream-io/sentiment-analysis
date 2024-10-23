@@ -234,7 +234,7 @@ class SentimentChecker:
         
         total_weighted_score = 0
         total_weight = 0
-        lambda_factor = 0.5  # Adjust this value to control the decay rate
+        lambda_factor = 1.0 # Adjust this value to control the decay rate
         all_scores = []
 
         for ticket_id in self.ticket_ids:
@@ -286,9 +286,9 @@ class SentimentChecker:
             std_dev = np.std(all_scores_np)
             most_recent_score = all_scores[0]
 
-            if abs(most_recent_score - weighted_score) > std_dev:
+            if most_recent_score < weighted_score and abs(most_recent_score - weighted_score) > std_dev:
                 weighted_score = most_recent_score
-            elif abs(weighted_score - most_recent_score) > std_dev:
+            elif most_recent_score > weighted_score and abs(weighted_score - most_recent_score) > std_dev:
                 weighted_score = most_recent_score
             
         weighted_score = max(min(weighted_score, 1), -1)
