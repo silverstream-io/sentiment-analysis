@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { listTicketVectors, analyzeComments, getScore, debugLog, getLast30DaysSentiment, errorLog } from '../services/apiService';
+import { SentimentRange, MIN_SENTIMENT, MAX_SENTIMENT } from '../types';
 
 interface SentimentAnalysisProps {
   zafClient: any;
@@ -81,13 +82,15 @@ const SentimentAnalysis: React.FC<SentimentAnalysisProps> = ({ zafClient, onSent
 
       // Get the updated score for the current ticket
       const currentTicketScore = await getScore(zafClient, ticketId);
-      debugLog('Current ticket score:', currentTicketScore);
-      onSentimentUpdate(ticketId, currentTicketScore);
+      const normalizedCurrentScore = Math.max(MIN_SENTIMENT, Math.min(MAX_SENTIMENT, currentTicketScore)) as SentimentRange;
+      debugLog('Current ticket score:', normalizedCurrentScore);
+      onSentimentUpdate(ticketId, normalizedCurrentScore);
 
       // Get the sentiment for the last 30 days
       const last30DaysScore = await getLast30DaysSentiment(zafClient);
-      debugLog('Last 30 days score:', last30DaysScore);
-      onSentimentUpdate(null, last30DaysScore);
+      const normalizedLast30DaysScore = Math.max(MIN_SENTIMENT, Math.min(MAX_SENTIMENT, last30DaysScore)) as SentimentRange;
+      debugLog('Last 30 days score:', normalizedLast30DaysScore);
+      onSentimentUpdate(null, normalizedLast30DaysScore);
 
       setIsAnalyzing(false);
     } catch (error) {
