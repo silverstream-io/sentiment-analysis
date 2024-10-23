@@ -1,22 +1,24 @@
 import React, { useState } from 'react';
 import SentimentAnalysis from './SentimentAnalysis';
 import SentimentDisplay from './SentimentDisplay';
-
+import { SentimentRange } from '../types';
 interface AppProps {
   zafClient: any;
 }
 
 const App: React.FC<AppProps> = ({ zafClient }) => {
-  const [currentSentiment, setCurrentSentiment] = useState<number | null>(null);
-  const [lastThirtySentiment, setLastThirtySentiment] = useState<number | null>(null);
+  const [currentSentiment, setCurrentSentiment] = useState<SentimentRange | null>(null);
+  const [lastThirtySentiment, setLastThirtySentiment] = useState<SentimentRange | null>(null);
+  const [isAnalysisComplete, setIsAnalysisComplete] = useState(false);
   const [greyscale] = useState(false);
 
-  const handleSentimentUpdate = (ticketId: string | null, sentiment: number) => {
+  const handleSentimentUpdate = (ticketId: string | null, sentiment: SentimentRange) => {
     if (ticketId === null) {
       setLastThirtySentiment(sentiment);
     } else {
       setCurrentSentiment(sentiment);
     }
+    setIsAnalysisComplete(true);
   };
 
   return (
@@ -25,20 +27,28 @@ const App: React.FC<AppProps> = ({ zafClient }) => {
         zafClient={zafClient} 
         onSentimentUpdate={handleSentimentUpdate} 
       />
-      <div className="flex flex-col space-y-2">
-        <div>
-          <h2 className="text-base font-semibold mb-1">Current Ticket</h2>
-          {currentSentiment !== null && (
-            <SentimentDisplay sentiment={currentSentiment} greyscale={greyscale} />
-          )}
+      {isAnalysisComplete && (
+        <div className="flex flex-col space-y-2">
+          <div>
+            <h2 className="text-base font-semibold mb-1">Current Ticket</h2>
+            {currentSentiment !== null && (
+              <>
+                {/* <p className="text-sm mb-1">Raw Score: {currentSentiment.toFixed(2)}</p> */}
+                <SentimentDisplay sentiment={currentSentiment} greyscale={greyscale} />
+              </>
+            )}
+          </div>
+          <div>
+            <h2 className="text-base font-semibold mb-1">Last 30 Days</h2>
+            {lastThirtySentiment !== null && (
+              <>
+                {/* <p className="text-sm mb-1">Raw Score: {lastThirtySentiment.toFixed(2)}</p> */}
+                <SentimentDisplay sentiment={lastThirtySentiment} greyscale={greyscale} />
+              </>
+            )}
+          </div>
         </div>
-        <div>
-          <h2 className="text-base font-semibold mb-1">Last 30 Days</h2>
-          {lastThirtySentiment !== null && (
-            <SentimentDisplay sentiment={lastThirtySentiment} greyscale={greyscale} />
-          )}
-        </div>
-      </div>
+      )}
     </div>
   );
 };

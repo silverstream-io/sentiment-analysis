@@ -42,4 +42,3 @@ if __name__ == '__main__':
         app.run(debug=debug_mode)
     else:
         app = create_app()
-        app.run()
