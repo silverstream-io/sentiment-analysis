@@ -256,15 +256,14 @@ class SentimentChecker:
                 self.logger.info(f"namespace: {self.pinecone_service.namespace}")
                 return jsonify({'score': 0}), 200
 
-            sorted_vectors = sorted(comment_vectors, key=lambda x: next(iter(x.values()))['metadata']['timestamp'], reverse=True)
+            sorted_vectors = sorted(comment_vectors[0].items(), key=lambda x: x[1]['metadata']['timestamp'], reverse=True)
             self.logger.info(f"Sorted vectors: {sorted_vectors}")
 
             if sorted_vectors:
-                newest_timestamp = sorted_vectors[0][next(iter(sorted_vectors[0]))]['metadata']['timestamp']
+                newest_timestamp = sorted_vectors[0][1]['metadata']['timestamp']
                 self.logger.info(f"Newest timestamp: {newest_timestamp}")
                 
-                for vector_dict in sorted_vectors:
-                    vector_id, vector_data = next(iter(vector_dict.items()))
+                for vector_id, vector_data in sorted_vectors:
                     if 'metadata' in vector_data and 'emotion_score' in vector_data['metadata']:
                         time_diff = (newest_timestamp - vector_data['metadata']['timestamp']) / (24 * 3600)  # Convert to days
                         weight = math.exp(-lambda_factor * time_diff)
@@ -338,6 +337,7 @@ class SentimentChecker:
             return render_template(f'{self.templates}/health.html')
         else:
             return jsonify({'error': 'Pinecone service is not healthy'}), 500
+
 
 
 
