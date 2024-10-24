@@ -186,3 +186,5 @@ app.zip
 
 # Ignore Mac DS_Store file
 .DS_Store
+
+get_creds.sh
