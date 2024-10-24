@@ -354,6 +354,10 @@ class SentimentChecker:
                 data = None
         self.logger.info(f"Received data {data} for background_refresh")
         
+        self.subdomain, error = get_subdomain(request)
+        if error:
+            self.logger.error(f"Error getting subdomain: {error}")
+            return jsonify({'error': 'Missing Zendesk subdomain'}), 400
         original_query_string = request.query_string.decode()   
         response = make_response(render_template(
             f'{self.templates}/background.html', 
