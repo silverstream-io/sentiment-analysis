@@ -7,6 +7,5 @@ class RegexConverter(BaseConverter):
         self.regex = items[0]
 
 if __name__ == '__main__':
-    app = create_app()
-    app.url_map.converters['regex'] = RegexConverter
+    app = create_app(RegexConverter)
     app.run(host='0.0.0.0', port=4000, debug=True)

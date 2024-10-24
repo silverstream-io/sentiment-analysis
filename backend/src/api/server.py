@@ -5,7 +5,7 @@ import dotenv
 import logging
 import os
 import sys
-from .routes import root as root_blueprint, sentiment_checker as sentiment_checker_blueprint
+from .routes import create_blueprints as create_blueprints_blueprint
 
 dotenv.load_dotenv()
 logging.basicConfig(
@@ -15,7 +15,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger('sentiment_checker')
 
-def create_app():
+def create_app(RegexConverter=None):
     app = Flask(__name__)
     app.template_folder = '../templates'
     app.static_folder = '../static'
@@ -24,6 +24,13 @@ def create_app():
     app.config['SESSION_COOKIE_HTTPONLY'] = True
     app.config['SESSION_COOKIE_SECURE'] = True
     app.config['SESSION_COOKIE_SAMESITE'] = 'None'
+
+    if RegexConverter:
+        app.url_map.converters['regex'] = RegexConverter
+
+    from .routes import create_blueprints
+    root_blueprint, sentiment_checker_blueprint = create_blueprints(RegexConverter)
+
     app.register_blueprint(root_blueprint)
     app.register_blueprint(sentiment_checker_blueprint)
     CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
