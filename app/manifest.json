@@ -16,7 +16,8 @@
       },
       "background": {
         "url": "https://api.silverstream.io/sentiment-checker/background-refresh",
-        "flexible": true
+        "flexible": true,
+        "postData": {}
       }
     }
   },
