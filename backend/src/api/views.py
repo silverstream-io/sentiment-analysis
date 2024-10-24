@@ -341,13 +341,18 @@ class SentimentChecker:
     def background_refresh(self):
         if request.method == 'POST':
             if request.is_json:
+                self.logger.debug(f"Received JSON data for background_refresh, request remote addr: {self.remote_addr}")
                 data = request.get_json()
             elif request.form:
+                self.logger.debug(f"Received form data for background_refresh, request remote addr: {self.remote_addr}")
                 data = request.form.to_dict()
             elif request.data:
+                self.logger.debug(f"Received data for background_refresh, request remote addr: {self.remote_addr}")
                 data = request.data.decode('utf-8')
             else:
+                self.logger.warning(f"Received unknown data for background_refresh, request remote addr: {self.remote_addr}")
                 data = None
+        self.logger.debug(f"Received data {data} for background_refresh, request remote addr: {self.remote_addr}")
         
         original_query_string = request.query_string.decode()   
         response = make_response(render_template(
