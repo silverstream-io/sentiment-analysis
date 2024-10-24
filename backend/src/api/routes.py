@@ -4,7 +4,7 @@ import logging
 
 logger = logging.getLogger('sentiment_checker')
 
-def create_blueprints(RegexConverter=None):
+def create_blueprints(RegexConverter):
     logger.debug("Initializing routes")
 
     root_obj = Root()
@@ -16,7 +16,8 @@ def create_blueprints(RegexConverter=None):
     sentiment_checker_obj = SentimentChecker()
     sentiment_checker = Blueprint('sentiment-checker', __name__, url_prefix='/sentiment-checker')
 
-    sentiment_checker.add_url_rule('<regex("^/?$"):path>', 'entry', sentiment_checker_obj.entry, methods=['POST'])
+    sentiment_checker.add_url_rule('/<regex("^/?$"):path>', 'entry', sentiment_checker_obj.entry, methods=['POST'])
+
     sentiment_checker.add_url_rule('/health', 'health', sentiment_checker_obj.health, methods=['GET'])
     sentiment_checker.add_url_rule('/get-ticket-vectors', 'get_ticket_vectors', sentiment_checker_obj.get_ticket_vectors, methods=['POST'])
     sentiment_checker.add_url_rule('/analyze-comments', 'analyze_comments', sentiment_checker_obj.analyze_comments, methods=['POST'])
