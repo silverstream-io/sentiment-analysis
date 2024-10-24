@@ -57,10 +57,25 @@ class SentimentChecker:
         if error:
             self.logger.error(f"Error getting subdomain: {error}, request remote addr: {self.remote_addr}")
             raise Exception(error)
+        if request.method == 'POST':
+            if request.is_json:
+                self.logger.info(f"Received JSON data for background_refresh")
+                data = request.get_json()
+            elif request.form:
+                self.logger.info(f"Received form data for background_refresh")
+                data = request.form.to_dict()
+            elif request.data:
+                self.logger.info(f"Received data for background_refresh")
+                data = request.data.decode('utf-8')
+            else:
+                self.logger.warning(f"Received unknown data for background_refresh")
+                data = None 
+        else:
+            self.logger.warning(f"Received unknown method for init")
+            return jsonify({'error': 'Unknown method'}), 400
         self.pinecone_service = PineconeService(self.subdomain)
         self.logger.debug(f"Initialized SentimentChecker with subdomain: {self.subdomain}, request remote addr: {self.remote_addr}")
         self.ticket_ids = []
-        self.data = request.json
         if 'ticket' in self.data:
             if isinstance(self.data['ticket'], str):
                 self.ticket_ids.append(self.data['ticket'])
@@ -305,6 +320,7 @@ class SentimentChecker:
         self.init()
         self.logger.debug(f"Received request for entry point, request remote addr: {self.remote_addr}")
         
+        self.logger.debug(f"Data is {self.data}")
         original_query_string = request.query_string.decode()
         session_token = os.urandom(24).hex()
         session['session_token'] = session_token
