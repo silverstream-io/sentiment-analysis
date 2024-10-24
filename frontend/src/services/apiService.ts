@@ -5,11 +5,11 @@ const DEBUG = process.env.REACT_APP_DEBUG === 'true';
 
 let originalQueryString = '';
 
-export async function initializeApp(zafClient: any, queryString: string): Promise<void> {
+export async function initializeApp(zafClient: any, originalQueryString: string): Promise<void> {
   if (!zafClient) {
     throw new Error('ZAFClient is not initialized');
   }
-  originalQueryString = queryString;
+  originalQueryString = originalQueryString;
   debugLog('App initialized');
 }
 
@@ -31,6 +31,7 @@ async function makeApiRequest(zafClient: any, endpoint: string, method: string, 
       method,
       headers: {
         'Content-Type': 'application/json',
+        'X-Zendesk-Subdomain': subdomain,
       },
       body: JSON.stringify(body),
       credentials: 'include',
@@ -80,7 +81,7 @@ export async function analyzeComments(zafClient: any, ticketId: string, ticketCo
   await makeApiRequest(zafClient, '/analyze-comments', 'POST', { 
     tickets: { 
       [ticketId]: { 
-        comments: formattedComments 
+        comments: formattedComments,
       }
     } 
   });

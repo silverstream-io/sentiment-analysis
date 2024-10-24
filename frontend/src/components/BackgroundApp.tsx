@@ -3,9 +3,10 @@ import { listTicketVectors, analyzeComments, getScore, debugLog, errorLog } from
 
 interface BackgroundAppProps {
   zafClient: any;
+  originalQueryString: string;
 }
 
-const BackgroundApp: React.FC<BackgroundAppProps> = ({ zafClient }) => {
+const BackgroundApp: React.FC<BackgroundAppProps> = ({ zafClient, originalQueryString }) => {
   useEffect(() => {
     console.log('BackgroundApp useEffect triggered');
     const handleTicketSaved = async (data: { ticket: { id: string } }) => {

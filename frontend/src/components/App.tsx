@@ -5,9 +5,10 @@ import { SentimentRange } from '../types';
 
 interface AppProps {
   zafClient: any;
+  originalQueryString: string;
 }
 
-const App: React.FC<AppProps> = ({ zafClient }) => {
+const App: React.FC<AppProps> = ({ zafClient, originalQueryString }) => {
   const [currentSentiment, setCurrentSentiment] = useState<SentimentRange | null>(null);
   const [lastThirtySentiment, setLastThirtySentiment] = useState<SentimentRange | null>(null);
   const [isAnalysisComplete, setIsAnalysisComplete] = useState(false);

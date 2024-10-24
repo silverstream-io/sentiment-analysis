@@ -13,13 +13,14 @@ declare global {
 }
 
 window.initializeApp = (zafClient, originalQueryString) => {
+  // Pass originalQueryString to the App component
   ReactDOM.render(
     <React.StrictMode>
       <Router>
         <Routes>
-          <Route path="/" element={<App zafClient={zafClient} />} />
-          <Route path="/topbar" element={<TopbarApp zafClient={zafClient} />} />
-          <Route path="/background" element={<BackgroundApp zafClient={zafClient} />} />
+          <Route path="/" element={<App zafClient={zafClient} originalQueryString={originalQueryString} />} />
+          <Route path="/topbar" element={<TopbarApp zafClient={zafClient} originalQueryString={originalQueryString} />} />
+          <Route path="/background" element={<BackgroundApp zafClient={zafClient} originalQueryString={originalQueryString} />} />
         </Routes>
       </Router>
     </React.StrictMode>,

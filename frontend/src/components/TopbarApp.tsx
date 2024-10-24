@@ -3,9 +3,10 @@ import { getScores, debugLog, errorLog } from '../services/apiService';
 
 interface TopbarAppProps {
   zafClient: any;
+  originalQueryString: string;
 }
 
-const TopbarApp: React.FC<TopbarAppProps> = ({ zafClient }) => {
+const TopbarApp: React.FC<TopbarAppProps> = ({ zafClient, originalQueryString }) => {
   const [ticketScores, setTicketScores] = useState<{ [key: string]: number }>({});
 
   useEffect(() => {
@@ -32,7 +33,7 @@ const TopbarApp: React.FC<TopbarAppProps> = ({ zafClient }) => {
       <ul>
         {Object.entries(ticketScores).map(([ticketId, score]) => (
           <li key={ticketId}>
-            Ticket {ticketId}: {score}
+            <a href={`/agent/tickets/${ticketId}`}>Ticket {ticketId}: {score}</a>
           </li>
         ))}
       </ul>

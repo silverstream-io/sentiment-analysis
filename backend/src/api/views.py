@@ -100,7 +100,7 @@ class SentimentChecker:
                 self.ticket_ids.extend([str(ticket_id) for ticket_id in self.data['tickets'].keys()])
             self.ticket_ids = list(set(self.ticket_ids))  # Remove duplicates
         
-        if not self.ticket_ids and request.method != 'POST':
+        if not self.ticket_ids and request.form:
             self.logger.warning(f"Missing ticket id(s) in request data, data is {self.data}, request remote addr: {self.remote_addr}")
         self.original_query_string = request.query_string.decode()
 
