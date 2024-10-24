@@ -1,12 +1,16 @@
 from flask import Blueprint
+from werkzeug.routing import BaseConverter
 from .views import Root, SentimentChecker
 from .views import Root, SentimentChecker
 import logging
 
 logger = logging.getLogger('sentiment_checker')
 logger.debug("Initializing routes")
-logger = logging.getLogger('sentiment_checker')
-logger.debug("Initializing routes")
+
+class RegexConverter(BaseConverter):
+    def __init__(self, url_map, *items):
+        super(RegexConverter, self).__init__(url_map)
+        self.regex = items[0]
 
 root_obj = Root()
 root = Blueprint('root', __name__)
@@ -18,6 +22,7 @@ logger.debug("Initializing sentiment-checker routes")
 sentiment_checker_obj = SentimentChecker()
 sentiment_checker = Blueprint('sentiment-checker', __name__, url_prefix='/sentiment-checker')
 
+sentiment_checker.url_map.converters['regex'] = RegexConverter
 sentiment_checker.add_url_rule('<regex("^/?$")>', 'entry', sentiment_checker_obj.entry, methods=['POST'])
 sentiment_checker.add_url_rule('/health', 'health', sentiment_checker_obj.health, methods=['GET'])
 
