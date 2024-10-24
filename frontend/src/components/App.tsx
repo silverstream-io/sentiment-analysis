@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import SentimentAnalysis from './SentimentAnalysis';
 import SentimentDisplay from './SentimentDisplay';
 import { SentimentRange } from '../types';
+
 interface AppProps {
   zafClient: any;
 }
@@ -33,7 +34,6 @@ const App: React.FC<AppProps> = ({ zafClient }) => {
             <h2 className="text-base font-semibold mb-1">Current Ticket</h2>
             {currentSentiment !== null && (
               <>
-                {/* <p className="text-sm mb-1">Raw Score: {currentSentiment.toFixed(2)}</p> */}
                 <SentimentDisplay sentiment={currentSentiment} greyscale={greyscale} />
               </>
             )}
@@ -42,7 +42,6 @@ const App: React.FC<AppProps> = ({ zafClient }) => {
             <h2 className="text-base font-semibold mb-1">Last 30 Days</h2>
             {lastThirtySentiment !== null && (
               <>
-                {/* <p className="text-sm mb-1">Raw Score: {lastThirtySentiment.toFixed(2)}</p> */}
                 <SentimentDisplay sentiment={lastThirtySentiment} greyscale={greyscale} />
               </>
             )}

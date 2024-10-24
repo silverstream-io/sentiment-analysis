@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { getScores, debugLog, errorLog } from '../services/apiService';
 
-interface TopbarProps {
+interface TopbarAppProps {
   zafClient: any;
 }
 
-const Topbar: React.FC<TopbarProps> = ({ zafClient }) => {
+const TopbarApp: React.FC<TopbarAppProps> = ({ zafClient }) => {
   const [ticketScores, setTicketScores] = useState<{ [key: string]: number }>({});
 
   useEffect(() => {
@@ -40,4 +40,4 @@ const Topbar: React.FC<TopbarProps> = ({ zafClient }) => {
   );
 };
 
-export default Topbar;
+export default TopbarApp;

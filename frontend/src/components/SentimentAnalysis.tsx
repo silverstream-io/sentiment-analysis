@@ -71,12 +71,17 @@ const SentimentAnalysis: React.FC<SentimentAnalysisProps> = ({ zafClient, onSent
         await analyzeComments(zafClient, ticketId, ticketComments);
       } else {
         // Analyze new comments if any
-        const newComments = ticketComments['ticket.comments'].filter((comment: any) => 
-          !Object.values(storedVectors).some((vector: any) => vector.id === `${ticketId}#${comment.id}`)
-        );
-        if (newComments.length > 0) {
-          debugLog('Analyzing new comments:', newComments);
-          await analyzeComments(zafClient, ticketId, { 'ticket.comments': newComments });
+        if (Array.isArray(ticketComments['ticket.comments'])) {
+          const newComments = ticketComments['ticket.comments'].filter((comment: any) => 
+            !Object.values(storedVectors).some((vector: any) => vector.id === `${ticketId}#${comment.id}`)
+          );
+          if (newComments.length > 0) {
+            debugLog('Analyzing new comments:', newComments);
+            await analyzeComments(zafClient, ticketId, { 'ticket.comments': newComments });
+          }
+        } else {
+          debugLog('Unexpected structure in ticketComments:', ticketComments);
+          throw new Error('Unexpected structure in ticketComments: ' + JSON.stringify(ticketComments));
         }
       }
 
