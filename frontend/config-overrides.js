@@ -11,8 +11,9 @@ module.exports = override(
   ),
   (config) => {
     config.entry = {
-      main: './src/index.tsx',
+      sentimentChecker: './src/index.tsx',
       background: './src/backgroundIndex.tsx',
+      topbar: './src/topbarIndex.tsx',
     };
     config.output.filename = '[name].js';
     return config;

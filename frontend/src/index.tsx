@@ -3,11 +3,11 @@ import ReactDOM from 'react-dom';
 import App from './components/App';
 import './tailwind.css';
 import { initializeApp as initializeApiService } from './services/apiService';
-import BackgroundApp from './components/BackgroundApp';
 declare global {
   interface Window {
     initializeApp: (client: any, originalQueryString: string) => void;
     initializeBackgroundApp: (client: any, originalQueryString: string) => void;
+    initializeTopbarApp: (client: any, originalQueryString: string) => void;
   }
 }
 
@@ -29,20 +29,5 @@ window.initializeApp = async (client, originalQueryString) => {
       </div>,
       document.getElementById('root')
     );
-  }
-};
-
-window.initializeBackgroundApp = async (client: any, originalQueryString: string) => {
-  try {
-    await initializeApiService(client, originalQueryString);
-
-    ReactDOM.render(
-      <React.StrictMode>
-        <BackgroundApp zafClient={client} />
-      </React.StrictMode>,
-      document.getElementById('root')
-    );
-  } catch (error) {
-    console.error('Error initializing the background application:', error);
   }
 };

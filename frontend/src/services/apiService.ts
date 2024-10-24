@@ -144,3 +144,10 @@ export async function getLast30DaysSentiment(zafClient: any): Promise<SentimentR
   }
   return await getScore(zafClient, ticketIds);
 }
+
+export async function getScores(zafClient: any, ticketIds: string[]): Promise<{ [key: string]: number }> {
+  debugLog('Getting scores for tickets:', ticketIds);
+  const data = await makeApiRequest(zafClient, '/get-scores', 'POST', { tickets: ticketIds });
+  debugLog('Scores data:', data.scores);
+  return data.scores;
+}

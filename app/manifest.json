@@ -18,6 +18,10 @@
         "url": "https://api.silverstream.io/sentiment-checker/background-refresh",
         "flexible": true,
         "postData": {}
+      },
+      "top_bar": {
+        "url": "https://api.silverstream.io/sentiment-checker/topbar",
+        "flexible": true
       }
     }
   },

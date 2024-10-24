@@ -24,3 +24,5 @@ sentiment_checker.add_url_rule('/', 'entry', sentiment_checker_obj.entry, method
 sentiment_checker.add_url_rule('', 'entry', sentiment_checker_obj.entry, methods=['POST'])
 sentiment_checker.add_url_rule('/health', 'health', sentiment_checker_obj.health, methods=['GET'])
 sentiment_checker.add_url_rule('/background-refresh', 'background_refresh', sentiment_checker_obj.background_refresh, methods=['POST'])
+sentiment_checker.add_url_rule('/topbar', 'topbar', sentiment_checker_obj.topbar, methods=['POST'])
+sentiment_checker.add_url_rule('/get-scores', 'get_scores', sentiment_checker_obj.get_scores, methods=['POST'])
