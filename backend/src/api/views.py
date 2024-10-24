@@ -92,7 +92,7 @@ class SentimentChecker:
             self.logger.warning(f"Missing ticket id(s) in request data, data is {self.data}, request remote addr: {self.remote_addr}")
         elif request.path == '/background-refresh':
             self.logger.info(f"Received request for background refresh, request remote addr: {self.remote_addr}")
-
+        self.original_query_string = request.query_string.decode()
 
 
     @session_required
@@ -321,13 +321,12 @@ class SentimentChecker:
         self.logger.debug(f"Received request for entry point, request remote addr: {self.remote_addr}")
         
         self.logger.debug(f"Data is {self.data}")
-        original_query_string = request.query_string.decode()
         session_token = os.urandom(24).hex()
         session['session_token'] = session_token
         response = make_response(render_template(
             f'{self.templates}/entry.html', 
             subdomain=self.subdomain,
-            original_query_string=original_query_string
+            original_query_string=self.original_query_string
         ))
         response.set_cookie('session_token', session_token, secure=True, httponly=True, samesite='None')
 
@@ -355,39 +354,10 @@ class SentimentChecker:
 
     @auth_required
     def background_refresh(self):
-        if request.method == 'POST':
-            if request.is_json:
-                self.logger.info(f"Received JSON data for background_refresh")
-                data = request.get_json()
-            elif request.form:
-                self.logger.info(f"Received form data for background_refresh")
-                data = request.form.to_dict()
-            elif request.data:
-                self.logger.info(f"Received data for background_refresh")
-                data = request.data.decode('utf-8')
-            else:
-                self.logger.warning(f"Received unknown data for background_refresh")
-                data = None
-        self.logger.info(f"Received data {data} for background_refresh")
-        
-        self.subdomain, error = get_subdomain(request)
-        if error:
-            self.logger.error(f"Error getting subdomain: {error}")
-            return jsonify({'error': 'Missing Zendesk subdomain'}), 400
-        original_query_string = request.query_string.decode()   
+        self.init()
         response = make_response(render_template(
             f'{self.templates}/background.html', 
             subdomain=self.subdomain,
-            original_query_string=original_query_string
+            original_query_string=self.original_query_string
         ))
         return response
-
-
-
-
-
-
-
-
-
-
