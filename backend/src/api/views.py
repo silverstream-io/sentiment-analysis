@@ -60,16 +60,16 @@ class SentimentChecker:
         if request.method == 'POST':
             if request.is_json:
                 self.logger.info(f"Received JSON data for background_refresh")
-                data = request.get_json()
+                self.data = request.get_json()
             elif request.form:
                 self.logger.info(f"Received form data for background_refresh")
-                data = request.form.to_dict()
+                self.data = request.form.to_dict()
             elif request.data:
                 self.logger.info(f"Received data for background_refresh")
-                data = request.data.decode('utf-8')
+                self.data = request.data.decode('utf-8')
             else:
                 self.logger.warning(f"Received unknown data for background_refresh")
-                data = None 
+                self.data = None 
         else:
             self.logger.warning(f"Received unknown method for init")
             return jsonify({'error': 'Unknown method'}), 400
