@@ -20,12 +20,17 @@ def get_subdomain(request: Request) -> Tuple[Optional[str], Optional[Tuple[Dict[
     Get the subdomain from the request headers. If it's missing, return an error.
     """
     origin = request.args.get('origin', '')
-    subdomain = origin.split('//')[1].split('.')[0] if '//' in origin else ''
-    logger.info(f"Extracted subdomain: {subdomain}")
-    if not subdomain:
-        logger.info(f"Missing Zendesk subdomain in request, {request.args} ")
-        return None, ({'error': 'Missing Zendesk subdomain'}, 400)
-    return subdomain, None
+    if not origin:
+        logger.info(f"Missing origin in request args: {request.args}")
+        return None, ({'error': 'Missing origin in request'}, 400)
+    
+    try:
+        subdomain = origin.split('//')[1].split('.')[0]
+        logger.info(f"Extracted subdomain: {subdomain}")
+        return subdomain, None
+    except IndexError:
+        logger.info(f"Invalid origin format: {origin}")
+        return None, ({'error': 'Invalid origin format'}, 400)
 
 def prune_duplicate_emotions(emotion_results):
     unique_results = {}
