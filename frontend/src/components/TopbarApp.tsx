@@ -22,9 +22,18 @@ const TopbarApp: React.FC<TopbarAppProps> = ({ zafClient, originalQueryString })
           url: `/api/v2/search.json?query=type:ticket status<solved&page=${page}&per_page=${ticketsPerPage}`,
           type: 'GET',
         });
-        const results = response.results;
-        console.log(results);
-        const ticketIds = results.map((ticket: any) => ticket.id);
+
+        if (!response || !response.results || !Array.isArray(response.results)) {
+          throw new Error('Unexpected response structure');
+        }
+
+        const ticketIds = response.results.map((ticket: any) => {
+          if (!ticket || typeof ticket.id === 'undefined') {
+            throw new Error('Invalid ticket structure');
+          }
+          return ticket.id;
+        });
+
         const scores = await getScores(zafClient, ticketIds);
         setTicketScores(scores);
         setTotalPages(Math.ceil(response.count / ticketsPerPage));
