@@ -63,3 +63,36 @@ body, h1, h2, h3, h4, h5, h6, p, ul, ol {
   .bg-red-500 {
     background-color: #EF4444;
   }
+
+/* Sentiment score color combinations */
+.sentiment-very-positive {
+  background-color: #2e8b57;
+  color: #f5deb3;
+}
+
+.sentiment-positive {
+  background-color: #90ee90;
+  color: #d2b48c;
+}
+
+.sentiment-neutral {
+  background-color: transparent;
+  color: black;
+}
+
+.sentiment-negative {
+  background-color: #ffa07a;
+  color: black;
+}
+
+.sentiment-very-negative {
+  background-color: #ff0000;
+  color: black;
+}
+
+.sentiment-score {
+  padding: 5px 10px;
+  border-radius: 4px;
+  text-decoration: none;
+  display: inline-block;
+}

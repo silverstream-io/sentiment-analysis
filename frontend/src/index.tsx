@@ -5,6 +5,7 @@ import App from './components/App';
 import TopbarApp from './components/TopbarApp';
 import BackgroundApp from './components/BackgroundApp';
 import './tailwind.css';
+import './index.css';
 
 declare global {
   interface Window {
