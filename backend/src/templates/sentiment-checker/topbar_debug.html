@@ -10,13 +10,19 @@
 <body>
     <div id="root"></div>
     <script src="https://static.zdassets.com/zendesk_app_framework_sdk/2.0/zaf_sdk.min.js"></script>
-    <script src="static/js/topbarBundle.js"></script>
+    <script src="static/js/topbar.bundle.js"></script>
     <script>
-        console.log("[TopbarDebug] Template loaded, initializing ZAF client");
-        const client = ZAFClient.init();
-        console.log("[TopbarDebug] ZAF client initialized");
-        window.initializeApp(client, "{{ original_query_string }}");
-        console.log("[TopbarDebug] App initialization called");
+        window.addEventListener('load', function() {
+            console.log("[TopbarDebug] Window loaded, checking for initializeApp");
+            if (typeof window.initializeApp !== 'function') {
+                console.error("[TopbarDebug] initializeApp not found!");
+                return;
+            }
+            console.log("[TopbarDebug] Initializing ZAF client");
+            const client = ZAFClient.init();
+            console.log("[TopbarDebug] ZAF client initialized");
+            window.initializeApp(client, "{{ original_query_string }}");
+        });
     </script>
 </body>
 </html>

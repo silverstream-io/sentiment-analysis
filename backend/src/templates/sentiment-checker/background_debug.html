@@ -10,13 +10,19 @@
 <body>
     <div id="root"></div>
     <script src="https://static.zdassets.com/zendesk_app_framework_sdk/2.0/zaf_sdk.min.js"></script>
-    <script src="static/js/backgroundBundle.js"></script>
+    <script src="static/js/background.bundle.js"></script>
     <script>
-        console.log("[BackgroundDebug] Template loaded, initializing ZAF client");
-        const client = ZAFClient.init();
-        console.log("[BackgroundDebug] ZAF client initialized");
-        window.initializeApp(client, "{{ original_query_string }}");
-        console.log("[BackgroundDebug] App initialization called");
+        window.addEventListener('load', function() {
+            console.log("[BackgroundDebug] Window loaded, checking for initializeApp");
+            if (typeof window.initializeApp !== 'function') {
+                console.error("[BackgroundDebug] initializeApp not found!");
+                return;
+            }
+            console.log("[BackgroundDebug] Initializing ZAF client");
+            const client = ZAFClient.init();
+            console.log("[BackgroundDebug] ZAF client initialized");
+            window.initializeApp(client, "{{ original_query_string }}");
+        });
     </script>
 </body>
 </html>
