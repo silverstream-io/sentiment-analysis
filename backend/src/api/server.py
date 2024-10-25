@@ -13,6 +13,7 @@ logging.basicConfig(
     handlers=[logging.StreamHandler(sys.stdout)]
 )
 logger = logging.getLogger('sentiment_checker')
+logging.getLogger('pinecone_plugin_interface').setLevel(logging.CRITICAL)
 
 def create_app():
     app = Flask(__name__)

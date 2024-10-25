@@ -51,11 +51,6 @@ class SentimentChecker:
         self.logger = logger
         self.templates = 'sentiment-checker'
         self.debug_mode = os.environ.get('SENTIMENT_CHECKER_DEBUG') == 'true'
-        self.tunnel_url = os.environ.get('TUNNEL_URL')
-        if self.debug_mode:
-            if not self.tunnel_url:
-                raise ValueError("TUNNEL_URL environment variable must be set in debug mode")
-            self.logger.info(f"Running in debug mode with tunnel URL: {self.tunnel_url}")
 
     def init(self):
         self.remote_addr = request.headers.get('X-Forwarded-For', request.remote_addr)
@@ -116,20 +111,15 @@ class SentimentChecker:
         session['session_token'] = session_token
 
         if self.debug_mode:
-            # In debug mode, render template that loads from localtunnel
-            response = make_response(render_template(
-                f'{self.templates}/entry_debug.html', 
-                subdomain=self.subdomain,
-                original_query_string=self.original_query_string,
-                tunnel_url=self.tunnel_url
-            ))
+            template = f'{self.templates}/entry_debug.html'
         else:
-            # In production mode, use static files
-            response = make_response(render_template(
-                f'{self.templates}/entry.html', 
-                subdomain=self.subdomain,
-                original_query_string=self.original_query_string
-            ))
+            template = f'{self.templates}/entry.html'
+            
+        response = make_response(render_template(
+            template, 
+            subdomain=self.subdomain,
+            original_query_string=self.original_query_string
+        ))
 
         response.set_cookie('session_token', session_token, secure=True, httponly=True, samesite='None')
         return response
