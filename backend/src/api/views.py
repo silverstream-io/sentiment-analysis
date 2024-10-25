@@ -455,8 +455,20 @@ class SentimentChecker:
 
         scores = {}
         for ticket_id in self.ticket_ids:
-            score = self.get_score(ticket_id)
-            scores[ticket_id] = score
+            try:
+                # Get the score response
+                score_response, status_code = self.get_score(ticket_id)
+                if status_code != 200:
+                    self.logger.error(f"Error getting score for ticket {ticket_id}: {score_response}, request remote addr: {self.remote_addr}")
+                    continue
+                
+                # Extract the score value from the response
+                score_data = score_response.get_json()
+                scores[ticket_id] = score_data.get('score', 0)
+                
+            except Exception as e:
+                self.logger.error(f"Error processing ticket {ticket_id}: {e}, request remote addr: {self.remote_addr}")
+                continue
 
         return jsonify({'scores': scores}), 200
 
@@ -473,6 +485,7 @@ class SentimentChecker:
             return render_template(f'{self.templates}/health.html')
         else:
             return jsonify({'error': 'Pinecone service is not healthy'}), 500
+
 
 
 
