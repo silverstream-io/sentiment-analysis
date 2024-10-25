@@ -105,13 +105,15 @@ export async function getScore(zafClient: any, ticketIds: string | string[] | { 
 }
 
 export function debugLog(...args: any[]) {
-  if (DEBUG) {
-    console.log('[DEBUG]', ...args);
-  }
+  console.log('[DEBUG]', ...args);
 }
 
 export function errorLog(...args: any[]) {
   console.error('[ERROR]', ...args);
+  // Add stack trace for better debugging
+  if (args[1] instanceof Error) {
+    console.error('[ERROR] Stack:', args[1].stack);
+  }
 }
 
 export function infoLog(...args: any[]) {

@@ -50,6 +50,9 @@ class SentimentChecker:
     def __init__(self):
         self.logger = logger
         self.templates = 'sentiment-checker'
+        self.debug_mode = os.environ.get('SENTIMENT_CHECKER_DEBUG') == 'true'
+        if self.debug_mode:
+            self.logger.info("Running in debug mode with localtunnel")
 
     def init(self):
         self.remote_addr = request.headers.get('X-Forwarded-For', request.remote_addr)
@@ -108,21 +111,37 @@ class SentimentChecker:
         self.logger.debug(f"Data is {self.data}")
         session_token = os.urandom(24).hex()
         session['session_token'] = session_token
-        response = make_response(render_template(
-            f'{self.templates}/entry.html', 
-            subdomain=self.subdomain,
-            original_query_string=f"{self.original_query_string}&type=main"
-        ))
+
+        if self.debug_mode:
+            # In debug mode, render template that loads from localtunnel
+            response = make_response(render_template(
+                f'{self.templates}/entry_debug.html', 
+                subdomain=self.subdomain,
+                original_query_string=self.original_query_string
+            ))
+        else:
+            # In production mode, use static files
+            response = make_response(render_template(
+                f'{self.templates}/entry.html', 
+                subdomain=self.subdomain,
+                original_query_string=self.original_query_string
+            ))
+
         response.set_cookie('session_token', session_token, secure=True, httponly=True, samesite='None')
         return response
 
     @auth_required
     def background_refresh(self):
         self.init()
+        if self.debug_mode:
+            template = f'{self.templates}/background_debug.html'
+        else:
+            template = f'{self.templates}/background.html'
+            
         response = make_response(render_template(
-            f'{self.templates}/background.html', 
+            template,
             subdomain=self.subdomain,
-            original_query_string=f"{self.original_query_string}&type=background"
+            original_query_string=self.original_query_string
         ))
         return response
     
@@ -130,10 +149,16 @@ class SentimentChecker:
     def topbar(self):
         self.init()
         self.logger.info(f"Received request for topbar, request remote addr: {self.remote_addr}")
+        
+        if self.debug_mode:
+            template = f'{self.templates}/topbar_debug.html'
+        else:
+            template = f'{self.templates}/topbar.html'
+            
         response = make_response(render_template(
-            f'{self.templates}/topbar.html', 
+            template,
             subdomain=self.subdomain,
-            original_query_string=f"{self.original_query_string}&type=topbar"
+            original_query_string=self.original_query_string
         ))
         return response
 
@@ -454,5 +479,6 @@ class SentimentChecker:
             return render_template(f'{self.templates}/health.html')
         else:
             return jsonify({'error': 'Pinecone service is not healthy'}), 500
+
 
 

@@ -16,33 +16,46 @@ const TopbarApp: React.FC<TopbarAppProps> = ({ zafClient, originalQueryString })
 
   useEffect(() => {
     const fetchUnsolvedTickets = async (page: number) => {
-      console.log("Fetching tickets for page:", page);
+      console.log("[TopbarApp] Starting fetchUnsolvedTickets for page:", page);
       try {
         setIsLoading(true);
-        // Modified only this URL to use the correct Zendesk API endpoint
+        console.log("[TopbarApp] Making zafClient.request");
         const response = await zafClient.request({
           url: `https://api.zendesk.com/api/v2/search.json?query=type:ticket status<solved&page=${page}&per_page=${ticketsPerPage}`,
           type: 'GET',
         });
+        console.log("[TopbarApp] zafClient.request response:", response);
 
         if (!response || !response.results || !Array.isArray(response.results)) {
+          console.error("[TopbarApp] Invalid response structure:", response);
           throw new Error('Unexpected response structure');
         }
 
         const ticketIds = response.results.map((ticket: any) => {
+          console.log("[TopbarApp] Processing ticket:", ticket);
           if (!ticket || typeof ticket.id === 'undefined') {
+            console.error("[TopbarApp] Invalid ticket structure:", ticket);
             throw new Error('Invalid ticket structure');
           }
           return ticket.id;
         });
 
-        console.log(ticketIds);
+        console.log("[TopbarApp] Extracted ticketIds:", ticketIds);
+        console.log("[TopbarApp] Calling getScores");
         const scores = await getScores(zafClient, ticketIds);
+        console.log("[TopbarApp] Got scores:", scores);
+        
         setTicketScores(scores);
         setTotalPages(Math.ceil(response.count / ticketsPerPage));
         setIsLoading(false);
       } catch (error) {
-        errorLog('Error fetching unsolved tickets:', error);
+        console.error("[TopbarApp] Detailed error:", {
+          error,
+          message: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+          zafClient: !!zafClient,
+        });
+        errorLog('Error fetching unsolved tickets:', error instanceof Error ? error.message : String(error));
         setError('Failed to fetch ticket scores. Please try again later.');
         setIsLoading(false);
       }

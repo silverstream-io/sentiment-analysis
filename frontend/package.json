@@ -24,10 +24,11 @@
     "tailwindcss": "^3.0.15"
   },
   "scripts": {
-    "start": "react-app-rewired start",
-    "build": "GENERATE_SOURCEMAP=true react-app-rewired build",
-    "test": "react-app-rewired test",
-    "eject": "react-scripts eject"
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
+    "tunnel": "lt --port 3000"
   },
   "browserslist": {
     "production": [
