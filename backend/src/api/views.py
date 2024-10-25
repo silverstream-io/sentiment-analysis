@@ -40,29 +40,17 @@ class SentimentChecker:
     calculate sentiment scores, and serve the entry point for the Sentiment Checker
     Zendesk application.
 
-    The class interacts with various services including:
-    - PineconeService for vector operations and storage
-    - Authentication service for securing endpoints
-    - OpenAI service for sentiment analysis (indirectly through PineconeService)
-
-    Methods:
-        analyze_comments: Analyzes and stores sentiment for ticket comments.
-        get_ticket_vectors: Retrieves vectors associated with a ticket.
-        get_score: Calculates the overall sentiment score for a ticket.
-        entry: Serves as the entry point for the Zendesk application.
-
-    Each method is decorated with @auth_required to ensure proper authentication
-    before processing requests.
-
-    Note: This class assumes the existence of a Flask application context and
-    uses Flask's request object for handling incoming data.
+    Methods are organized in the following groups:
+    1. Initialization and Entry Points
+    2. Analysis Methods
+    3. Data Retrieval Methods
+    4. Health Check
     """
 
     def __init__(self):
         self.logger = logger
         self.templates = 'sentiment-checker'
 
-    
     def init(self):
         self.remote_addr = request.headers.get('X-Forwarded-For', request.remote_addr)
         self.subdomain, error = get_subdomain(request)
@@ -104,7 +92,48 @@ class SentimentChecker:
             self.logger.warning(f"Missing ticket id(s) in request data, data is {self.data}, request remote addr: {self.remote_addr}")
         self.original_query_string = request.query_string.decode()
 
+    # Entry Points
+    @auth_required
+    def entry(self):
+        """
+        Serve the entry point for the Zendesk application.
+        """
+        self.init()
+        self.logger.debug(f"Received request for entry point, request remote addr: {self.remote_addr}")
+        
+        self.logger.debug(f"Data is {self.data}")
+        session_token = os.urandom(24).hex()
+        session['session_token'] = session_token
+        response = make_response(render_template(
+            f'{self.templates}/entry.html', 
+            subdomain=self.subdomain,
+            original_query_string=f"{self.original_query_string.decode()}&type=main"
+        ))
+        response.set_cookie('session_token', session_token, secure=True, httponly=True, samesite='None')
+        return response
 
+    @auth_required
+    def background_refresh(self):
+        self.init()
+        response = make_response(render_template(
+            f'{self.templates}/background.html', 
+            subdomain=self.subdomain,
+            original_query_string=f"{self.original_query_string.decode()}&type=background"
+        ))
+        return response
+    
+    @auth_required
+    def topbar(self):
+        self.init()
+        self.logger.info(f"Received request for topbar, request remote addr: {self.remote_addr}")
+        response = make_response(render_template(
+            f'{self.templates}/topbar.html', 
+            subdomain=self.subdomain,
+            original_query_string=f"{self.original_query_string.decode()}&type=topbar"
+        ))
+        return response
+
+    # Analysis Methods
     @session_required
     def analyze_comments(self) -> Tuple[Dict[str, str], int]:
         """
@@ -215,7 +244,7 @@ class SentimentChecker:
         self.logger.debug(f"Finished processing comments for tickets: {self.ticket_ids}, request remote addr: {self.remote_addr}")
         return jsonify({'message': 'Comments analyzed and stored successfully', 'results': all_results}), 200
 
-
+    # Data Retrieval Methods
     @session_required
     def get_ticket_vectors(self) -> Tuple[Dict[str, str], int]:
         """
@@ -240,9 +269,8 @@ class SentimentChecker:
 
         return jsonify({'vectors': all_vectors}), 200
 
-
     @session_required
-    def get_score(self) -> Tuple[Dict[str, str], int]:
+    def get_score(self, ticket_id: str = None) -> Tuple[Dict[str, str], int]:
         """
         Get the weighted score of a ticket or multiple tickets based on the emotions of the comments.
         """
@@ -259,8 +287,12 @@ class SentimentChecker:
         total_weight = 0
         lambda_factor = 1.0 # Adjust this value to control the decay rate
         all_scores = []
+        if ticket_id:
+            ticket_ids = [ticket_id]
+        else:
+            ticket_ids = self.ticket_ids
 
-        for ticket_id in self.ticket_ids:
+        for ticket_id in ticket_ids:
             vector_ids, comment_vectors = [], []
             self.logger.info(f"Processing ticket: {ticket_id}, request remote addr: {self.remote_addr}")
             vector_list = self.pinecone_service.list_ticket_vectors(str(ticket_id))
@@ -320,69 +352,6 @@ class SentimentChecker:
         #self.logger.debug(f"Calculated weighted score for {len(self.ticket_ids)} tickets: {weighted_score}, request remote addr: {self.remote_addr}")
         return jsonify({'score': weighted_score}), 200
 
-
-    @auth_required
-    def entry(self):
-        """
-        Serve the entry point for the Zendesk application.
-        """
-
-        self.init()
-        self.logger.debug(f"Received request for entry point, request remote addr: {self.remote_addr}")
-        
-        self.logger.debug(f"Data is {self.data}")
-        session_token = os.urandom(24).hex()
-        session['session_token'] = session_token
-        response = make_response(render_template(
-            f'{self.templates}/entry.html', 
-            subdomain=self.subdomain,
-            original_query_string=self.original_query_string
-        ))
-        response.set_cookie('session_token', session_token, secure=True, httponly=True, samesite='None')
-
-        return response
-
-    
-    def health(self):
-        """
-        Serve the health check page for the Zendesk application. This will:
-        - Check the health of the Pinecone service
-
-        Some variables that are normally set in the init() method are not 
-        set here, but that's okay. It just has to connect to Pinecone and 
-        return a response.
-        """
-        remote_addr = request.headers.get('X-Forwarded-For', request.remote_addr)
-        pinecone_service = PineconeService('emotions')
-        check_pinecone = pinecone_service.check_health()
-        self.logger.debug(f"Pinecone health check: {check_pinecone}, request remote addr: {remote_addr}")
-        if check_pinecone.get('status', {}).get('ready', True):  
-            return render_template(f'{self.templates}/health.html')
-        else:
-            return jsonify({'error': 'Pinecone service is not healthy'}), 500
-
-
-    @auth_required
-    def background_refresh(self):
-        self.init()
-        response = make_response(render_template(
-            f'{self.templates}/background.html', 
-            subdomain=self.subdomain,
-            original_query_string=self.original_query_string
-        ))
-        return response
-    
-    @auth_required
-    def topbar(self):
-        self.init()
-        self.logger.info(f"Received request for topbar, request remote addr: {self.remote_addr}")
-        response = make_response(render_template(
-            f'{self.templates}/topbar.html', 
-            subdomain=self.subdomain,
-            original_query_string=self.original_query_string
-        ))
-        return response
-
     @session_required
     def get_scores(self) -> Tuple[Dict[str, str], int]:
         self.init()
@@ -394,13 +363,21 @@ class SentimentChecker:
 
         scores = {}
         for ticket_id in self.ticket_ids:
-            score = self._get_score(ticket_id)
+            score = self.get_score(ticket_id)
             scores[ticket_id] = score
 
         return jsonify({'scores': scores}), 200
 
-    def _get_score(self, ticket_id: str) -> float:
-        # Logic to calculate the score for a single ticket
-        # This should include the logic from the current get_score method
-        # and return the calculated score for the given ticket_id
-        pass
+    # Health Check
+    def health(self):
+        """
+        Serve the health check page for the Zendesk application.
+        """
+        remote_addr = request.headers.get('X-Forwarded-For', request.remote_addr)
+        pinecone_service = PineconeService('emotions')
+        check_pinecone = pinecone_service.check_health()
+        self.logger.debug(f"Pinecone health check: {check_pinecone}, request remote addr: {remote_addr}")
+        if check_pinecone.get('status', {}).get('ready', True):  
+            return render_template(f'{self.templates}/health.html')
+        else:
+            return jsonify({'error': 'Pinecone service is not healthy'}), 500

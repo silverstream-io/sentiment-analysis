@@ -13,14 +13,18 @@ declare global {
 }
 
 window.initializeApp = (zafClient, originalQueryString) => {
+  const appType = new URLSearchParams(window.location.search).get('type') || 'main';
   // Pass originalQueryString to the App component
   ReactDOM.render(
     <React.StrictMode>
       <Router>
         <Routes>
-          <Route path="/" element={<App zafClient={zafClient} originalQueryString={originalQueryString} />} />
-          <Route path="/topbar" element={<TopbarApp zafClient={zafClient} originalQueryString={originalQueryString} />} />
-          <Route path="/background" element={<BackgroundApp zafClient={zafClient} originalQueryString={originalQueryString} />} />
+          <Route path="/" element={
+            appType === 'main' ? <App zafClient={zafClient} originalQueryString={originalQueryString} /> :
+            appType === 'topbar' ? <TopbarApp zafClient={zafClient} originalQueryString={originalQueryString} /> :
+            appType === 'background' ? <BackgroundApp zafClient={zafClient} originalQueryString={originalQueryString} /> :
+            null
+          } />
         </Routes>
       </Router>
     </React.StrictMode>,

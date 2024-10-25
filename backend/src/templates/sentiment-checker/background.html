@@ -11,7 +11,7 @@
     <script src="{{ url_for('static', filename='js/sentimentChecker.js') }}"></script>
     <script>
         const client = ZAFClient.init();
-        window.initializeBackgroundApp(client, "{{ original_query_string }}");
+        window.initializeApp(client, "{{ original_query_string }}");
     </script>
 </body>
 </html>
