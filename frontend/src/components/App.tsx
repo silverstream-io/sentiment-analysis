@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import SentimentAnalysis from './SentimentAnalysis';
+// Only import SentimentAnalysis in the main App
+const SentimentAnalysis = React.lazy(() => import('./SentimentAnalysis'));
 import SentimentDisplay from './SentimentDisplay';
 import { SentimentRange } from '../types';
 
