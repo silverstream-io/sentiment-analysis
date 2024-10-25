@@ -20,43 +20,30 @@ const TopbarApp: React.FC<TopbarAppProps> = ({ zafClient, originalQueryString })
       console.log("[TopbarApp] Starting fetchUnsolvedTickets for page:", page);
       try {
         setIsLoading(true);
-        console.log("[TopbarApp] Making zafClient.request");
+        // Use the search API instead of trying to access ticket directly
         const response = await zafClient.request({
-          url: `https://api.zendesk.com/api/v2/search.json?query=type:ticket status<solved&page=${page}&per_page=${ticketsPerPage}`,
-          type: 'GET',
+          url: `/api/v2/search/incremental?query=type:ticket status<solved&page=${page}&per_page=${ticketsPerPage}`,
+          type: 'GET'
         });
-        console.log("[TopbarApp] zafClient.request response:", response);
+        console.log("[TopbarApp] Search API response:", response);
 
         if (!response || !response.results || !Array.isArray(response.results)) {
           console.error("[TopbarApp] Invalid response structure:", response);
           throw new Error('Unexpected response structure');
         }
 
-        const ticketIds = response.results.map((ticket: any) => {
-          console.log("[TopbarApp] Processing ticket:", ticket);
-          if (!ticket || typeof ticket.id === 'undefined') {
-            console.error("[TopbarApp] Invalid ticket structure:", ticket);
-            throw new Error('Invalid ticket structure');
-          }
-          return ticket.id;
-        });
-
+        const ticketIds = response.results.map((ticket: any) => ticket.id);
         console.log("[TopbarApp] Extracted ticketIds:", ticketIds);
-        console.log("[TopbarApp] Calling getScores");
-        const scores = await getScores(zafClient, ticketIds);
-        console.log("[TopbarApp] Got scores:", scores);
         
-        setTicketScores(scores);
-        setTotalPages(Math.ceil(response.count / ticketsPerPage));
+        if (ticketIds.length > 0) {
+          const scores = await getScores(zafClient, ticketIds);
+          console.log("[TopbarApp] Got scores:", scores);
+          setTicketScores(scores);
+          setTotalPages(Math.ceil(response.count / ticketsPerPage));
+        }
         setIsLoading(false);
       } catch (error) {
-        console.error("[TopbarApp] Detailed error:", {
-          error,
-          message: error instanceof Error ? error.message : String(error),
-          stack: error instanceof Error ? error.stack : undefined,
-          zafClient: !!zafClient,
-        });
-        errorLog('Error fetching unsolved tickets:', error instanceof Error ? error.message : String(error));
+        console.error("[TopbarApp] Error:", error);
         setError('Failed to fetch ticket scores. Please try again later.');
         setIsLoading(false);
       }
