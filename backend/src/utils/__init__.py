@@ -17,26 +17,37 @@ logger.addHandler(file_handler)
 
 def get_subdomain(request: Request) -> Tuple[Optional[str], Optional[Tuple[Dict[str, str], int]]]:
     """
-    Get the subdomain from the request headers. If it's missing, return an error.
+    Get the subdomain from the request headers or query parameters.
+    Prioritizes X-Zendesk-Subdomain header, then query parameters, then Origin.
     """
     logger.debug(f"Full request args: {request.args}")
     logger.debug(f"Request headers: {request.headers}")
     
-    origin = request.args.get('origin')
-    if not origin:
-        origin = request.headers.get('Origin')
-    
-    if not origin:
-        logger.warning(f"Missing origin in both request args and headers")
-        return None, ({'error': 'Missing origin in request'}, 400)
-    
-    try:
-        subdomain = origin.split('//')[1].split('.')[0]
-        logger.info(f"Extracted subdomain: {subdomain}")
+    # First check for X-Zendesk-Subdomain header
+    subdomain = request.headers.get('X-Zendesk-Subdomain')
+    if subdomain:
+        logger.info(f"Using subdomain from X-Zendesk-Subdomain header: {subdomain}")
         return subdomain, None
-    except IndexError:
-        logger.warning(f"Invalid origin format: {origin}")
-        return None, ({'error': 'Invalid origin format'}, 400)
+    
+    # Then check query parameters
+    subdomain = request.args.get('subdomain')
+    if subdomain:
+        logger.info(f"Using subdomain from query parameters: {subdomain}")
+        return subdomain, None
+    
+    # Finally check origin
+    origin = request.args.get('origin') or request.headers.get('Origin')
+    if origin:
+        try:
+            subdomain = origin.split('//')[1].split('.')[0]
+            if subdomain != 'api':  # Prevent using 'api' as subdomain
+                logger.info(f"Using subdomain from origin: {subdomain}")
+                return subdomain, None
+        except IndexError:
+            logger.warning(f"Invalid origin format: {origin}")
+    
+    logger.warning(f"Missing valid subdomain in request")
+    return None, ({'error': 'Missing valid subdomain'}, 400)
 
 def prune_duplicate_emotions(emotion_results):
     unique_results = {}

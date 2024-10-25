@@ -15,6 +15,7 @@ const SentimentAnalysis: React.FC<SentimentAnalysisProps> = ({ zafClient, onSent
   useEffect(() => {
     analyzeSentiment();
 
+    /* Turn off listener for new comments
     // Set up event listener for new comments
     zafClient.on('ticket.comment.created', analyzeSentiment);
 
@@ -22,6 +23,7 @@ const SentimentAnalysis: React.FC<SentimentAnalysisProps> = ({ zafClient, onSent
     return () => {
       zafClient.off('ticket.comment.created', analyzeSentiment);
     };
+    */
   }, [zafClient]);
 
   async function analyzeSentiment() {

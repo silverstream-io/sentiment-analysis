@@ -55,8 +55,12 @@ class SentimentChecker:
         self.remote_addr = request.headers.get('X-Forwarded-For', request.remote_addr)
         self.subdomain, error = get_subdomain(request)
         if error:
-            self.logger.error(f"Error getting subdomain: {error}, original request args: {request.args}, request remote addr: {self.remote_addr}")
+            self.logger.error(f"Error getting subdomain: {error}, request remote addr: {self.remote_addr}")
             raise Exception(error)
+        
+        # Log the subdomain being used
+        self.logger.info(f"Using subdomain: {self.subdomain} for request from {self.remote_addr}")
+        
         if request.method == 'POST':
             if request.is_json:
                 self.logger.info(f"Received JSON data for background_refresh")
@@ -450,4 +454,5 @@ class SentimentChecker:
             return render_template(f'{self.templates}/health.html')
         else:
             return jsonify({'error': 'Pinecone service is not healthy'}), 500
+
 

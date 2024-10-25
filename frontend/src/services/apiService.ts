@@ -23,7 +23,9 @@ async function makeApiRequest(zafClient: any, endpoint: string, method: string, 
   debugLog('Session token in cookie:', sessionToken);
 
   const url = new URL(`${BACKEND_URL}${endpoint}`);
-  url.search = originalQueryString;
+  const searchParams = new URLSearchParams(originalQueryString);
+  searchParams.set('subdomain', subdomain);
+  url.search = searchParams.toString();
 
   debugLog(`Trying to fetch ${url.toString()} with method ${method}`);
   try {

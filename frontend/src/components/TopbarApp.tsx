@@ -19,8 +19,9 @@ const TopbarApp: React.FC<TopbarAppProps> = ({ zafClient, originalQueryString })
       console.log("Fetching tickets for page:", page);
       try {
         setIsLoading(true);
+        // Modified only this URL to use the correct Zendesk API endpoint
         const response = await zafClient.request({
-          url: `/api/v2/search.json?query=type:ticket status<solved&page=${page}&per_page=${ticketsPerPage}`,
+          url: `https://api.zendesk.com/api/v2/search.json?query=type:ticket status<solved&page=${page}&per_page=${ticketsPerPage}`,
           type: 'GET',
         });
 
