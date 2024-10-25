@@ -12,8 +12,6 @@
     <script src="{{ url_for('static', filename='js/sentimentChecker.js') }}"></script>
     <script>
         const client = ZAFClient.init();
-        client.set('iconSymbol', 'topbar-icon')
-        client.invoke('popover', 'show')
         window.initializeTopbarApp(client, "{{ original_query_string }}");
     </script>
 </body>
