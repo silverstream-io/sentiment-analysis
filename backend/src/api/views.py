@@ -107,7 +107,7 @@ class SentimentChecker:
         response = make_response(render_template(
             f'{self.templates}/entry.html', 
             subdomain=self.subdomain,
-            original_query_string=f"{self.original_query_string.decode()}&type=main"
+            original_query_string=f"{self.original_query_string}&type=main"
         ))
         response.set_cookie('session_token', session_token, secure=True, httponly=True, samesite='None')
         return response
@@ -118,7 +118,7 @@ class SentimentChecker:
         response = make_response(render_template(
             f'{self.templates}/background.html', 
             subdomain=self.subdomain,
-            original_query_string=f"{self.original_query_string.decode()}&type=background"
+            original_query_string=f"{self.original_query_string}&type=background"
         ))
         return response
     
@@ -129,7 +129,7 @@ class SentimentChecker:
         response = make_response(render_template(
             f'{self.templates}/topbar.html', 
             subdomain=self.subdomain,
-            original_query_string=f"{self.original_query_string.decode()}&type=topbar"
+            original_query_string=f"{self.original_query_string}&type=topbar"
         ))
         return response
 
