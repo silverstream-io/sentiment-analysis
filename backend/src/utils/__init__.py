@@ -19,8 +19,8 @@ def get_subdomain(request: Request) -> Tuple[Optional[str], Optional[Tuple[Dict[
     """
     Get the subdomain from the request headers. If it's missing, return an error.
     """
-    logger.info(f"Full request args: {request.args}")
-    logger.info(f"Request headers: {request.headers}")
+    logger.debug(f"Full request args: {request.args}")
+    logger.debug(f"Request headers: {request.headers}")
     
     origin = request.args.get('origin')
     if not origin:
