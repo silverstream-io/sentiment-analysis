@@ -152,3 +152,19 @@ export async function getScores(zafClient: any, ticketIds: string[]): Promise<{ 
   debugLog('Scores data:', data.scores);
   return data.scores;
 }
+
+// Add this new function
+export async function updateTicketSentiment(zafClient: any, ticketId: string) {
+  try {
+    const ticketComments = await zafClient.get('ticket.comments');
+    const response = await makeApiRequest(zafClient, '/update-sentiment', 'POST', {
+      ticket_id: ticketId,
+      comments: ticketComments['ticket.comments']
+    });
+    debugLog('Sentiment updated for ticket:', ticketId);
+    return response;
+  } catch (error) {
+    errorLog('Error updating sentiment:', error);
+    throw error;
+  }
+}

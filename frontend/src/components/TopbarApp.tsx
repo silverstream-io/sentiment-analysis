@@ -16,6 +16,7 @@ const TopbarApp: React.FC<TopbarAppProps> = ({ zafClient, originalQueryString })
 
   useEffect(() => {
     const fetchUnsolvedTickets = async (page: number) => {
+      console.log("Fetching tickets for page:", page);
       try {
         setIsLoading(true);
         const response = await zafClient.request({

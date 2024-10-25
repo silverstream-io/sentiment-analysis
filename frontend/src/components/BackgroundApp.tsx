@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { listTicketVectors, analyzeComments, getScore, debugLog, errorLog } from '../services/apiService';
+import { updateTicketSentiment, debugLog, errorLog } from '../services/apiService';
 
 interface BackgroundAppProps {
   zafClient: any;
@@ -15,26 +15,7 @@ const BackgroundApp: React.FC<BackgroundAppProps> = ({ zafClient, originalQueryS
       errorLog(`Ticket ${ticketId} saved, triggering background refresh`);
 
       try {
-        const storedVectors = await listTicketVectors(zafClient, ticketId);
-        const ticketComments = await zafClient.get('ticket.comments');
-
-        if (Object.keys(storedVectors).length === 0) {
-          debugLog('No vectors found for ticket:', ticketId);
-          await analyzeComments(zafClient, ticketId, ticketComments);
-        } else {
-          if (Array.isArray(ticketComments['ticket.comments'])) {
-            const newComments = ticketComments['ticket.comments'].filter((comment: any) => 
-              !Object.values(storedVectors).some((vector: any) => vector.id === `${ticketId}#${comment.id}`)
-            );
-            if (newComments.length > 0) {
-              debugLog('Analyzing new comments:', newComments);
-              await analyzeComments(zafClient, ticketId, { 'ticket.comments': newComments });
-            }
-          } else {
-            debugLog('Unexpected structure in ticketComments:', ticketComments);
-            throw new Error('Unexpected structure in ticketComments: ' + JSON.stringify(ticketComments));
-          }
-        }
+        await updateTicketSentiment(zafClient, ticketId);
       } catch (error) {
         console.error('Error in background refresh:', error);
       }
@@ -49,8 +30,7 @@ const BackgroundApp: React.FC<BackgroundAppProps> = ({ zafClient, originalQueryS
     };
   }, [zafClient]);
 
-  console.log('BackgroundApp rendered');
-  return null; // This component doesn't render anything
+  return null;
 };
 
 export default BackgroundApp;
