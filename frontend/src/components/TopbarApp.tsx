@@ -7,6 +7,7 @@ interface TopbarAppProps {
 }
 
 const TopbarApp: React.FC<TopbarAppProps> = ({ zafClient, originalQueryString }) => {
+  console.log("[TopbarApp] Component initializing"); // Add this at the very start
   const [ticketScores, setTicketScores] = useState<{ [key: string]: number }>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
