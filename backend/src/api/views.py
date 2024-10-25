@@ -51,8 +51,11 @@ class SentimentChecker:
         self.logger = logger
         self.templates = 'sentiment-checker'
         self.debug_mode = os.environ.get('SENTIMENT_CHECKER_DEBUG') == 'true'
+        self.tunnel_url = os.environ.get('TUNNEL_URL')
         if self.debug_mode:
-            self.logger.info("Running in debug mode with localtunnel")
+            if not self.tunnel_url:
+                raise ValueError("TUNNEL_URL environment variable must be set in debug mode")
+            self.logger.info(f"Running in debug mode with tunnel URL: {self.tunnel_url}")
 
     def init(self):
         self.remote_addr = request.headers.get('X-Forwarded-For', request.remote_addr)
@@ -117,7 +120,8 @@ class SentimentChecker:
             response = make_response(render_template(
                 f'{self.templates}/entry_debug.html', 
                 subdomain=self.subdomain,
-                original_query_string=self.original_query_string
+                original_query_string=self.original_query_string,
+                tunnel_url=self.tunnel_url
             ))
         else:
             # In production mode, use static files
@@ -479,6 +483,7 @@ class SentimentChecker:
             return render_template(f'{self.templates}/health.html')
         else:
             return jsonify({'error': 'Pinecone service is not healthy'}), 500
+
 
 
 
