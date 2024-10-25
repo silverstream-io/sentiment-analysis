@@ -34,6 +34,7 @@ const TopbarApp: React.FC<TopbarAppProps> = ({ zafClient, originalQueryString })
           return ticket.id;
         });
 
+        console.log(ticketIds);
         const scores = await getScores(zafClient, ticketIds);
         setTicketScores(scores);
         setTotalPages(Math.ceil(response.count / ticketsPerPage));
