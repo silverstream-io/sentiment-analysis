@@ -19,9 +19,15 @@ def get_subdomain(request: Request) -> Tuple[Optional[str], Optional[Tuple[Dict[
     """
     Get the subdomain from the request headers. If it's missing, return an error.
     """
-    origin = request.args.get('origin', '')
+    logger.info(f"Full request args: {request.args}")
+    logger.info(f"Request headers: {request.headers}")
+    
+    origin = request.args.get('origin')
     if not origin:
-        logger.info(f"Missing origin in request args: {request.args}")
+        origin = request.headers.get('Origin')
+    
+    if not origin:
+        logger.warning(f"Missing origin in both request args and headers")
         return None, ({'error': 'Missing origin in request'}, 400)
     
     try:
@@ -29,7 +35,7 @@ def get_subdomain(request: Request) -> Tuple[Optional[str], Optional[Tuple[Dict[
         logger.info(f"Extracted subdomain: {subdomain}")
         return subdomain, None
     except IndexError:
-        logger.info(f"Invalid origin format: {origin}")
+        logger.warning(f"Invalid origin format: {origin}")
         return None, ({'error': 'Invalid origin format'}, 400)
 
 def prune_duplicate_emotions(emotion_results):

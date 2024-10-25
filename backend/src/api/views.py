@@ -67,7 +67,7 @@ class SentimentChecker:
         self.remote_addr = request.headers.get('X-Forwarded-For', request.remote_addr)
         self.subdomain, error = get_subdomain(request)
         if error:
-            self.logger.error(f"Error getting subdomain: {error}, request remote addr: {self.remote_addr}")
+            self.logger.error(f"Error getting subdomain: {error}, original request args: {request.args}, request remote addr: {self.remote_addr}")
             raise Exception(error)
         if request.method == 'POST':
             if request.is_json:
