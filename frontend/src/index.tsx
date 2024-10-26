@@ -1,48 +1,56 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import ReactDOM from 'react-dom';
-import App from './components/App';
+import { HashRouter as Router, Route, Routes } from 'react-router-dom';
 import './tailwind.css';
-import { initializeApp as initializeApiService } from './services/apiService';
-import BackgroundApp from './components/BackgroundApp';
+import './index.css';
+
+// Create separate chunks for each app type
+const apps = {
+  main: React.lazy(() => import('./apps/main').then(module => ({ 
+    default: module.MainApp 
+  }))),
+  topbar: React.lazy(() => import('./apps/topbar').then(module => ({ 
+    default: module.TopbarApp 
+  }))),
+  background: React.lazy(() => import('./apps/background').then(module => ({ 
+    default: module.BackgroundApp 
+  }))),
+};
+
 declare global {
   interface Window {
     initializeApp: (client: any, originalQueryString: string) => void;
-    initializeBackgroundApp: (client: any, originalQueryString: string) => void;
   }
 }
 
-window.initializeApp = async (client, originalQueryString) => {
-  try {
-    await initializeApiService(client, originalQueryString);
+const LoadingComponent = () => (
+  <div>Loading application...</div>
+);
 
-    ReactDOM.render(
-      <React.StrictMode>
-        <App zafClient={client} />
-      </React.StrictMode>,
-      document.getElementById('root')
-    );
-  } catch (error) {
-    console.error('Error initializing the application:', error);
-    ReactDOM.render(
-      <div className="error-message">
-        Error: Unable to initialize the application. Please check the console for more details.
-      </div>,
-      document.getElementById('root')
-    );
+window.initializeApp = (zafClient, originalQueryString) => {
+  const appType = new URLSearchParams(window.location.search).get('type') || 'main';
+  console.log('[Index] Initializing app type:', appType);
+  
+  const Component = apps[appType as keyof typeof apps];
+  
+  if (!Component) {
+    console.error('[Index] Unknown app type:', appType);
+    return;
   }
-};
 
-window.initializeBackgroundApp = async (client: any, originalQueryString: string) => {
-  try {
-    await initializeApiService(client, originalQueryString);
-
-    ReactDOM.render(
-      <React.StrictMode>
-        <BackgroundApp zafClient={client} />
-      </React.StrictMode>,
-      document.getElementById('root')
-    );
-  } catch (error) {
-    console.error('Error initializing the background application:', error);
-  }
+  ReactDOM.render(
+    <React.StrictMode>
+      <Router>
+        <Suspense fallback={<LoadingComponent />}>
+          <Routes>
+            <Route 
+              path="/" 
+              element={<Component zafClient={zafClient} originalQueryString={originalQueryString} />} 
+            />
+          </Routes>
+        </Suspense>
+      </Router>
+    </React.StrictMode>,
+    document.getElementById('root')
+  );
 };

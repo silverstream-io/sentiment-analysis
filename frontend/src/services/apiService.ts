@@ -5,11 +5,11 @@ const DEBUG = process.env.REACT_APP_DEBUG === 'true';
 
 let originalQueryString = '';
 
-export async function initializeApp(zafClient: any, queryString: string): Promise<void> {
+export async function initializeApp(zafClient: any, originalQueryString: string): Promise<void> {
   if (!zafClient) {
     throw new Error('ZAFClient is not initialized');
   }
-  originalQueryString = queryString;
+  originalQueryString = originalQueryString;
   debugLog('App initialized');
 }
 
@@ -23,7 +23,9 @@ async function makeApiRequest(zafClient: any, endpoint: string, method: string, 
   debugLog('Session token in cookie:', sessionToken);
 
   const url = new URL(`${BACKEND_URL}${endpoint}`);
-  url.search = originalQueryString;
+  const searchParams = new URLSearchParams(originalQueryString);
+  searchParams.set('subdomain', subdomain);
+  url.search = searchParams.toString();
 
   debugLog(`Trying to fetch ${url.toString()} with method ${method}`);
   try {
@@ -31,6 +33,7 @@ async function makeApiRequest(zafClient: any, endpoint: string, method: string, 
       method,
       headers: {
         'Content-Type': 'application/json',
+        'X-Zendesk-Subdomain': subdomain,
       },
       body: JSON.stringify(body),
       credentials: 'include',
@@ -80,7 +83,7 @@ export async function analyzeComments(zafClient: any, ticketId: string, ticketCo
   await makeApiRequest(zafClient, '/analyze-comments', 'POST', { 
     tickets: { 
       [ticketId]: { 
-        comments: formattedComments 
+        comments: formattedComments,
       }
     } 
   });
@@ -102,13 +105,15 @@ export async function getScore(zafClient: any, ticketIds: string | string[] | { 
 }
 
 export function debugLog(...args: any[]) {
-  if (DEBUG) {
-    console.log('[DEBUG]', ...args);
-  }
+  console.log('[DEBUG]', ...args);
 }
 
 export function errorLog(...args: any[]) {
   console.error('[ERROR]', ...args);
+  // Add stack trace for better debugging
+  if (args[1] instanceof Error) {
+    console.error('[ERROR] Stack:', args[1].stack);
+  }
 }
 
 export function infoLog(...args: any[]) {
@@ -143,4 +148,27 @@ export async function getLast30DaysSentiment(zafClient: any): Promise<SentimentR
     debugLog('Ticket IDs for last 30 days:', ticketIds);
   }
   return await getScore(zafClient, ticketIds);
+}
+
+export async function getScores(zafClient: any, ticketIds: string[]): Promise<{ [key: string]: number }> {
+  debugLog('Getting scores for tickets:', ticketIds);
+  const data = await makeApiRequest(zafClient, '/get-scores', 'POST', { tickets: ticketIds });
+  debugLog('Scores data:', data.scores);
+  return data.scores;
+}
+
+// Add this new function
+export async function updateTicketSentiment(zafClient: any, ticketId: string) {
+  try {
+    const ticketComments = await zafClient.get('ticket.comments');
+    const response = await makeApiRequest(zafClient, '/update-sentiment', 'POST', {
+      ticket_id: ticketId,
+      comments: ticketComments['ticket.comments']
+    });
+    debugLog('Sentiment updated for ticket:', ticketId);
+    return response;
+  } catch (error) {
+    errorLog('Error updating sentiment:', error);
+    throw error;
+  }
 }

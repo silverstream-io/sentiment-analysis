@@ -15,6 +15,7 @@ const SentimentAnalysis: React.FC<SentimentAnalysisProps> = ({ zafClient, onSent
   useEffect(() => {
     analyzeSentiment();
 
+    /* Turn off listener for new comments
     // Set up event listener for new comments
     zafClient.on('ticket.comment.created', analyzeSentiment);
 
@@ -22,6 +23,7 @@ const SentimentAnalysis: React.FC<SentimentAnalysisProps> = ({ zafClient, onSent
     return () => {
       zafClient.off('ticket.comment.created', analyzeSentiment);
     };
+    */
   }, [zafClient]);
 
   async function analyzeSentiment() {
@@ -71,12 +73,17 @@ const SentimentAnalysis: React.FC<SentimentAnalysisProps> = ({ zafClient, onSent
         await analyzeComments(zafClient, ticketId, ticketComments);
       } else {
         // Analyze new comments if any
-        const newComments = ticketComments['ticket.comments'].filter((comment: any) => 
-          !Object.values(storedVectors).some((vector: any) => vector.id === `${ticketId}#${comment.id}`)
-        );
-        if (newComments.length > 0) {
-          debugLog('Analyzing new comments:', newComments);
-          await analyzeComments(zafClient, ticketId, { 'ticket.comments': newComments });
+        if (Array.isArray(ticketComments['ticket.comments'])) {
+          const newComments = ticketComments['ticket.comments'].filter((comment: any) => 
+            !Object.values(storedVectors).some((vector: any) => vector.id === `${ticketId}#${comment.id}`)
+          );
+          if (newComments.length > 0) {
+            debugLog('Analyzing new comments:', newComments);
+            await analyzeComments(zafClient, ticketId, { 'ticket.comments': newComments });
+          }
+        } else {
+          debugLog('Unexpected structure in ticketComments:', ticketComments);
+          throw new Error('Unexpected structure in ticketComments: ' + JSON.stringify(ticketComments));
         }
       }
 

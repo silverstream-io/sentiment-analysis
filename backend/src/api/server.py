@@ -5,7 +5,6 @@ import dotenv
 import logging
 import os
 import sys
-from .routes import root as root_blueprint, sentiment_checker as sentiment_checker_blueprint
 
 dotenv.load_dotenv()
 logging.basicConfig(
@@ -14,6 +13,7 @@ logging.basicConfig(
     handlers=[logging.StreamHandler(sys.stdout)]
 )
 logger = logging.getLogger('sentiment_checker')
+logging.getLogger('pinecone_plugin_interface').setLevel(logging.CRITICAL)
 
 def create_app():
     app = Flask(__name__)
@@ -24,6 +24,10 @@ def create_app():
     app.config['SESSION_COOKIE_HTTPONLY'] = True
     app.config['SESSION_COOKIE_SECURE'] = True
     app.config['SESSION_COOKIE_SAMESITE'] = 'None'
+
+    from .routes import create_blueprints
+    root_blueprint, sentiment_checker_blueprint = create_blueprints()
+
     app.register_blueprint(root_blueprint)
     app.register_blueprint(sentiment_checker_blueprint)
     CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)

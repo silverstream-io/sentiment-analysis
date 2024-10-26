@@ -1,50 +1,47 @@
 import React, { useEffect } from 'react';
-import { listTicketVectors, analyzeComments, getScore, debugLog, errorLog } from '../services/apiService';
+import { updateTicketSentiment, debugLog, errorLog } from '../services/apiService';
 
 interface BackgroundAppProps {
   zafClient: any;
+  originalQueryString: string;
 }
 
-const BackgroundApp: React.FC<BackgroundAppProps> = ({ zafClient }) => {
+const BackgroundApp: React.FC<BackgroundAppProps> = ({ zafClient, originalQueryString }) => {
   useEffect(() => {
-    console.log('BackgroundApp useEffect triggered');
-    const handleTicketSaved = async (data: { ticket: { id: string } }) => {
-      const ticketId = data.ticket.id;
-      console.log(`Ticket ${ticketId} saved, triggering background refresh`);
-      errorLog(`Ticket ${ticketId} saved, triggering background refresh`);
-
+    console.log('[BackgroundApp] useEffect triggered');
+    const handleTicketSaved = async (data: any) => {
+      console.log('[BackgroundApp] Ticket saved event received:', data);
+      
       try {
-        const storedVectors = await listTicketVectors(zafClient, ticketId);
-        const ticketComments = await zafClient.get('ticket.comments');
-
-        if (Object.keys(storedVectors).length === 0) {
-          debugLog('No vectors found for ticket:', ticketId);
-          await analyzeComments(zafClient, ticketId, ticketComments);
+        // Get the ticket details using the search API instead of direct access
+        const response = await zafClient.request({
+          url: `/api/v2/search.json?query=id:${data.id}`,
+          type: 'GET'
+        });
+        
+        if (response && response.results && response.results.length > 0) {
+          const ticketId = response.results[0].id;
+          console.log(`[BackgroundApp] Processing ticket ${ticketId}`);
+          await updateTicketSentiment(zafClient, ticketId);
         } else {
-          const newComments = ticketComments['ticket.comments'].filter((comment: any) => 
-            !Object.values(storedVectors).some((vector: any) => vector.id === `${ticketId}#${comment.id}`)
-          );
-          if (newComments.length > 0) {
-            debugLog('Analyzing new comments:', newComments);
-            await analyzeComments(zafClient, ticketId, { 'ticket.comments': newComments });
-          }
+          console.error('[BackgroundApp] Could not find ticket details');
         }
       } catch (error) {
-        console.error('Error in background refresh:', error);
+        console.error('[BackgroundApp] Error in background refresh:', error);
       }
     };
 
-    console.log('Adding ticket.saved event listener');
+    console.log('[BackgroundApp] Adding ticket.saved event listener');
     zafClient.on('ticket.saved', handleTicketSaved);
 
     return () => {
-      console.log('Removing ticket.saved event listener');
+      console.log('[BackgroundApp] Removing ticket.saved event listener');
       zafClient.off('ticket.saved', handleTicketSaved);
     };
   }, [zafClient]);
 
-  console.log('BackgroundApp rendered');
-  return null; // This component doesn't render anything
+  console.log('[BackgroundApp] Component rendered');
+  return null;
 };
 
 export default BackgroundApp;

@@ -1,4 +1,4 @@
-from typing import Tuple, Dict
+from typing import Tuple, Dict, Any
 from flask import jsonify, request, render_template, make_response, session
 from flask import jsonify, request, render_template, make_response, session
 from datetime import datetime
@@ -16,6 +16,9 @@ import os
 import math
 import os
 import math
+from config.redis_config import RedisClient
+import json
+from datetime import datetime, timedelta
 
 logger = logging.getLogger('sentiment_checker')
 logger = logging.getLogger('sentiment_checker')
@@ -40,35 +43,30 @@ class SentimentChecker:
     calculate sentiment scores, and serve the entry point for the Sentiment Checker
     Zendesk application.
 
-    The class interacts with various services including:
-    - PineconeService for vector operations and storage
-    - Authentication service for securing endpoints
-    - OpenAI service for sentiment analysis (indirectly through PineconeService)
-
-    Methods:
-        analyze_comments: Analyzes and stores sentiment for ticket comments.
-        get_ticket_vectors: Retrieves vectors associated with a ticket.
-        get_score: Calculates the overall sentiment score for a ticket.
-        entry: Serves as the entry point for the Zendesk application.
-
-    Each method is decorated with @auth_required to ensure proper authentication
-    before processing requests.
-
-    Note: This class assumes the existence of a Flask application context and
-    uses Flask's request object for handling incoming data.
+    Methods are organized in the following groups:
+    1. Initialization and Entry Points
+    2. Analysis Methods
+    3. Data Retrieval Methods
+    4. Health Check
     """
 
     def __init__(self):
         self.logger = logger
         self.templates = 'sentiment-checker'
+        self.debug_mode = os.environ.get('SENTIMENT_CHECKER_DEBUG') == 'true'
+        self.redis = RedisClient.get_instance()
+        self.cache_ttl = 3600  # 1 hour cache TTL
 
-    
     def init(self):
         self.remote_addr = request.headers.get('X-Forwarded-For', request.remote_addr)
         self.subdomain, error = get_subdomain(request)
         if error:
             self.logger.error(f"Error getting subdomain: {error}, request remote addr: {self.remote_addr}")
             raise Exception(error)
+        
+        # Log the subdomain being used
+        self.logger.info(f"Using subdomain: {self.subdomain} for request from {self.remote_addr}")
+        
         if request.method == 'POST':
             if request.is_json:
                 self.logger.info(f"Received JSON data for background_refresh")
@@ -100,12 +98,170 @@ class SentimentChecker:
                 self.ticket_ids.extend([str(ticket_id) for ticket_id in self.data['tickets'].keys()])
             self.ticket_ids = list(set(self.ticket_ids))  # Remove duplicates
         
-        if not self.ticket_ids and not request.path == '/background-refresh':
+        if not self.ticket_ids and not request.form:
             self.logger.warning(f"Missing ticket id(s) in request data, data is {self.data}, request remote addr: {self.remote_addr}")
-        elif request.path == '/background-refresh':
-            self.logger.info(f"Received request for background refresh, request remote addr: {self.remote_addr}")
         self.original_query_string = request.query_string.decode()
 
+    # Entry Points
+    @auth_required
+    def entry(self):
+        """
+        Serve the entry point for the Zendesk application.
+        """
+        self.init()
+        self.logger.debug(f"Received request for entry point, request remote addr: {self.remote_addr}")
+        
+        self.logger.debug(f"Data is {self.data}")
+        session_token = os.urandom(24).hex()
+        session['session_token'] = session_token
+
+        if self.debug_mode:
+            template = f'{self.templates}/entry_debug.html'
+        else:
+            template = f'{self.templates}/entry.html'
+            
+        response = make_response(render_template(
+            template, 
+            subdomain=self.subdomain,
+            original_query_string=self.original_query_string
+        ))
+
+        response.set_cookie('session_token', session_token, secure=True, httponly=True, samesite='None')
+        return response
+
+    @auth_required
+    def background_refresh(self):
+        self.init()
+        if self.debug_mode:
+            template = f'{self.templates}/background_debug.html'
+        else:
+            template = f'{self.templates}/background.html'
+            
+        response = make_response(render_template(
+            template,
+            subdomain=self.subdomain,
+            original_query_string=self.original_query_string
+        ))
+        return response
+    
+    @auth_required
+    def topbar(self):
+        self.init()
+        self.logger.info(f"Received request for topbar, request remote addr: {self.remote_addr}")
+        
+        if self.debug_mode:
+            template = f'{self.templates}/topbar_debug.html'
+        else:
+            template = f'{self.templates}/topbar.html'
+            
+        response = make_response(render_template(
+            template,
+            subdomain=self.subdomain,
+            original_query_string=self.original_query_string
+        ))
+        return response
+
+    # Analysis Methods
+    def _analyze(self, ticket_id: str, comment: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Analyze a single comment and store the result in the database.
+        
+        Args:
+            ticket_id: The ID of the ticket containing the comment
+            comment: Dict containing comment data with format:
+                    {'id': str, 'text': str, 'created_at': str}
+                    
+        Returns:
+            Dict containing the analysis results
+        """
+        comment_id = comment['id']
+        text = comment['text']
+        
+        try:    
+            if isinstance(comment['created_at'], str):
+                timestamp = int(datetime.fromisoformat(comment['created_at'].replace('Z', '+00:00')).timestamp())
+            else:
+                self.logger.error(f"Invalid created_at format for comment {comment_id}, created_at: {comment['created_at']}, request remote addr: {self.remote_addr}")
+                raise ValueError(f"Invalid created_at format for comment {comment_id}")
+        except Exception as e:
+            self.logger.error(f"Error getting timestamp for comment {comment_id}: {e}, request remote addr: {self.remote_addr}")
+            timestamp = int(datetime.now().timestamp())
+        
+        if not text:
+            return None
+
+        text = bs(text, 'html.parser').get_text()
+        text = ' '.join(text.split())
+        vector_id = f"{ticket_id}#{comment_id}"
+
+        try:
+            existing_vector = self.pinecone_service.fetch_vector(vector_id)
+        except Exception as e:
+            self.logger.debug(f"Error fetching vector {vector_id}: {e}, request remote addr: {self.remote_addr}")
+            existing_vector = None
+
+        if existing_vector:
+            self.logger.debug(f"Existing vector found for comment {comment_id}: {existing_vector}, request remote addr: {self.remote_addr}")
+            if 'metadata' in existing_vector and 'emotion_score' in existing_vector['metadata']:
+                return {
+                    'comment_id': comment_id,
+                    'emotion_score': existing_vector['metadata']['emotion_score'],
+                    'upserted_count': 0
+                }
+            else:
+                self.logger.debug(f"No metadata or emotion_score found for vector {vector_id}, request remote addr: {self.remote_addr}")
+        
+        # If no existing vector or invalid metadata, create new analysis
+        embedding = self.pinecone_service.get_embedding(text)
+        emotion_matches = self.pinecone_service.query_vectors(embedding, 
+                                                          namespace='emotions', 
+                                                          top_k=100, 
+                                                          include_metadata=True, 
+                                                          include_values=False)
+        
+        self.logger.debug(f"Emotion matches: {emotion_matches}, request remote addr: {self.remote_addr}")
+        emotion_sum = 0
+        matched_count = 0
+        
+        for match in emotion_matches:
+            for emotion_name, emotion_value in match['metadata'].items():
+                if emotion_name in emotions:
+                    if emotion_value:
+                        emotion_sum += emotions[emotion_name].score * match['score']
+                        matched_count += 1
+                    else:
+                        self.logger.debug(f"Emotion \"{emotion_name}\" not found in emotions dictionary or has no value. Request remote addr: {self.remote_addr}")
+                else:
+                    self.logger.debug(f"Emotion \"{emotion_name}\" not found in emotions dictionary or has no value. Request remote addr: {self.remote_addr}")
+
+        self.logger.debug(f"Emotion sum for comment {comment_id}: {emotion_sum}, request remote addr: {self.remote_addr}")
+        
+        if matched_count > 0:   
+            emotion_score = emotion_sum / matched_count
+        else:
+            emotion_score = 0
+            
+        emotion_score = max(min(emotion_score, 10), -10)
+        
+        self.logger.debug(f"Emotion score for comment {comment_id}: {emotion_score}, request remote addr: {self.remote_addr}")
+        
+        metadata = {
+            'text': text,
+            'timestamp': timestamp,
+            'emotion_score': emotion_score
+        }
+        
+        upsert_response = self.pinecone_service.upsert_vector(vector_id, embedding, metadata)
+        
+        if not hasattr(upsert_response, 'upserted_count') or upsert_response.upserted_count == 0:
+            self.logger.error(f"No vector upserted for comment {comment_id}, upsert response: {upsert_response}, request remote addr: {self.remote_addr}")
+            raise Exception(f'No vector upserted for comment {comment_id}')
+            
+        return {
+            'comment_id': comment_id,
+            'emotion_score': emotion_score,
+            'upserted_count': upsert_response.upserted_count
+        }
 
     @session_required
     def analyze_comments(self) -> Tuple[Dict[str, str], int]:
@@ -123,198 +279,69 @@ class SentimentChecker:
         for ticket_id in self.ticket_ids:
             self.logger.debug(f"Processing comments for ticket: {ticket_id}, request remote addr: {self.remote_addr}")
             comments = self.data.get('tickets', {}).get(ticket_id, {}).get('comments', {})
+            
             if not comments:
                 self.logger.warning(f"No comments found for ticket {ticket_id}, request remote addr: {self.remote_addr}")
                 continue
 
-            results = []
             for comment_id, comment_data in comments.items():
-                text = comment_data.get('text', '')
-                try:    
-                    if isinstance(comment_data.get('created_at'), str):
-                        timestamp = int(datetime.fromisoformat(comment_data.get('created_at').replace('Z', '+00:00')).timestamp())
-                    else:
-                        self.logger.error(f"Invalid created_at format for comment {comment_id}, created_at: {comment_data.get('created_at')}, request remote addr: {self.remote_addr}")
-                        return jsonify({'error': f"Invalid created_at format for comment {comment_id}, created_at: {comment_data.get('created_at')}"}), 400
-                except Exception as e:
-                    self.logger.error(f"Error getting timestamp for comment {comment_id}: {e}, request remote addr: {self.remote_addr}")
-                    timestamp = int(datetime.now().timestamp())
-                
-                if not text:
-                    continue
-
-                text = bs(text, 'html.parser').get_text()
-                text = ' '.join(text.split())
-                vector_id = f"{ticket_id}#{comment_id}"
-
                 try:
-                    existing_vector = self.pinecone_service.fetch_vector(vector_id)
-                except Exception as e:
-                    self.logger.debug(f"Error fetching vector {vector_id}: {e}, request remote addr: {self.remote_addr}")
-                    existing_vector = None
-
-                if existing_vector:
-                    self.logger.debug(f"Existing vector found for comment {comment_id}: {existing_vector}, request remote addr: {self.remote_addr}")
-                    if 'metadata' in existing_vector and 'emotion_score' in existing_vector['metadata']:
-                        results.append({
-                            'comment_id': comment_id,
-                        'emotion_score': existing_vector['metadata']['emotion_score'],
-                            'upserted_count': 0
-                        })
-                    else:
-                        self.logger.debug(f"No metadata or emotion_score found for vector {vector_id}, request remote addr: {self.remote_addr}")
-                else:
-                    self.logger.debug(f"No existing vector found for comment {comment_id}, request remote addr: {self.remote_addr}")
-                    embedding = self.pinecone_service.get_embedding(text)
-                    # Query emotions namespace
-                    emotion_matches = self.pinecone_service.query_vectors(embedding, 
-                                                                                  namespace='emotions', 
-                                                                                  top_k=100, 
-                                                                                  include_metadata=True, 
-                                                                                  include_values=False)
-                    self.logger.debug(f"Emotion matches: {emotion_matches}, request remote addr: {self.remote_addr}")
-                    emotion_sum = 0
-                    matched_count = 0
-                    for match in emotion_matches:
-                        for emotion_name, emotion_value in match['metadata'].items():
-                            if emotion_name in emotions:
-                                if emotion_value:
-                                    emotion_sum += emotions[emotion_name].score * match['score']
-                                    matched_count += 1
-                                else:
-                                    self.logger.debug(f"Emotion \"{emotion_name}\" not found in emotions dictionary or has no value. Request remote addr: {self.remote_addr}")
-                            else:
-                                self.logger.debug(f"Emotion \"{emotion_name}\" not found in emotions dictionary or has no value. Request remote addr: {self.remote_addr}")
-                    self.logger.debug(f"Emotion sum for comment {comment_id}: {emotion_sum}, request remote addr: {self.remote_addr}")
-                    # Prepare metadata for upsert
-                    if matched_count > 0:   
-                        emotion_score = emotion_sum / matched_count
-                    else:
-                        emotion_score = 0
-                    if emotion_score > 10:
-                        emotion_score = 10
-                    elif emotion_score < -10:
-                        emotion_score = -10
-                    self.logger.debug(f"Emotion score for comment {comment_id}: {emotion_score}, request remote addr: {self.remote_addr}")
-                    metadata = {
-                        'text': text,
-                        'timestamp': timestamp,
-                        'emotion_score': emotion_score
+                    formatted_comment = {
+                        'id': comment_id,
+                        'text': comment_data.get('text', ''),
+                        'created_at': comment_data.get('created_at')
                     }
-                    # Upsert vector to Zendesk subdomain namespace
-                    upsert_response = self.pinecone_service.upsert_vector(vector_id, embedding, metadata)
-                    if not hasattr(upsert_response, 'upserted_count') or upsert_response.upserted_count == 0:
-                        self.logger.error(f"No vector upserted for comment {comment_id}, upsert response: {upsert_response}, request remote addr: {self.remote_addr}")
-                        return jsonify({'error': f'No vector upserted for comment {comment_id}'}), 500
-                    results.append({
-                        'comment_id': comment_id,
-                        'emotion_score': emotion_score,
-                        'upserted_count': upsert_response.upserted_count
-                    })
-
-            all_results.extend(results)
+                    result = self._analyze(ticket_id, formatted_comment)
+                    if result:
+                        all_results.append(result)
+                except Exception as e:
+                    self.logger.error(f"Error analyzing comment {comment_id}: {e}, request remote addr: {self.remote_addr}")
+                    continue
 
         self.logger.debug(f"Finished processing comments for tickets: {self.ticket_ids}, request remote addr: {self.remote_addr}")
         return jsonify({'message': 'Comments analyzed and stored successfully', 'results': all_results}), 200
-        all_results = []
-        for ticket_id in self.ticket_ids:
-            self.logger.debug(f"Processing comments for ticket: {ticket_id}, request remote addr: {self.remote_addr}")
-            comments = self.data.get('tickets', {}).get(ticket_id, {}).get('comments', {})
-            if not comments:
-                self.logger.warning(f"No comments found for ticket {ticket_id}, request remote addr: {self.remote_addr}")
+
+    @session_required
+    def update_sentiment(self) -> Tuple[Dict[str, Any], int]:
+        """
+        Update sentiment for new comments on a ticket.
+        """
+        self.init()
+        self.logger.info(f"Received request for update_sentiment, request remote addr: {self.remote_addr}")
+        
+        ticket_id = self.data.get('ticket_id')
+        comments = self.data.get('comments', [])
+        
+        if not ticket_id or not comments:
+            self.logger.warning(f"Missing ticket_id or comments in request data, data is {self.data}, request remote addr: {self.remote_addr}")
+            return jsonify({'error': 'Missing ticket_id or comments'}), 400
+            
+        existing_vectors = self.pinecone_service.list_ticket_vectors(ticket_id)
+        existing_comment_ids = set(vector['id'].split('#')[1] for vector in existing_vectors)
+        new_comments = [comment for comment in comments if str(comment['id']) not in existing_comment_ids]
+        
+        results = []
+        for comment in new_comments:
+            try:
+                formatted_comment = {
+                    'id': str(comment['id']),
+                    'text': comment['value'],
+                    'created_at': comment['created_at']
+                }
+                result = self._analyze(ticket_id, formatted_comment)
+                if result:
+                    results.append(result)
+            except Exception as e:
+                self.logger.error(f"Error analyzing comment {comment['id']}: {e}, request remote addr: {self.remote_addr}")
                 continue
-
-            results = []
-            for comment_id, comment_data in comments.items():
-                text = comment_data.get('text', '')
-                try:    
-                    if isinstance(comment_data.get('created_at'), str):
-                        timestamp = int(datetime.fromisoformat(comment_data.get('created_at').replace('Z', '+00:00')).timestamp())
-                    else:
-                        self.logger.error(f"Invalid created_at format for comment {comment_id}, created_at: {comment_data.get('created_at')}, request remote addr: {self.remote_addr}")
-                        return jsonify({'error': f"Invalid created_at format for comment {comment_id}, created_at: {comment_data.get('created_at')}"}), 400
-                except Exception as e:
-                    self.logger.error(f"Error getting timestamp for comment {comment_id}: {e}, request remote addr: {self.remote_addr}")
-                    timestamp = int(datetime.now().timestamp())
                 
-                if not text:
-                    continue
+        return jsonify({
+            'message': 'Sentiment updated successfully',
+            'results': results,
+            'new_comments_count': len(new_comments)
+        }), 200
 
-                text = bs(text, 'html.parser').get_text()
-                text = ' '.join(text.split())
-                vector_id = f"{ticket_id}#{comment_id}"
-
-                try:
-                    existing_vector = self.pinecone_service.fetch_vector(vector_id)
-                except Exception as e:
-                    self.logger.debug(f"Error fetching vector {vector_id}: {e}, request remote addr: {self.remote_addr}")
-                    existing_vector = None
-
-                if existing_vector:
-                    self.logger.debug(f"Existing vector found for comment {comment_id}: {existing_vector}, request remote addr: {self.remote_addr}")
-                    if 'metadata' in existing_vector and 'emotion_score' in existing_vector['metadata']:
-                        results.append({
-                            'comment_id': comment_id,
-                        'emotion_score': existing_vector['metadata']['emotion_score'],
-                            'upserted_count': 0
-                        })
-                    else:
-                        self.logger.debug(f"No metadata or emotion_score found for vector {vector_id}, request remote addr: {self.remote_addr}")
-                else:
-                    self.logger.debug(f"No existing vector found for comment {comment_id}, request remote addr: {self.remote_addr}")
-                    embedding = self.pinecone_service.get_embedding(text)
-                    # Query emotions namespace
-                    emotion_matches = self.pinecone_service.query_vectors(embedding, 
-                                                                                  namespace='emotions', 
-                                                                                  top_k=100, 
-                                                                                  include_metadata=True, 
-                                                                                  include_values=False)
-                    self.logger.debug(f"Emotion matches: {emotion_matches}, request remote addr: {self.remote_addr}")
-                    emotion_sum = 0
-                    matched_count = 0
-                    for match in emotion_matches:
-                        for emotion_name, emotion_value in match['metadata'].items():
-                            if emotion_name in emotions:
-                                if emotion_value:
-                                    emotion_sum += emotions[emotion_name].score * match['score']
-                                    matched_count += 1
-                                else:
-                                    self.logger.debug(f"Emotion \"{emotion_name}\" not found in emotions dictionary or has no value. Request remote addr: {self.remote_addr}")
-                            else:
-                                self.logger.debug(f"Emotion \"{emotion_name}\" not found in emotions dictionary or has no value. Request remote addr: {self.remote_addr}")
-                    self.logger.debug(f"Emotion sum for comment {comment_id}: {emotion_sum}, request remote addr: {self.remote_addr}")
-                    # Prepare metadata for upsert
-                    if matched_count > 0:   
-                        emotion_score = emotion_sum / matched_count
-                    else:
-                        emotion_score = 0
-                    if emotion_score > 10:
-                        emotion_score = 10
-                    elif emotion_score < -10:
-                        emotion_score = -10
-                    self.logger.debug(f"Emotion score for comment {comment_id}: {emotion_score}, request remote addr: {self.remote_addr}")
-                    metadata = {
-                        'text': text,
-                        'timestamp': timestamp,
-                        'emotion_score': emotion_score
-                    }
-                    # Upsert vector to Zendesk subdomain namespace
-                    upsert_response = self.pinecone_service.upsert_vector(vector_id, embedding, metadata)
-                    if not hasattr(upsert_response, 'upserted_count') or upsert_response.upserted_count == 0:
-                        self.logger.error(f"No vector upserted for comment {comment_id}, upsert response: {upsert_response}, request remote addr: {self.remote_addr}")
-                        return jsonify({'error': f'No vector upserted for comment {comment_id}'}), 500
-                    results.append({
-                        'comment_id': comment_id,
-                        'emotion_score': emotion_score,
-                        'upserted_count': upsert_response.upserted_count
-                    })
-
-            all_results.extend(results)
-
-        self.logger.debug(f"Finished processing comments for tickets: {self.ticket_ids}, request remote addr: {self.remote_addr}")
-        return jsonify({'message': 'Comments analyzed and stored successfully', 'results': all_results}), 200
-
-
+    # Data Retrieval Methods
     @session_required
     def get_ticket_vectors(self) -> Tuple[Dict[str, str], int]:
         """
@@ -340,32 +367,7 @@ class SentimentChecker:
         return jsonify({'vectors': all_vectors}), 200
 
     @session_required
-    def get_ticket_vectors(self) -> Tuple[Dict[str, str], int]:
-        """
-        Get the vectors of one or more tickets.
-        """
-        self.init()
-        self.logger.info(f"Received request for get_ticket_vectors, request remote addr: {self.remote_addr}")
-
-        if not self.ticket_ids:
-            self.logger.warning(f"Missing ticket ids in request data, data is {self.data}, request remote addr: {self.remote_addr}")
-            return jsonify({'error': 'Missing ticket ids'}), 400
-
-        all_vectors = {}
-        for ticket_id in self.ticket_ids:
-            vectors_list = self.pinecone_service.list_ticket_vectors(ticket_id)
-            self.logger.debug(f"Ticket {ticket_id} has vectors: {vectors_list}, request remote addr: {self.remote_addr}")
-            vector_ids = [getattr(vector, 'id', vector.get('id')) if isinstance(vector, dict) else vector.id for vector in vectors_list]
-            try:
-                all_vectors[ticket_id] = self.pinecone_service.fetch_vectors(vector_ids)
-            except Exception as e:
-                self.logger.error(f"Error fetching vectors for ticket {ticket_id}: {e}, request remote addr: {self.remote_addr}")
-
-        return jsonify({'vectors': all_vectors}), 200
-
-
-    @session_required
-    def get_score(self) -> Tuple[Dict[str, str], int]:
+    def get_score(self, ticket_id: str = None) -> Tuple[Dict[str, str], int]:
         """
         Get the weighted score of a ticket or multiple tickets based on the emotions of the comments.
         """
@@ -382,8 +384,12 @@ class SentimentChecker:
         total_weight = 0
         lambda_factor = 1.0 # Adjust this value to control the decay rate
         all_scores = []
+        if ticket_id:
+            ticket_ids = [ticket_id]
+        else:
+            ticket_ids = self.ticket_ids
 
-        for ticket_id in self.ticket_ids:
+        for ticket_id in ticket_ids:
             vector_ids, comment_vectors = [], []
             self.logger.info(f"Processing ticket: {ticket_id}, request remote addr: {self.remote_addr}")
             vector_list = self.pinecone_service.list_ticket_vectors(str(ticket_id))
@@ -443,54 +449,108 @@ class SentimentChecker:
         #self.logger.debug(f"Calculated weighted score for {len(self.ticket_ids)} tickets: {weighted_score}, request remote addr: {self.remote_addr}")
         return jsonify({'score': weighted_score}), 200
 
+    def _get_cache_key(self, key_type: str) -> str:
+        """Generate a cache key with subdomain"""
+        return f"{self.subdomain}:{key_type}"
 
-    @auth_required
-    def entry(self):
-        """
-        Serve the entry point for the Zendesk application.
-        """
+    def _get_cached_scores(self) -> dict:
+        """Get scores from cache"""
+        cache_key = self._get_cache_key("sentiment_scores")
+        cached_data = self.redis.get(cache_key)
+        if cached_data:
+            return json.loads(cached_data)
+        return {}
 
+    def _update_cache(self, scores: dict):
+        """Update the cache with new scores"""
+        cache_key = self._get_cache_key("sentiment_scores")
+        self.redis.set(cache_key, json.dumps(scores), ex=self.cache_ttl)
+
+    @session_required
+    def get_scores(self) -> Tuple[Dict[str, str], int]:
+        """Get scores, using cache when possible"""
         self.init()
-        self.logger.debug(f"Received request for entry point, request remote addr: {self.remote_addr}")
+        self.logger.info(f"Received request for get_scores, request remote addr: {self.remote_addr}")
+
+        # Try to get scores from cache first
+        cached_scores = self._get_cached_scores()
         
-        self.logger.debug(f"Data is {self.data}")
-        session_token = os.urandom(24).hex()
-        session['session_token'] = session_token
-        response = make_response(render_template(
-            f'{self.templates}/entry.html', 
-            subdomain=self.subdomain,
-            original_query_string=self.original_query_string
-        ))
-        response.set_cookie('session_token', session_token, secure=True, httponly=True, samesite='None')
+        # If we have ticket IDs in the request, update cache for those tickets
+        if self.ticket_ids:
+            scores = {}
+            for ticket_id in self.ticket_ids:
+                try:
+                    # Get the score response
+                    score_response, status_code = self.get_score(ticket_id)
+                    if status_code != 200:
+                        self.logger.error(f"Error getting score for ticket {ticket_id}")
+                        continue
+                        
+                    # Extract the score value
+                    score_data = score_response.get_json()
+                    scores[ticket_id] = score_data.get('score', 0)
+                    
+                except Exception as e:
+                    self.logger.error(f"Error processing ticket {ticket_id}: {e}")
+                    continue
 
-        return response
+            # Update cache with new scores
+            if scores:
+                cached_scores.update(scores)
+                self._update_cache(cached_scores)
 
-    
+        # Return all scores from cache
+        return jsonify({'scores': cached_scores}), 200
+
+    def _populate_cache(self) -> None:
+        """Populate cache with all available scores"""
+        try:
+            # Get all vectors from Pinecone
+            vectors = self.pinecone_service.list_all_vectors()
+            
+            scores = {}
+            for vector in vectors:
+                if '#' in vector.id:  # Ensure it's a comment vector
+                    ticket_id = vector.id.split('#')[0]
+                    if ticket_id not in scores:
+                        scores[ticket_id] = {
+                            'score': vector.metadata.get('emotion_score', 0),
+                            'timestamp': vector.metadata.get('timestamp', 0)
+                        }
+            
+            self._update_cache(scores)
+            self.logger.info(f"Cache populated with {len(scores)} ticket scores")
+            
+        except Exception as e:
+            self.logger.error(f"Error populating cache: {e}")
+
+    # Health Check
     def health(self):
         """
-        Serve the health check page for the Zendesk application. This will:
-        - Check the health of the Pinecone service
-
-        Some variables that are normally set in the init() method are not 
-        set here, but that's okay. It just has to connect to Pinecone and 
-        return a response.
+        Serve the health check page for the Zendesk application.
         """
         remote_addr = request.headers.get('X-Forwarded-For', request.remote_addr)
+        
+        # Check Pinecone
         pinecone_service = PineconeService('emotions')
         check_pinecone = pinecone_service.check_health()
-        self.logger.debug(f"Pinecone health check: {check_pinecone}, request remote addr: {remote_addr}")
-        if check_pinecone.get('status', {}).get('ready', True):  
+        
+        # Check Redis
+        redis_healthy = RedisClient.health_check()
+        
+        if check_pinecone.get('status', {}).get('ready', True) and redis_healthy:
             return render_template(f'{self.templates}/health.html')
         else:
-            return jsonify({'error': 'Pinecone service is not healthy'}), 500
+            errors = []
+            if not check_pinecone.get('status', {}).get('ready', True):
+                errors.append('Pinecone service is not healthy')
+            if not redis_healthy:
+                errors.append('Redis service is not healthy')
+            return jsonify({'error': ' and '.join(errors)}), 500
 
 
-    @auth_required
-    def background_refresh(self):
-        self.init()
-        response = make_response(render_template(
-            f'{self.templates}/background.html', 
-            subdomain=self.subdomain,
-            original_query_string=self.original_query_string
-        ))
-        return response
+
+
+
+
+

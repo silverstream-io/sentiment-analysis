@@ -6,20 +6,20 @@
     "@pinecone-database/pinecone": "^3.0.3",
     "@types/js-cookie": "^3.0.6",
     "@zendesk/zcli": "^1.0.0-beta.51",
+    "customize-cra": "^1.0.0",
     "js-cookie": "^3.0.5",
     "openai": "^4.0.0",
     "react": "^17.0.2",
-    "react-dom": "^17.0.2",
-    "typescript": "^4.5.5",
-    "react-app-rewired": "^2.2.1",
-    "customize-cra": "^1.0.0"
+    "react-router-dom": "^6.27.0",
+    "save-dev": "^0.0.1-security",
+    "typescript": "^4.5.5"
   },
   "devDependencies": {
     "@types/react": "^17.0.83",
     "@types/react-dom": "^17.0.25",
     "autoprefixer": "^10.4.2",
     "postcss": "^8.4.5",
-    "react-scripts": "^5.0.1",
+    "react-app-rewired": "^2.2.1",
     "tailwindcss": "^3.0.15"
   },
   "scripts": {
