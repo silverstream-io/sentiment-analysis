@@ -1,4 +1,4 @@
-from typing import Tuple, Dict, Any
+from typing import Tuple, Dict, Any, Optional, List
 from flask import jsonify, request, render_template, make_response, session
 from flask import jsonify, request, render_template, make_response, session
 from datetime import datetime
@@ -16,7 +16,7 @@ import os
 import math
 import os
 import math
-from config.redis_config import RedisClient
+from config.redis_config import RedisClient, RedisConfigError
 import json
 from datetime import datetime, timedelta
 
@@ -50,11 +50,17 @@ class SentimentChecker:
     4. Health Check
     """
 
+    UNSOLVED_STATES = {'new', 'open', 'pending'}
+    
     def __init__(self):
         self.logger = logger
         self.templates = 'sentiment-checker'
         self.debug_mode = os.environ.get('SENTIMENT_CHECKER_DEBUG') == 'true'
-        self.redis = RedisClient.get_instance()
+        try:
+            self.redis = RedisClient.get_instance()
+        except RedisConfigError as e:
+            self.logger.error(f"Failed to initialize Redis: {e}")
+            raise
         self.cache_ttl = 3600  # 1 hour cache TTL
 
     def init(self):
@@ -263,43 +269,139 @@ class SentimentChecker:
             'upserted_count': upsert_response.upserted_count
         }
 
+    def _convert_date_to_timestamp(self, date_str: str) -> int:
+        """Convert ISO date string to Unix timestamp"""
+        try:
+            dt = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+            return int(dt.timestamp())
+        except Exception as e:
+            self.logger.error(f"Error converting date {date_str}: {e}")
+            return int(datetime.now().timestamp())
+
+    def _cache_ticket_data(self, ticket_id: str, data: Dict[str, Any], ttl: int = 3600) -> None:
+        """Cache ticket data including score and timestamps"""
+        try:
+            # Convert dates to timestamps
+            if 'updated_at' in data:
+                data['updated_at'] = self._convert_date_to_timestamp(data['updated_at'])
+            if 'created_at' in data:
+                data['created_at'] = self._convert_date_to_timestamp(data['created_at'])
+
+            cache_key = self._get_cache_key(ticket_id)
+            self.redis.set(cache_key, json.dumps(data), ex=ttl)
+            self.logger.debug(f"Cached data for ticket {ticket_id}: {data}")
+            
+            # Maintain set of unsolved tickets
+            if data.get('state', '').lower() in self.UNSOLVED_STATES:
+                unsolved_key = f"{self.subdomain}:unsolved_tickets"
+                self.redis.sadd(unsolved_key, ticket_id)
+            else:
+                self.redis.srem(f"{self.subdomain}:unsolved_tickets", ticket_id)
+                
+        except Exception as e:
+            self.logger.error(f"Error caching data for ticket {ticket_id}: {e}")
+
     @session_required
     def analyze_comments(self) -> Tuple[Dict[str, str], int]:
-        """
-        Analyze the comments of one or more tickets and store them in the database.
-        """
+        """Analyze comments and store results with metadata"""
         self.init()
-        self.logger.info(f"Received request for analyze_comments, request remote addr: {self.remote_addr}")
+        self.logger.info(f"Received request for analyze_comments")
 
         if not self.ticket_ids:
-            self.logger.warning(f"Missing ticket ids in request data, data is {self.data}, request remote addr: {self.remote_addr}")
+            self.logger.warning(f"Missing ticket ids in request data")
             return jsonify({'error': 'Missing ticket ids'}), 400
 
         all_results = []
         for ticket_id in self.ticket_ids:
-            self.logger.debug(f"Processing comments for ticket: {ticket_id}, request remote addr: {self.remote_addr}")
-            comments = self.data.get('tickets', {}).get(ticket_id, {}).get('comments', {})
-            
-            if not comments:
-                self.logger.warning(f"No comments found for ticket {ticket_id}, request remote addr: {self.remote_addr}")
-                continue
-
-            for comment_id, comment_data in comments.items():
-                try:
-                    formatted_comment = {
-                        'id': comment_id,
-                        'text': comment_data.get('text', ''),
-                        'created_at': comment_data.get('created_at')
-                    }
-                    result = self._analyze(ticket_id, formatted_comment)
-                    if result:
-                        all_results.append(result)
-                except Exception as e:
-                    self.logger.error(f"Error analyzing comment {comment_id}: {e}, request remote addr: {self.remote_addr}")
+            try:
+                ticket_data = self.data.get('ticket', {})
+                comments = ticket_data.get('comments', [])
+                subject = ticket_data.get('subject', '')  # Get subject for Redis
+                
+                if not comments:
+                    self.logger.warning(f"No comments found for ticket {ticket_id}")
                     continue
 
-        self.logger.debug(f"Finished processing comments for tickets: {self.ticket_ids}, request remote addr: {self.remote_addr}")
-        return jsonify({'message': 'Comments analyzed and stored successfully', 'results': all_results}), 200
+                # Process comments and get sentiment
+                comment_results = []
+                for comment_id, comment_data in comments.items():
+                    try:
+                        formatted_comment = {
+                            'id': comment_id,
+                            'text': comment_data.get('text', ''),
+                            'created_at': comment_data.get('created_at')
+                        }
+                        result = self._analyze(ticket_id, formatted_comment)
+                        if result:
+                            comment_results.append(result)
+                    except Exception as e:
+                        self.logger.error(f"Error analyzing comment {comment_id}: {e}")
+                        continue
+
+                if not comment_results:
+                    continue
+
+                # Calculate overall ticket score from comment scores
+                total_weighted_score = 0
+                total_weight = 0
+                lambda_factor = 1.0  # Decay rate
+                all_scores = []
+                
+                # Sort comments by timestamp
+                sorted_results = sorted(comment_results, 
+                                     key=lambda x: x.get('timestamp', 0), 
+                                     reverse=True)
+                
+                if sorted_results:
+                    newest_timestamp = sorted_results[0].get('timestamp', 0)
+                    
+                    for result in sorted_results:
+                        time_diff = (newest_timestamp - result.get('timestamp', 0)) / (24 * 3600)
+                        weight = math.exp(-lambda_factor * time_diff)
+                        score = result['emotion_score']
+                        total_weighted_score += score * weight
+                        total_weight += weight
+                        all_scores.append(score)
+
+                    if total_weight > 0:
+                        calculated_score = total_weighted_score / total_weight
+                    else:
+                        calculated_score = 0
+
+                    # Apply standard deviation adjustment
+                    if all_scores:
+                        all_scores_np = np.array(all_scores)
+                        std_dev = np.std(all_scores_np)
+                        most_recent_score = all_scores[0]
+
+                        if most_recent_score < calculated_score and abs(calculated_score - most_recent_score) > std_dev:
+                            calculated_score = most_recent_score
+                        elif most_recent_score > calculated_score and abs(most_recent_score - calculated_score) > std_dev:
+                            calculated_score = most_recent_score
+
+                    # Normalize score to [-1, 1]
+                    calculated_score = max(min(calculated_score / 10, 1), -1)
+
+                    # Store ticket metadata in Redis
+                    metadata = {
+                        'score': calculated_score,
+                        'state': ticket_data.get('state', ''),
+                        'subject': subject,  # Include subject in Redis
+                        'updated_at': self._convert_date_to_timestamp(ticket_data.get('updated_at', '')),
+                        'created_at': self._convert_date_to_timestamp(ticket_data.get('created_at', ''))
+                    }
+                    
+                    self._cache_ticket_data(ticket_id, metadata)
+                    all_results.append({
+                        'ticket_id': ticket_id,
+                        'score': calculated_score
+                    })
+
+            except Exception as e:
+                self.logger.error(f"Error processing ticket {ticket_id}: {e}")
+                continue
+
+        return jsonify({'results': all_results}), 200
 
     @session_required
     def update_sentiment(self) -> Tuple[Dict[str, Any], int]:
@@ -466,41 +568,87 @@ class SentimentChecker:
         cache_key = self._get_cache_key("sentiment_scores")
         self.redis.set(cache_key, json.dumps(scores), ex=self.cache_ttl)
 
+    def _get_cache_key(self, ticket_id: str) -> str:
+        """Generate a cache key for a ticket"""
+        return f"{self.subdomain}:ticket:{ticket_id}"
+
+    def _get_cached_ticket_data(self, ticket_id: str) -> Optional[Dict[str, Any]]:
+        """Get ticket data from cache"""
+        try:
+            cache_key = self._get_cache_key(ticket_id)
+            cached_data = self.redis.get(cache_key)
+            if cached_data:
+                self.logger.debug(f"Cache hit for ticket {ticket_id}")
+                return json.loads(cached_data)
+            self.logger.debug(f"Cache miss for ticket {ticket_id}")
+            return None
+        except Exception as e:
+            self.logger.error(f"Error getting cached data for ticket {ticket_id}: {e}")
+            return None
+
+    def get_unsolved_tickets(self) -> List[Dict[str, Any]]:
+        """Get all unsolved tickets with their scores"""
+        try:
+            unsolved_key = f"{self.subdomain}:unsolved_tickets"
+            ticket_ids = self.redis.smembers(unsolved_key)
+            
+            tickets = []
+            for ticket_id in ticket_ids:
+                ticket_data = self._get_cached_ticket_data(ticket_id)
+                if ticket_data:
+                    tickets.append({
+                        'id': ticket_id,
+                        'score': ticket_data.get('score', 0),
+                        'state': ticket_data.get('state', ''),
+                        'updated_at': ticket_data.get('updated_at')
+                    })
+            
+            return tickets
+        except Exception as e:
+            self.logger.error(f"Error getting unsolved tickets: {e}")
+            return []
+
     @session_required
     def get_scores(self) -> Tuple[Dict[str, str], int]:
         """Get scores, using cache when possible"""
         self.init()
         self.logger.info(f"Received request for get_scores, request remote addr: {self.remote_addr}")
 
-        # Try to get scores from cache first
-        cached_scores = self._get_cached_scores()
-        
-        # If we have ticket IDs in the request, update cache for those tickets
-        if self.ticket_ids:
-            scores = {}
-            for ticket_id in self.ticket_ids:
-                try:
-                    # Get the score response
-                    score_response, status_code = self.get_score(ticket_id)
-                    if status_code != 200:
-                        self.logger.error(f"Error getting score for ticket {ticket_id}")
-                        continue
-                        
-                    # Extract the score value
-                    score_data = score_response.get_json()
-                    scores[ticket_id] = score_data.get('score', 0)
-                    
-                except Exception as e:
-                    self.logger.error(f"Error processing ticket {ticket_id}: {e}")
+        if not self.ticket_ids:
+            self.logger.warning(f"Missing ticket ids in request data")
+            return jsonify({'error': 'Missing ticket ids'}), 400
+
+        scores = {}
+        for ticket_id in self.ticket_ids:
+            try:
+                # Try to get data from cache first
+                cached_data = self._get_cached_ticket_data(ticket_id)
+                if cached_data:
+                    scores[ticket_id] = cached_data['score']
                     continue
 
-            # Update cache with new scores
-            if scores:
-                cached_scores.update(scores)
-                self._update_cache(cached_scores)
+                # If not in cache, calculate and cache it
+                score_response, status_code = self.get_score(ticket_id)
+                if status_code != 200:
+                    self.logger.error(f"Error getting score for ticket {ticket_id}")
+                    continue
 
-        # Return all scores from cache
-        return jsonify({'scores': cached_scores}), 200
+                score_data = score_response.get_json()
+                ticket_data = {
+                    'score': score_data.get('score', 0),
+                    'state': self.data.get('ticket_state', ''),
+                    'updated_at': self.data.get('updated_at')
+                }
+                scores[ticket_id] = ticket_data['score']
+                
+                # Cache the new data
+                self._cache_ticket_data(ticket_id, ticket_data)
+
+            except Exception as e:
+                self.logger.error(f"Error processing ticket {ticket_id}: {e}")
+                continue
+
+        return jsonify({'scores': scores}), 200
 
     def _populate_cache(self) -> None:
         """Populate cache with all available scores"""
@@ -524,11 +672,8 @@ class SentimentChecker:
         except Exception as e:
             self.logger.error(f"Error populating cache: {e}")
 
-    # Health Check
     def health(self):
-        """
-        Serve the health check page for the Zendesk application.
-        """
+        """Health check including Redis"""
         remote_addr = request.headers.get('X-Forwarded-For', request.remote_addr)
         
         # Check Pinecone
@@ -538,19 +683,58 @@ class SentimentChecker:
         # Check Redis
         redis_healthy = RedisClient.health_check()
         
-        if check_pinecone.get('status', {}).get('ready', True) and redis_healthy:
-            return render_template(f'{self.templates}/health.html')
-        else:
-            errors = []
-            if not check_pinecone.get('status', {}).get('ready', True):
-                errors.append('Pinecone service is not healthy')
-            if not redis_healthy:
-                errors.append('Redis service is not healthy')
-            return jsonify({'error': ' and '.join(errors)}), 500
+        if not check_pinecone.get('status', {}).get('ready', True):
+            self.logger.error(f"Pinecone health check failed, request remote addr: {remote_addr}")
+            return jsonify({'error': 'Pinecone service is not healthy'}), 500
+            
+        if not redis_healthy:
+            self.logger.error(f"Redis health check failed, request remote addr: {remote_addr}")
+            return jsonify({'error': 'Redis service is not healthy'}), 500
+            
+        return render_template(f'{self.templates}/health.html')
 
-
-
-
-
+    @session_required
+    def get_unsolved_tickets(self) -> Tuple[Dict[str, Any], int]:
+        """Get unsolved tickets from cache with pagination"""
+        try:
+            page = int(request.args.get('page', 1))
+            per_page = int(request.args.get('per_page', 10))
+            
+            start_idx = (page - 1) * per_page
+            end_idx = start_idx + per_page
+            
+            unsolved_key = f"{self.subdomain}:unsolved_tickets"
+            ticket_ids = list(self.redis.smembers(unsolved_key))
+            total_count = len(ticket_ids)
+            
+            page_ticket_ids = ticket_ids[start_idx:end_idx]
+            
+            tickets = []
+            for ticket_id in page_ticket_ids:
+                ticket_data = self._get_cached_ticket_data(ticket_id)
+                if ticket_data:
+                    # Convert timestamps back to ISO format for frontend
+                    created_at = datetime.fromtimestamp(ticket_data.get('created_at', 0)).isoformat()
+                    updated_at = datetime.fromtimestamp(ticket_data.get('updated_at', 0)).isoformat()
+                    
+                    tickets.append({
+                        'id': ticket_id,
+                        'score': ticket_data.get('score', 0),
+                        'state': ticket_data.get('state', ''),
+                        'subject': ticket_data.get('subject', ''),  # Add subject
+                        'created_at': created_at,
+                        'updated_at': updated_at
+                    })
+            
+            return jsonify({
+                'tickets': tickets,
+                'total_count': total_count,
+                'page': page,
+                'per_page': per_page
+            }), 200
+            
+        except Exception as e:
+            self.logger.error(f"Error getting unsolved tickets from cache: {e}")
+            return jsonify({'error': str(e)}), 500
 
 

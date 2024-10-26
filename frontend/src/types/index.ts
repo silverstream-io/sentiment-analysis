@@ -1,20 +1,8 @@
-export type Sentiment = -10 | -5 | 0 | 5 | 10;
+export * from './zendesk';
+export * from './sentiment';
 
-export type SentimentRange = number;
-
-export const DEFAULT_SENTIMENT: SentimentRange = 0;
-export const MIN_SENTIMENT: SentimentRange = -1;
-export const MAX_SENTIMENT: SentimentRange = 1;
-
-interface ZendeskUser {
-  id: number;
-  email: string;
-  role: string;
-  name?: string;
-  // Add other properties as optional
-  [key: string]: any;
-}
-
-export interface ApiCredentials {
-  AUTHORIZED: boolean;
+// Add any other shared types here
+export interface ApiResponse<T> {
+  data: T;
+  error?: string;
 }

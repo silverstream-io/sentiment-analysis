@@ -3,6 +3,10 @@ import redis
 from typing import Optional
 from urllib.parse import urlparse
 
+class RedisConfigError(Exception):
+    """Raised when Redis configuration is invalid or missing"""
+    pass
+
 class RedisClient:
     _instance: Optional[redis.Redis] = None
 
@@ -12,9 +16,19 @@ class RedisClient:
             # Check for Render Redis URL first
             redis_url = os.getenv('REDIS_URL')
             
-            if redis_url.startswith('redis://'):
-                # Parse Render Redis URL
+            if not redis_url:
+                raise RedisConfigError(
+                    "REDIS_URL environment variable is not set. "
+                    "This is required for production environment."
+                )
+            
+            try:
                 parsed_url = urlparse(redis_url)
+                if not all([parsed_url.hostname, parsed_url.port]):
+                    raise RedisConfigError(
+                        "Invalid REDIS_URL format. Must include hostname and port."
+                    )
+                
                 cls._instance = redis.Redis(
                     host=parsed_url.hostname,
                     port=parsed_url.port,
@@ -22,28 +36,22 @@ class RedisClient:
                     decode_responses=True
                 )
                 # Test the connection
-                try:
-                    cls._instance.ping()
-                    print("Successfully connected to Render Redis")
-                except Exception as e:
-                    print(f"Failed to connect to Render Redis: {str(e)}")
-                    cls._instance = None
-            
-            # Fallback to local Redis if Render connection fails
-            if cls._instance is None:
-                cls._instance = redis.Redis(
-                    host='localhost',
-                    port=6379,
-                    decode_responses=True
-                )
-                print("Using local Redis instance")
+                cls._instance.ping()
+                print("Successfully connected to Redis")
+                
+            except redis.ConnectionError as e:
+                raise RedisConfigError(f"Failed to connect to Redis: {str(e)}")
+            except Exception as e:
+                raise RedisConfigError(f"Unexpected error configuring Redis: {str(e)}")
 
         return cls._instance
 
     @classmethod
     def health_check(cls) -> bool:
         try:
-            cls.get_instance().ping()
+            if not cls._instance:
+                cls.get_instance()
+            cls._instance.ping()
             return True
         except Exception as e:
             print(f"Redis health check failed: {str(e)}")

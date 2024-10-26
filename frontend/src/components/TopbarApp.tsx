@@ -1,22 +1,32 @@
 import React, { useEffect, useState } from 'react';
-import { getScores, debugLog, errorLog } from '../services/apiService';
+import { getUnsolvedTicketsFromCache, debugLog, errorLog } from '../services/apiService';
+import { getSubdomain } from '../utils';
+import { TicketData, SentimentRange } from '../types';
+import { eventBus } from '../services/eventBus';
+
+type SortField = 'sentiment' | 'created_at' | 'updated_at';
+type SortDirection = 'asc' | 'desc';
 
 interface TopbarAppProps {
   zafClient: any;
   originalQueryString: string;
 }
 
-class TopbarErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean, error: any}> {
-  constructor(props: {children: React.ReactNode}) {
+// Add ErrorBoundary class
+class TopbarErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: { children: React.ReactNode }) {
     super(props);
     this.state = { hasError: false, error: null };
   }
 
-  static getDerivedStateFromError(error: any) {
+  static getDerivedStateFromError(error: Error) {
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: any, errorInfo: any) {
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error('[TopbarApp] Error caught by boundary:', error);
     console.error('[TopbarApp] Error info:', errorInfo);
   }
@@ -25,9 +35,9 @@ class TopbarErrorBoundary extends React.Component<{children: React.ReactNode}, {
     if (this.state.hasError) {
       return (
         <div className="error-state">
-          An error occurred while loading the topbar.
+          An error occurred in the topbar.
           <br />
-          {this.state.error?.message || 'Unknown error'}
+          {this.state.error?.message}
         </div>
       );
     }
@@ -38,85 +48,107 @@ class TopbarErrorBoundary extends React.Component<{children: React.ReactNode}, {
 
 const TopbarContent: React.FC<TopbarAppProps> = ({ zafClient, originalQueryString }) => {
   console.log("[TopbarApp] Component initializing");
-  const [ticketScores, setTicketScores] = useState<{ [key: string]: number }>({});
+  const [tickets, setTickets] = useState<TicketData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [sortField, setSortField] = useState<SortField>('sentiment');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [subdomain, setSubdomain] = useState<string>('');
-  const ticketsPerPage = 10;
 
+  // Get subdomain when component mounts
   useEffect(() => {
-    // Get the subdomain when component mounts
-    const getSubdomain = async () => {
+    const initSubdomain = async () => {
       try {
-        const context = await zafClient.context();
-        setSubdomain(context.account.subdomain);
+        const domain = await getSubdomain(zafClient);
+        setSubdomain(domain);
       } catch (error) {
-        console.error("[TopbarApp] Error getting subdomain:", error);
+        console.error('[TopbarApp] Error getting subdomain:', error);
       }
     };
-    getSubdomain();
+    initSubdomain();
+  }, [zafClient]);
 
-    const fetchUnsolvedTickets = async (page: number) => {
-      console.log("[TopbarApp] Starting fetchUnsolvedTickets for page:", page);
-      try {
-        setIsLoading(true);
-        // Add sort parameter to the query
-        const sortQuery = `type:ticket status<solved&sort_by:updated_at&sort_order:${sortOrder}`;
-        console.log("[TopbarApp] Using search query:", sortQuery);
-        
-        const response = await zafClient.request({
-          url: `/api/v2/search/incremental?query=${sortQuery}&page=${page}&per_page=${ticketsPerPage}`,
-          type: 'GET'
-        });
-        console.log("[TopbarApp] Search API response:", response);
+  const fetchUnsolvedTickets = async (page: number) => {
+    console.log("[TopbarApp] Starting fetchUnsolvedTickets");
+    try {
+      setIsLoading(true);
+      
+      const ticketResponse = await getUnsolvedTicketsFromCache(zafClient, page);
+      console.log("[TopbarApp] Got unsolved tickets:", ticketResponse);
 
-        if (!response || !response.results || !Array.isArray(response.results)) {
-          console.error("[TopbarApp] Invalid response structure:", response);
-          throw new Error('Unexpected response structure');
-        }
+      setTotalPages(Math.ceil(ticketResponse.count / 10));
 
-        const ticketIds = response.results.map((ticket: any) => ticket.id);
-        console.log("[TopbarApp] Extracted ticketIds:", ticketIds);
-        
-        if (ticketIds.length > 0) {
-          const scores = await getScores(zafClient, ticketIds);
-          console.log("[TopbarApp] Got scores:", scores);
-          if (Object.keys(scores).length === 0) {
-            console.error("[TopbarApp] No scores returned for tickets:", ticketIds);
-          }
-          setTicketScores(scores);
-          setTotalPages(Math.ceil(response.count / ticketsPerPage));
+      // Sort tickets based on selected field and direction
+      const sortedTickets = [...ticketResponse.results].sort((a, b) => {
+        if (sortField === 'sentiment') {
+          const scoreA = a.score ?? 0;
+          const scoreB = b.score ?? 0;
+          return sortDirection === 'asc' ? scoreA - scoreB : scoreB - scoreA;
         } else {
-          console.log("[TopbarApp] No ticket IDs found in response");
+          const dateA = new Date(a[sortField]).getTime();
+          const dateB = new Date(b[sortField]).getTime();
+          return sortDirection === 'asc' ? dateA - dateB : dateB - dateA;
         }
-        setIsLoading(false);
-      } catch (error: any) {
-        console.error("[TopbarApp] Error:", error);
-        setError(`Failed to fetch ticket scores: ${error.message}`);
-        setIsLoading(false);
-      }
-    };
+      });
 
-    fetchUnsolvedTickets(currentPage);
-  }, [zafClient, currentPage, sortOrder]);
-
-  const getTicketStyleClass = (score: number): string => {
-    if (score > 0.75) return 'sentiment-very-positive';
-    if (score > 0.5) return 'sentiment-positive';
-    if (score >= -0.5 && score <= 0.5) return 'sentiment-neutral';
-    if (score >= -0.75) return 'sentiment-negative';
-    return 'sentiment-very-negative';
+      setTickets(sortedTickets);
+      setIsLoading(false);
+    } catch (error: any) {
+      console.error("[TopbarApp] Error:", error);
+      setError(`Failed to fetch tickets: ${error.message}`);
+      setIsLoading(false);
+    }
   };
 
-  const toggleSortOrder = () => {
-    setSortOrder(current => current === 'asc' ? 'desc' : 'asc');
+  // Initial load effect
+  useEffect(() => {
+    fetchUnsolvedTickets(currentPage);
+  }, [zafClient, currentPage, sortField, sortDirection]);
+
+  // Event bus effect
+  useEffect(() => {
+    // Initialize event bus
+    eventBus.initialize(zafClient);
+    
+    // Subscribe to sentiment updates
+    const handleSentimentUpdate = async () => {
+      // Refresh the current page of tickets
+      await fetchUnsolvedTickets(currentPage);
+    };
+    
+    eventBus.subscribe('sentiment.updated', handleSentimentUpdate);
+    
+    return () => {
+      eventBus.unsubscribe('sentiment.updated', handleSentimentUpdate);
+    };
+  }, [zafClient, currentPage]);
+
+  const getSentimentColor = (score: number): string => {
+    if (score > 0.75) return 'bg-green-500';
+    if (score > 0.5) return 'bg-green-300';
+    if (score >= -0.5 && score <= 0.5) return 'bg-yellow-400';
+    if (score >= -0.75) return 'bg-red-300';
+    return 'bg-red-500';
+  };
+
+  const handleSort = (field: SortField) => {
+    if (field === sortField) {
+      setSortDirection(current => current === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const truncateSubject = (subject: string | undefined): string => {
+    if (!subject) return 'No subject';
+    return subject.length > 24 ? `${subject.slice(0, 21)}...` : subject;
   };
 
   if (isLoading) {
-    return <div className="loading-state">Loading unsolved ticket scores...</div>;
+    return <div className="loading-state">Loading unsolved tickets...</div>;
   }
 
   if (error) {
@@ -125,28 +157,48 @@ const TopbarContent: React.FC<TopbarAppProps> = ({ zafClient, originalQueryStrin
 
   return (
     <div className="topbar">
-      <div className="sort-control">
-        <h2 className="topbar-title">Unsolved Ticket Sentiment Scores</h2>
-        <button 
-          onClick={toggleSortOrder}
-          className="sort-button"
-          title={`Sorted by last update ${sortOrder === 'asc' ? 'oldest first' : 'newest first'}`}
-        >
-          {sortOrder === 'asc' ? '↑' : '↓'}
-        </button>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="topbar-title">Unsolved Tickets</h2>
+        <div className="flex gap-2">
+          <button 
+            onClick={() => handleSort('sentiment')}
+            className={`sort-button ${sortField === 'sentiment' ? 'active' : ''}`}
+          >
+            Sentiment {sortField === 'sentiment' && (sortDirection === 'asc' ? '↑' : '↓')}
+          </button>
+          <button 
+            onClick={() => handleSort('created_at')}
+            className={`sort-button ${sortField === 'created_at' ? 'active' : ''}`}
+          >
+            Created {sortField === 'created_at' && (sortDirection === 'asc' ? '↑' : '↓')}
+          </button>
+          <button 
+            onClick={() => handleSort('updated_at')}
+            className={`sort-button ${sortField === 'updated_at' ? 'active' : ''}`}
+          >
+            Updated {sortField === 'updated_at' && (sortDirection === 'asc' ? '↑' : '↓')}
+          </button>
+        </div>
       </div>
-      {Object.entries(ticketScores).length > 0 ? (
+
+      {tickets.length > 0 ? (
         <div className="ticket-list">
-          {Object.entries(ticketScores).map(([ticketId, score]) => (
-            <div key={ticketId} className={`ticket-item ${getTicketStyleClass(score)}`}>
+          {tickets.map((ticket) => (
+            <div key={ticket.id} className="ticket-item flex items-center gap-2">
+              <div 
+                className={`w-2 h-2 ${getSentimentColor(ticket.score ?? 0)}`} 
+                title={`Sentiment score: ${ticket.score?.toFixed(2)}`}
+              />
               <a
-                href={`https://${subdomain}.zendesk.com/agent/tickets/${ticketId}`}
+                href={`https://${subdomain}.zendesk.com/agent/tickets/${ticket.id}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="ticket-link"
+                className="ticket-link flex-grow"
               >
-                <span className="ticket-id">Ticket {ticketId}</span>
-                <span className="ticket-score">{score.toFixed(2)}</span>
+                <span className="ticket-id mr-2">#{ticket.id}</span>
+                <span className="ticket-subject" title={ticket.subject}>
+                  {truncateSubject(ticket.subject)}
+                </span>
               </a>
             </div>
           ))}
@@ -154,6 +206,7 @@ const TopbarContent: React.FC<TopbarAppProps> = ({ zafClient, originalQueryStrin
       ) : (
         <p className="loading-state">No unsolved tickets found.</p>
       )}
+
       {totalPages > 1 && (
         <div className="pagination">
           {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (

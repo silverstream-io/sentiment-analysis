@@ -1,5 +1,5 @@
 import Cookies from 'js-cookie';
-import { SentimentRange, DEFAULT_SENTIMENT } from '../types';
+import { TicketData, SentimentRange, DEFAULT_SENTIMENT, ZendeskTicketStatus } from '../types';
 const BACKEND_URL = 'https://api.silverstream.io/sentiment-checker';
 const DEBUG = process.env.REACT_APP_DEBUG === 'true';
 
@@ -105,15 +105,13 @@ export async function getScore(zafClient: any, ticketIds: string | string[] | { 
 }
 
 export function debugLog(...args: any[]) {
-  console.log('[DEBUG]', ...args);
+  if (DEBUG) {
+    console.log('[DEBUG]', ...args);
+  }
 }
 
 export function errorLog(...args: any[]) {
   console.error('[ERROR]', ...args);
-  // Add stack trace for better debugging
-  if (args[1] instanceof Error) {
-    console.error('[ERROR] Stack:', args[1].stack);
-  }
 }
 
 export function infoLog(...args: any[]) {
@@ -158,17 +156,109 @@ export async function getScores(zafClient: any, ticketIds: string[]): Promise<{ 
 }
 
 // Add this new function
-export async function updateTicketSentiment(zafClient: any, ticketId: string) {
+export async function updateTicketSentiment(zafClient: any, ticketData: TicketData): Promise<void> {
+  debugLog('Updating ticket sentiment:', ticketData);
   try {
+    // Get ticket comments
     const ticketComments = await zafClient.get('ticket.comments');
-    const response = await makeApiRequest(zafClient, '/update-sentiment', 'POST', {
-      ticket_id: ticketId,
-      comments: ticketComments['ticket.comments']
+    
+    await makeApiRequest(zafClient, '/analyze-comments', 'POST', {
+      ticket: {
+        id: ticketData.id,
+        state: ticketData.state,
+        updated_at: ticketData.updated_at,
+        created_at: ticketData.created_at,
+        comments: ticketComments['ticket.comments']
+      }
     });
-    debugLog('Sentiment updated for ticket:', ticketId);
-    return response;
   } catch (error) {
-    errorLog('Error updating sentiment:', error);
+    errorLog('Error updating ticket sentiment:', error);
+    throw error;
+  }
+}
+
+interface PaginatedResponse<T> {
+  results: T[];
+  count: number;
+  next_page?: string;
+  previous_page?: string;
+}
+
+export async function getUnsolvedTickets(
+  zafClient: any, 
+  page: number = 1, 
+  perPage: number = 10
+): Promise<PaginatedResponse<TicketData>> {
+  debugLog('Getting unsolved tickets', { page, perPage });
+  try {
+    // Get unsolved tickets from Zendesk API with pagination
+    const response = await zafClient.request({
+      url: `/api/v2/search.json?query=type:ticket status<solved&page=${page}&per_page=${perPage}`,
+      type: 'GET'
+    });
+
+    if (!response || !response.results) {
+      throw new Error('Invalid response from Zendesk API');
+    }
+
+    // Map Zendesk response to TicketData
+    const tickets: TicketData[] = response.results.map((ticket: any) => ({
+      id: ticket.id.toString(),
+      state: ticket.status as ZendeskTicketStatus,
+      created_at: ticket.created_at,
+      updated_at: ticket.updated_at
+    }));
+
+    debugLog('Found unsolved tickets:', tickets);
+    
+    return {
+      results: tickets,
+      count: response.count || 0,
+      next_page: response.next_page,
+      previous_page: response.previous_page
+    };
+  } catch (error) {
+    errorLog('Error getting unsolved tickets:', error);
+    throw error;
+  }
+}
+
+export async function getUnsolvedTicketsFromCache(
+  zafClient: any,
+  page: number = 1,
+  perPage: number = 10
+): Promise<PaginatedResponse<TicketData>> {
+  debugLog('Getting unsolved tickets from cache', { page, perPage });
+  try {
+    // Get cached unsolved tickets from our backend API
+    const response = await makeApiRequest(zafClient, '/get-unsolved-tickets', 'GET', {
+      page,
+      per_page: perPage
+    });
+
+    if (!response || !response.tickets) {
+      throw new Error('Invalid response from cache API');
+    }
+
+    // Map cached response to TicketData
+    const tickets: TicketData[] = response.tickets.map((ticket: any) => ({
+      id: ticket.id.toString(),
+      state: ticket.state,
+      score: ticket.score,
+      created_at: ticket.created_at,
+      updated_at: ticket.updated_at
+    }));
+
+    debugLog('Found cached unsolved tickets:', tickets);
+    
+    return {
+      results: tickets,
+      count: response.total_count || 0,
+      next_page: page * perPage < response.total_count ? (page + 1).toString() : undefined,
+      previous_page: page > 1 ? (page - 1).toString() : undefined
+    };
+  } catch (error) {
+    errorLog('Error getting cached unsolved tickets:', error);
     throw error;
   }
 }
