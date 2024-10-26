@@ -5,24 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sentiment Checker</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
-    <base href="http://localhost:3000/">
 </head>
 <body>
     <div id="root"></div>
     <script src="https://static.zdassets.com/zendesk_app_framework_sdk/2.0/zaf_sdk.min.js"></script>
-    <script src="static/js/main.bundle.js"></script>
+    <script src="http://localhost:3000/sentiment-checker/static/js/bundle.js"></script>
     <script>
-        window.addEventListener('load', function() {
-            console.log("[MainDebug] Window loaded, checking for initializeApp");
-            if (typeof window.initializeApp !== 'function') {
-                console.error("[MainDebug] initializeApp not found!");
-                return;
-            }
-            console.log("[MainDebug] Initializing ZAF client");
-            const client = ZAFClient.init();
-            console.log("[MainDebug] ZAF client initialized");
-            window.initializeApp(client, "{{ original_query_string }}");
-        });
+        const client = ZAFClient.init();
+        client.invoke('resize', { width: '100%', height: '400px' });
+        window.initializeApp(client, "{{ original_query_string }}");
     </script>
 </body>
 </html>

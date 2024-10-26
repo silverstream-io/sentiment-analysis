@@ -16,6 +16,9 @@ import os
 import math
 import os
 import math
+from config.redis_config import RedisClient
+import json
+from datetime import datetime, timedelta
 
 logger = logging.getLogger('sentiment_checker')
 logger = logging.getLogger('sentiment_checker')
@@ -51,6 +54,8 @@ class SentimentChecker:
         self.logger = logger
         self.templates = 'sentiment-checker'
         self.debug_mode = os.environ.get('SENTIMENT_CHECKER_DEBUG') == 'true'
+        self.redis = RedisClient.get_instance()
+        self.cache_ttl = 3600  # 1 hour cache TTL
 
     def init(self):
         self.remote_addr = request.headers.get('X-Forwarded-For', request.remote_addr)
@@ -444,33 +449,80 @@ class SentimentChecker:
         #self.logger.debug(f"Calculated weighted score for {len(self.ticket_ids)} tickets: {weighted_score}, request remote addr: {self.remote_addr}")
         return jsonify({'score': weighted_score}), 200
 
+    def _get_cache_key(self, key_type: str) -> str:
+        """Generate a cache key with subdomain"""
+        return f"{self.subdomain}:{key_type}"
+
+    def _get_cached_scores(self) -> dict:
+        """Get scores from cache"""
+        cache_key = self._get_cache_key("sentiment_scores")
+        cached_data = self.redis.get(cache_key)
+        if cached_data:
+            return json.loads(cached_data)
+        return {}
+
+    def _update_cache(self, scores: dict):
+        """Update the cache with new scores"""
+        cache_key = self._get_cache_key("sentiment_scores")
+        self.redis.set(cache_key, json.dumps(scores), ex=self.cache_ttl)
+
     @session_required
     def get_scores(self) -> Tuple[Dict[str, str], int]:
+        """Get scores, using cache when possible"""
         self.init()
         self.logger.info(f"Received request for get_scores, request remote addr: {self.remote_addr}")
 
-        if not self.ticket_ids:
-            self.logger.warning(f"Missing ticket ids in request data, data is {self.data}, request remote addr: {self.remote_addr}")
-            return jsonify({'error': 'Missing ticket ids'}), 400
-
-        scores = {}
-        for ticket_id in self.ticket_ids:
-            try:
-                # Get the score response
-                score_response, status_code = self.get_score(ticket_id)
-                if status_code != 200:
-                    self.logger.error(f"Error getting score for ticket {ticket_id}: {score_response}, request remote addr: {self.remote_addr}")
+        # Try to get scores from cache first
+        cached_scores = self._get_cached_scores()
+        
+        # If we have ticket IDs in the request, update cache for those tickets
+        if self.ticket_ids:
+            scores = {}
+            for ticket_id in self.ticket_ids:
+                try:
+                    # Get the score response
+                    score_response, status_code = self.get_score(ticket_id)
+                    if status_code != 200:
+                        self.logger.error(f"Error getting score for ticket {ticket_id}")
+                        continue
+                        
+                    # Extract the score value
+                    score_data = score_response.get_json()
+                    scores[ticket_id] = score_data.get('score', 0)
+                    
+                except Exception as e:
+                    self.logger.error(f"Error processing ticket {ticket_id}: {e}")
                     continue
-                
-                # Extract the score value from the response
-                score_data = score_response.get_json()
-                scores[ticket_id] = score_data.get('score', 0)
-                
-            except Exception as e:
-                self.logger.error(f"Error processing ticket {ticket_id}: {e}, request remote addr: {self.remote_addr}")
-                continue
 
-        return jsonify({'scores': scores}), 200
+            # Update cache with new scores
+            if scores:
+                cached_scores.update(scores)
+                self._update_cache(cached_scores)
+
+        # Return all scores from cache
+        return jsonify({'scores': cached_scores}), 200
+
+    def _populate_cache(self) -> None:
+        """Populate cache with all available scores"""
+        try:
+            # Get all vectors from Pinecone
+            vectors = self.pinecone_service.list_all_vectors()
+            
+            scores = {}
+            for vector in vectors:
+                if '#' in vector.id:  # Ensure it's a comment vector
+                    ticket_id = vector.id.split('#')[0]
+                    if ticket_id not in scores:
+                        scores[ticket_id] = {
+                            'score': vector.metadata.get('emotion_score', 0),
+                            'timestamp': vector.metadata.get('timestamp', 0)
+                        }
+            
+            self._update_cache(scores)
+            self.logger.info(f"Cache populated with {len(scores)} ticket scores")
+            
+        except Exception as e:
+            self.logger.error(f"Error populating cache: {e}")
 
     # Health Check
     def health(self):
@@ -478,13 +530,25 @@ class SentimentChecker:
         Serve the health check page for the Zendesk application.
         """
         remote_addr = request.headers.get('X-Forwarded-For', request.remote_addr)
+        
+        # Check Pinecone
         pinecone_service = PineconeService('emotions')
         check_pinecone = pinecone_service.check_health()
-        self.logger.debug(f"Pinecone health check: {check_pinecone}, request remote addr: {remote_addr}")
-        if check_pinecone.get('status', {}).get('ready', True):  
+        
+        # Check Redis
+        redis_healthy = RedisClient.health_check()
+        
+        if check_pinecone.get('status', {}).get('ready', True) and redis_healthy:
             return render_template(f'{self.templates}/health.html')
         else:
-            return jsonify({'error': 'Pinecone service is not healthy'}), 500
+            errors = []
+            if not check_pinecone.get('status', {}).get('ready', True):
+                errors.append('Pinecone service is not healthy')
+            if not redis_healthy:
+                errors.append('Redis service is not healthy')
+            return jsonify({'error': ' and '.join(errors)}), 500
+
+
 
 
 
