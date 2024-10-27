@@ -1,7 +1,10 @@
 import os
 import redis
+from dotenv import load_dotenv
 from typing import Optional
 from urllib.parse import urlparse
+
+load_dotenv()
 
 class RedisConfigError(Exception):
     """Raised when Redis configuration is invalid or missing"""
@@ -16,33 +19,53 @@ class RedisClient:
             # Check for Render Redis URL first
             redis_url = os.getenv('REDIS_URL')
             
-            if not redis_url:
-                raise RedisConfigError(
-                    "REDIS_URL environment variable is not set. "
-                    "This is required for production environment."
-                )
-            
-            try:
-                parsed_url = urlparse(redis_url)
-                if not all([parsed_url.hostname, parsed_url.port]):
-                    raise RedisConfigError(
-                        "Invalid REDIS_URL format. Must include hostname and port."
+            if redis_url:
+                # Use URL if provided
+                try:
+                    parsed_url = urlparse(redis_url)
+                    if not all([parsed_url.hostname, parsed_url.port]):
+                        raise RedisConfigError(
+                            "Invalid REDIS_URL format. Must include hostname and port."
+                        )
+                    
+                    cls._instance = redis.Redis(
+                        host=parsed_url.hostname,
+                        port=parsed_url.port,
+                        password=parsed_url.password,
+                        ssl=True,
+                        decode_responses=True
                     )
-                
-                cls._instance = redis.Redis(
-                    host=parsed_url.hostname,
-                    port=parsed_url.port,
-                    ssl=True,
-                    decode_responses=True
-                )
-                # Test the connection
+                except Exception as e:
+                    raise RedisConfigError(f"Failed to parse REDIS_URL: {str(e)}")
+            else:
+                # Use individual credentials
+                host = os.getenv('REDIS_HOST')
+                port = os.getenv('REDIS_PORT')
+                password = os.getenv('REDIS_PASSWORD')
+                ssl = os.getenv('REDIS_SSL', 'false').lower() == 'true'
+
+                if not all([host, port, password]):
+                    raise RedisConfigError(
+                        "Missing Redis configuration. Required: REDIS_HOST, REDIS_PORT, REDIS_PASSWORD"
+                    )
+
+                try:
+                    cls._instance = redis.Redis(
+                        host=host,
+                        port=int(port),
+                        password=password,
+                        ssl=ssl,
+                        decode_responses=True
+                    )
+                except Exception as e:
+                    raise RedisConfigError(f"Failed to connect to Redis: {str(e)}")
+
+            # Test the connection
+            try:
                 cls._instance.ping()
                 print("Successfully connected to Redis")
-                
             except redis.ConnectionError as e:
                 raise RedisConfigError(f"Failed to connect to Redis: {str(e)}")
-            except Exception as e:
-                raise RedisConfigError(f"Unexpected error configuring Redis: {str(e)}")
 
         return cls._instance
 
