@@ -56,11 +56,11 @@ class SentimentChecker:
         self.logger = logger
         self.templates = 'sentiment-checker'
         self.debug_mode = os.environ.get('SENTIMENT_CHECKER_DEBUG') == 'true'
+        self.redis = None
         try:
             self.redis = RedisClient.get_instance()
         except RedisConfigError as e:
-            self.logger.error(f"Failed to initialize Redis: {e}")
-            raise
+            self.logger.error(f"Failed to initialize Redis - continuing without caching: {e}")
         self.cache_ttl = 3600  # 1 hour cache TTL
 
     def init(self):
@@ -280,6 +280,10 @@ class SentimentChecker:
 
     def _cache_ticket_data(self, ticket_id: str, data: Dict[str, Any], ttl: int = 3600) -> None:
         """Cache ticket data including score and timestamps"""
+        if not self.redis:
+            self.logger.debug(f"Redis not available - skipping cache for ticket {ticket_id}")
+            return
+
         try:
             # Convert dates to timestamps
             if 'updated_at' in data:
@@ -748,4 +752,5 @@ class SentimentChecker:
         except Exception as e:
             self.logger.error(f"Error getting unsolved tickets from cache: {e}")
             return jsonify({'error': str(e)}), 500
+
 
