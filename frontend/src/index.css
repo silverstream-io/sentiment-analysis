@@ -287,3 +287,86 @@ body, h1, h2, h3, h4, h5, h6, p, ul, ol {
 .ticket-link:hover .ticket-subject {
   text-decoration: underline;
 }
+
+/* Topbar Styles */
+.topbar-counts {
+  display: flex;
+  justify-content: space-around;
+  padding: 8px;
+}
+
+.count-box {
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: opacity 0.2s;
+}
+
+.count-box:hover {
+  opacity: 0.8;
+}
+
+.count-box.negative {
+  background-color: rgba(239, 68, 68, 0.2);
+  color: rgb(185, 28, 28);
+}
+
+.count-box.neutral {
+  background-color: rgba(234, 179, 8, 0.2);
+  color: rgb(161, 98, 7);
+}
+
+.count-box.positive {
+  background-color: rgba(34, 197, 94, 0.2);
+  color: rgb(21, 128, 61);
+}
+
+/* Navbar Styles */
+.sentiment-bar {
+  height: 24px;
+  margin: 8px 0;
+  position: relative;
+}
+
+.gradient-bar {
+  height: 100%;
+  background: linear-gradient(
+    to right,
+    rgb(239, 68, 68),
+    rgb(234, 179, 8),
+    rgb(34, 197, 94)
+  );
+  position: relative;
+}
+
+.median-line {
+  position: absolute;
+  width: 2px;
+  height: 100%;
+  background: black;
+  transform: translateX(-50%);
+}
+
+.std-dev-box {
+  position: absolute;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.1);
+}
+
+/* Ticket List Styles */
+.ticket-list {
+  margin-top: 16px;
+}
+
+.ticket-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  gap: 16px;
+  padding: 8px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.ticket-item:hover {
+  background-color: #f9fafb;
+}

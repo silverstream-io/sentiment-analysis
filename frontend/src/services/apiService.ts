@@ -150,26 +150,59 @@ export async function getLast30DaysSentiment(zafClient: any): Promise<SentimentR
 
 export async function getScores(zafClient: any, ticketIds: string[]): Promise<{ [key: string]: number }> {
   debugLog('Getting scores for tickets:', ticketIds);
-  const data = await makeApiRequest(zafClient, '/get-scores', 'POST', { tickets: ticketIds });
-  debugLog('Scores data:', data.scores);
-  return data.scores;
+  try {
+    // Get ticket details for all IDs
+    const ticketsResponse = await zafClient.request({
+      url: `/api/v2/search.json?query=id:${ticketIds.join(' OR id:')}`,
+      type: 'GET'
+    });
+
+    const ticketData = ticketsResponse.results.map((ticket: any) => ({
+      id: ticket.id.toString(),
+      state: ticket.status as ZendeskTicketStatus,
+      created_at: ticket.created_at,
+      updated_at: ticket.updated_at,
+      requestor: ticket.requester ? {
+        id: ticket.requester.id,
+        name: ticket.requester.name
+      } : undefined,
+      assignee: ticket.assignee ? {
+        id: ticket.assignee.id,
+        name: ticket.assignee.name
+      } : undefined
+    }));
+
+    const response = await makeApiRequest(zafClient, '/get-scores', 'POST', {
+      tickets: ticketData
+    });
+    return response.scores;
+  } catch (error) {
+    errorLog('Error getting scores:', error);
+    throw error;
+  }
 }
 
 // Add this new function
 export async function updateTicketSentiment(zafClient: any, ticketData: TicketData): Promise<void> {
   debugLog('Updating ticket sentiment:', ticketData);
   try {
-    // Get ticket comments
-    const ticketComments = await zafClient.get('ticket.comments');
+    // Get ticket details including users
+    const ticketDetails = await zafClient.get(['ticket.assignee', 'ticket.requester']);
     
+    const updatedTicketData = {
+      ...ticketData,
+      requestor: {
+        id: ticketDetails['ticket.requester'].id,
+        name: ticketDetails['ticket.requester'].name
+      },
+      assignee: ticketDetails['ticket.assignee'] ? {
+        id: ticketDetails['ticket.assignee'].id,
+        name: ticketDetails['ticket.assignee'].name
+      } : undefined
+    };
+
     await makeApiRequest(zafClient, '/analyze-comments', 'POST', {
-      ticket: {
-        id: ticketData.id,
-        state: ticketData.state,
-        updated_at: ticketData.updated_at,
-        created_at: ticketData.created_at,
-        comments: ticketComments['ticket.comments']
-      }
+      ticket: updatedTicketData
     });
   } catch (error) {
     errorLog('Error updating ticket sentiment:', error);

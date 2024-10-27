@@ -22,6 +22,10 @@
       "top_bar": {
         "url": "https://api.silverstream.io/sentiment-checker/topbar",
         "flexible": true
+      },
+      "nav_bar": {
+        "url": "https://api.silverstream.io/sentiment-checker/nav_bar",
+        "flexible": true
       }
     }
   },

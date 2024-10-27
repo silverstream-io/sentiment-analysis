@@ -287,6 +287,21 @@ class SentimentChecker:
             if 'created_at' in data:
                 data['created_at'] = self._convert_date_to_timestamp(data['created_at'])
 
+            # Add user data if present
+            if 'requestor' in data:
+                requestor = data['requestor']
+                data['requestor'] = {
+                    'id': requestor.get('id'),
+                    'name': requestor.get('name')
+                }
+            
+            if 'assignee' in data:
+                assignee = data['assignee']
+                data['assignee'] = {
+                    'id': assignee.get('id'),
+                    'name': assignee.get('name')
+                }
+
             cache_key = self._get_cache_key(ticket_id)
             self.redis.set(cache_key, json.dumps(data), ex=ttl)
             self.logger.debug(f"Cached data for ticket {ticket_id}: {data}")
@@ -316,7 +331,6 @@ class SentimentChecker:
             try:
                 ticket_data = self.data.get('ticket', {})
                 comments = ticket_data.get('comments', [])
-                subject = ticket_data.get('subject', '')  # Get subject for Redis
                 
                 if not comments:
                     self.logger.warning(f"No comments found for ticket {ticket_id}")
@@ -382,11 +396,10 @@ class SentimentChecker:
                     # Normalize score to [-1, 1]
                     calculated_score = max(min(calculated_score / 10, 1), -1)
 
-                    # Store ticket metadata in Redis
+                    # Store ticket metadata
                     metadata = {
                         'score': calculated_score,
                         'state': ticket_data.get('state', ''),
-                        'subject': subject,  # Include subject in Redis
                         'updated_at': self._convert_date_to_timestamp(ticket_data.get('updated_at', '')),
                         'created_at': self._convert_date_to_timestamp(ticket_data.get('created_at', ''))
                     }
@@ -721,7 +734,6 @@ class SentimentChecker:
                         'id': ticket_id,
                         'score': ticket_data.get('score', 0),
                         'state': ticket_data.get('state', ''),
-                        'subject': ticket_data.get('subject', ''),  # Add subject
                         'created_at': created_at,
                         'updated_at': updated_at
                     })
@@ -736,5 +748,4 @@ class SentimentChecker:
         except Exception as e:
             self.logger.error(f"Error getting unsolved tickets from cache: {e}")
             return jsonify({'error': str(e)}), 500
-
 

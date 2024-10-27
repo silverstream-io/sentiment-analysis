@@ -2,7 +2,6 @@ export interface ZendeskUser {
   id: number;
   name: string;
   email: string;
-  role: string;
 }
 
 export interface ZendeskTicket {
@@ -33,8 +32,16 @@ export type ZendeskTicketStatus = 'new' | 'open' | 'pending' | 'hold' | 'solved'
 export interface TicketData {
   id: string;
   state: ZendeskTicketStatus;
-  updated_at: string;
   created_at: string;
+  updated_at: string;
   score?: number;
-  subject?: string;  // Add this field
+  subject?: string;
+  requestor?: {
+    id: number;
+    name: string;
+  };
+  assignee?: {
+    id: number;
+    name: string;
+  };
 }
