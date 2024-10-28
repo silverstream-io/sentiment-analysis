@@ -763,4 +763,25 @@ class SentimentChecker:
             self.logger.error(f"Error getting unsolved tickets from cache: {e}")
             return jsonify({'error': str(e)}), 500
 
-
+    @session_required
+    def navbar(self):
+        """Handle navbar requests"""
+        self.init()
+        self.logger.info(f"Received request for navbar, request remote addr: {self.remote_addr}")
+        
+        # Get the selected range from query params if any
+        selected_range = request.args.get('range')
+        self.logger.info(f"Selected range: {selected_range}")
+        
+        if self.debug_mode:
+            template = f'{self.templates}/navbar_debug.html'
+        else:
+            template = f'{self.templates}/navbar.html'
+            
+        response = make_response(render_template(
+            template,
+            subdomain=self.subdomain,
+            original_query_string=self.original_query_string,
+            selected_range=selected_range
+        ))
+        return response

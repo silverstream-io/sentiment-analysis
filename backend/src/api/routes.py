@@ -26,5 +26,6 @@ def create_blueprints():
     sentiment_checker.add_url_rule('/get-scores', 'get_scores', sentiment_checker_obj.get_scores, methods=['POST'])
     sentiment_checker.add_url_rule('/background-refresh', 'background_refresh', sentiment_checker_obj.background_refresh, methods=['POST'])
     sentiment_checker.add_url_rule('/topbar', 'topbar', sentiment_checker_obj.topbar, methods=['POST'])
+    sentiment_checker.add_url_rule('/navbar', 'navbar', sentiment_checker_obj.navbar, methods=['POST'])
 
     return root, sentiment_checker
