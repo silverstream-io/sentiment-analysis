@@ -15,6 +15,9 @@ const apps = {
   background: React.lazy(() => import('./apps/background').then(module => ({ 
     default: module.BackgroundApp 
   }))),
+  navbar: React.lazy(() => import('./apps/navbar').then(module => ({ 
+    default: module.NavBarApp 
+  }))),
 };
 
 declare global {

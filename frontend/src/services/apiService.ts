@@ -259,42 +259,21 @@ export async function getUnsolvedTickets(
   }
 }
 
-export async function getUnsolvedTicketsFromCache(
-  zafClient: any,
-  page: number = 1,
-  perPage: number = 10
-): Promise<PaginatedResponse<TicketData>> {
-  debugLog('Getting unsolved tickets from cache', { page, perPage });
+export async function getUnsolvedTicketsFromCache(zafClient: any): Promise<{ results: TicketData[] }> {
+  debugLog('Getting unsolved tickets from cache');
   try {
-    // Get cached unsolved tickets from our backend API
-    const response = await makeApiRequest(zafClient, '/get-unsolved-tickets', 'GET', {
-      page,
-      per_page: perPage
-    });
+    // Add debug logging to see what we're getting back
+    const response = await makeApiRequest(zafClient, '/get-unsolved-tickets', 'POST');
+    debugLog('Cache response:', response);
 
-    if (!response || !response.tickets) {
-      throw new Error('Invalid response from cache API');
-    }
-
-    // Map cached response to TicketData
-    const tickets: TicketData[] = response.tickets.map((ticket: any) => ({
-      id: ticket.id.toString(),
-      state: ticket.state,
-      score: ticket.score,
-      created_at: ticket.created_at,
-      updated_at: ticket.updated_at
-    }));
-
-    debugLog('Found cached unsolved tickets:', tickets);
-    
+    // Ensure we always return a valid structure
     return {
-      results: tickets,
-      count: response.total_count || 0,
-      next_page: page * perPage < response.total_count ? (page + 1).toString() : undefined,
-      previous_page: page > 1 ? (page - 1).toString() : undefined
+      results: Array.isArray(response?.results) ? response.results : []
     };
   } catch (error) {
-    errorLog('Error getting cached unsolved tickets:', error);
-    throw error;
+    errorLog('Error getting unsolved tickets:', error);
+    return {
+      results: []
+    };
   }
 }

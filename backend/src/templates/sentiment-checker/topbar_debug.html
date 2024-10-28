@@ -5,12 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sentiment Checker Topbar</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
-    <base href="http://localhost:3000/">
 </head>
 <body>
     <div id="root"></div>
     <script src="https://static.zdassets.com/zendesk_app_framework_sdk/2.0/zaf_sdk.min.js"></script>
-    <script src="static/js/topbar.bundle.js"></script>
+    <script src="http://localhost:4000/static/js/main.chunk.js"></script>
+    <script src="http://localhost:4000/static/js/vendors~main.chunk.js"></script>
+    <script src="http://localhost:4000/static/js/runtime-main.js"></script>
     <script>
         window.addEventListener('load', function() {
             console.log("[TopbarDebug] Window loaded, checking for initializeApp");

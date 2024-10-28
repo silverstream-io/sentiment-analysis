@@ -3,15 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sentiment Checker Background Refresh</title>
+    <title>Sentiment Checker Background</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
 </head>
 <body>
     <div id="root"></div>
     <script src="https://static.zdassets.com/zendesk_app_framework_sdk/2.0/zaf_sdk.min.js"></script>
+    <script src="{{ url_for('static', filename='js/runtime.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/vendors.js') }}"></script>
     <script src="{{ url_for('static', filename='js/sentimentChecker.js') }}"></script>
     <script>
-        const client = ZAFClient.init();
-        window.initializeApp(client, "{{ original_query_string }}");
+        window.addEventListener('load', function() {
+            console.log("[Background] Window loaded, checking for initializeApp");
+            if (typeof window.initializeApp !== 'function') {
+                console.error("[Background] initializeApp not found!");
+                return;
+            }
+            console.log("[Background] Initializing ZAF client");
+            const client = ZAFClient.init();
+            console.log("[Background] ZAF client initialized");
+            window.initializeApp(client, "{{ original_query_string }}");
+        });
     </script>
 </body>
 </html>

@@ -42,15 +42,28 @@ const NavBarContent: React.FC<NavBarAppProps> = ({ zafClient, originalQueryStrin
   useEffect(() => {
     const fetchTickets = async () => {
       try {
+        console.log('Starting fetchTickets...');
         setIsLoading(true);
+        
         // Get unsolved tickets from cache
+        console.log('Calling getUnsolvedTicketsFromCache...');
         const response = await getUnsolvedTicketsFromCache(zafClient);
-        let filteredTickets = response.results;
+        if (!response || !response.results) {
+          setTickets([]);
+          setIsLoading(false);
+          return;
+        }
 
-        // Apply range filter if selected
-        if (selectedRange) {
-          filteredTickets = filteredTickets.filter(ticket => {
-            const score = ticket.score || 0;
+        // Create a safe copy of the array
+        const tickets = [...response.results];
+        let filteredTickets = tickets;
+
+        // Only apply filter if we have data and a range
+        if (tickets.length > 0 && selectedRange) {
+          filteredTickets = tickets.filter(ticket => {
+            if (!ticket) return false;
+            const score = ticket?.score ?? 0;
+            console.log('Ticket score:', score);
             switch (selectedRange) {
               case 'negative': return score <= -0.5;
               case 'neutral': return score > -0.5 && score < 0.5;
@@ -58,11 +71,14 @@ const NavBarContent: React.FC<NavBarAppProps> = ({ zafClient, originalQueryStrin
               default: return true;
             }
           });
+          console.log('Filtered tickets:', filteredTickets);
         }
 
-        // Calculate median and standard deviation
+        // Only calculate stats if we have tickets
         if (filteredTickets.length > 0) {
-          const scores = filteredTickets.map(t => t.score || 0);
+          console.log('Calculating stats...');
+          const scores = filteredTickets.map(t => t?.score ?? 0);
+          console.log('Scores:', scores);
           const sortedScores = [...scores].sort((a, b) => a - b);
           const mid = Math.floor(sortedScores.length / 2);
           setMedianSentiment(sortedScores.length % 2 ? sortedScores[mid] : (sortedScores[mid - 1] + sortedScores[mid]) / 2);
@@ -71,12 +87,15 @@ const NavBarContent: React.FC<NavBarAppProps> = ({ zafClient, originalQueryStrin
           const squareDiffs = scores.map(score => Math.pow(score - mean, 2));
           const avgSquareDiff = squareDiffs.reduce((a, b) => a + b) / squareDiffs.length;
           setStdDeviation(Math.sqrt(avgSquareDiff));
+          console.log('Stats calculated - median:', medianSentiment, 'std:', stdDeviation);
         }
 
-        // Sort tickets using the helper function
+        // Sort tickets
+        console.log('Sorting by:', sortField, sortDirection);
         const sortedTickets = [...filteredTickets].sort((a, b) => {
           const aValue = getSortValue(a, sortField);
           const bValue = getSortValue(b, sortField);
+          console.log('Comparing:', aValue, bValue);
           return sortDirection === 'asc' ? 
             (aValue > bValue ? 1 : -1) : 
             (aValue < bValue ? 1 : -1);
@@ -94,6 +113,7 @@ const NavBarContent: React.FC<NavBarAppProps> = ({ zafClient, originalQueryStrin
               url: `/api/v2/tickets/${ticket.id}.json`,
               type: 'GET'
             });
+            console.log('Got details for ticket:', ticket.id);
             return {
               ...ticket,
               requestor: details.ticket.requester,
@@ -104,6 +124,7 @@ const NavBarContent: React.FC<NavBarAppProps> = ({ zafClient, originalQueryStrin
             return ticket;
           }
         }));
+        console.log('All ticket details fetched:', ticketsWithDetails);
 
         setTickets(ticketsWithDetails);
         setIsLoading(false);

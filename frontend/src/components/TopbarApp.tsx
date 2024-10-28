@@ -25,10 +25,10 @@ const TopbarContent: React.FC<TopbarAppProps> = ({ zafClient, originalQueryStrin
   const fetchCounts = async () => {
     try {
       const response = await getUnsolvedTicketsFromCache(zafClient);
-      const tickets = response.results;
+      const tickets = response?.results || [];  // Add null check
 
       const newCounts = tickets.reduce((acc: SentimentCounts, ticket: TicketData) => {
-        const score = ticket.score ?? 0;
+        const score = ticket?.score ?? 0;
         if (score <= -0.5) acc.negative++;
         else if (score >= 0.5) acc.positive++;
         else acc.neutral++;
@@ -55,8 +55,11 @@ const TopbarContent: React.FC<TopbarAppProps> = ({ zafClient, originalQueryStrin
   }, [zafClient]);
 
   const openNavBar = (range: 'negative' | 'neutral' | 'positive') => {
+    const queryString = new URLSearchParams(originalQueryString);
+    queryString.append('selected_range', range);
+    
     zafClient.invoke('nav_bar', 'show', {
-      url: `assets/iframe.html?type=navbar&range=${range}`,
+      url: `assets/iframe.html?${queryString.toString()}`,
       active: true
     });
   };
