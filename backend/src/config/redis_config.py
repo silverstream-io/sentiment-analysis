@@ -4,8 +4,6 @@ from dotenv import load_dotenv
 from typing import Optional
 from urllib.parse import urlparse
 
-load_dotenv()
-
 class RedisConfigError(Exception):
     """Raised when Redis configuration is invalid or missing"""
     pass
@@ -28,11 +26,14 @@ class RedisClient:
                             "Invalid REDIS_URL format. Must include hostname and port."
                         )
                     
+                    # Only use SSL if protocol is rediss://
+                    use_ssl = parsed_url.scheme == 'rediss'
+                    
                     cls._instance = redis.Redis(
                         host=parsed_url.hostname,
                         port=parsed_url.port,
                         password=parsed_url.password,
-                        ssl=True,
+                        ssl=use_ssl,
                         decode_responses=True
                     )
                 except Exception as e:

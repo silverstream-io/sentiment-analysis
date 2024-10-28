@@ -20,30 +20,38 @@ const TopbarContent: React.FC<TopbarAppProps> = ({ zafClient, originalQueryStrin
     positive: 0
   });
   const [isLoading, setIsLoading] = useState(true);
+  const POLL_INTERVAL = 60000; // Poll every 60 seconds
+
+  const fetchCounts = async () => {
+    try {
+      const response = await getUnsolvedTicketsFromCache(zafClient);
+      const tickets = response.results;
+
+      const newCounts = tickets.reduce((acc: SentimentCounts, ticket: TicketData) => {
+        const score = ticket.score ?? 0;
+        if (score <= -0.5) acc.negative++;
+        else if (score >= 0.5) acc.positive++;
+        else acc.neutral++;
+        return acc;
+      }, { negative: 0, neutral: 0, positive: 0 });
+
+      setCounts(newCounts);
+      setIsLoading(false);
+    } catch (error) {
+      errorLog('Error fetching counts:', error);
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchCounts = async () => {
-      try {
-        const response = await getUnsolvedTicketsFromCache(zafClient);
-        const tickets = response.results;
-
-        const newCounts = tickets.reduce((acc: SentimentCounts, ticket: TicketData) => {
-          const score = ticket.score ?? 0;
-          if (score <= -0.5) acc.negative++;
-          else if (score >= 0.5) acc.positive++;
-          else acc.neutral++;
-          return acc;
-        }, { negative: 0, neutral: 0, positive: 0 });
-
-        setCounts(newCounts);
-        setIsLoading(false);
-      } catch (error) {
-        errorLog('Error fetching counts:', error);
-        setIsLoading(false);
-      }
-    };
-
+    // Initial fetch
     fetchCounts();
+
+    // Set up polling
+    const pollInterval = setInterval(fetchCounts, POLL_INTERVAL);
+
+    // Cleanup on unmount
+    return () => clearInterval(pollInterval);
   }, [zafClient]);
 
   const openNavBar = (range: 'negative' | 'neutral' | 'positive') => {
@@ -77,10 +85,4 @@ const TopbarContent: React.FC<TopbarAppProps> = ({ zafClient, originalQueryStrin
   );
 };
 
-const TopbarApp: React.FC<TopbarAppProps> = (props) => {
-  return (
-    <TopbarContent {...props} />
-  );
-};
-
-export default TopbarApp;
+export default TopbarContent;

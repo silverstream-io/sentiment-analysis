@@ -115,9 +115,10 @@ class SentimentChecker:
         Serve the entry point for the Zendesk application.
         """
         self.init()
-        self.logger.debug(f"Received request for entry point, request remote addr: {self.remote_addr}")
+        self.logger.info(f"Entry point request received from {self.remote_addr}")
+        self.logger.info(f"Request data: {self.data}")
+        self.logger.info(f"Query string: {self.original_query_string}")
         
-        self.logger.debug(f"Data is {self.data}")
         session_token = os.urandom(24).hex()
         session['session_token'] = session_token
 
@@ -126,14 +127,23 @@ class SentimentChecker:
         else:
             template = f'{self.templates}/entry.html'
             
-        response = make_response(render_template(
-            template, 
-            subdomain=self.subdomain,
-            original_query_string=self.original_query_string
-        ))
-
-        response.set_cookie('session_token', session_token, secure=True, httponly=True, samesite='None')
-        return response
+        self.logger.info(f"Using template: {template}")
+        
+        try:
+            response = make_response(render_template(
+                template, 
+                subdomain=self.subdomain,
+                original_query_string=self.original_query_string
+            ))
+            self.logger.info("Template rendered successfully")
+            
+            response.set_cookie('session_token', session_token, secure=True, httponly=True, samesite='None')
+            self.logger.info("Cookie set successfully")
+            
+            return response
+        except Exception as e:
+            self.logger.error(f"Error rendering template: {str(e)}")
+            raise
 
     @auth_required
     def background_refresh(self):
