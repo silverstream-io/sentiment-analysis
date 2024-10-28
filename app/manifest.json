@@ -24,7 +24,7 @@
         "flexible": true
       },
       "nav_bar": {
-        "url": "https://api.silverstream.io/sentiment-checker/nav_bar",
+        "url": "https://api.silverstream.io/sentiment-checker/navbar",
         "flexible": true
       }
     }
