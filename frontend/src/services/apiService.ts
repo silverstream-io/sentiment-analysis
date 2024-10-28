@@ -186,18 +186,21 @@ export async function getScores(zafClient: any, ticketIds: string[]): Promise<{ 
 export async function updateTicketSentiment(zafClient: any, ticketData: TicketData): Promise<void> {
   debugLog('Updating ticket sentiment:', ticketData);
   try {
-    // Get ticket details including users
-    const ticketDetails = await zafClient.get(['ticket.assignee', 'ticket.requester']);
+    // Use HTTP API instead of zafClient.get()
+    const ticketDetails = await zafClient.request({
+      url: `/api/v2/tickets/${ticketData.id}.json`,
+      type: 'GET'
+    });
     
     const updatedTicketData = {
       ...ticketData,
-      requestor: {
-        id: ticketDetails['ticket.requester'].id,
-        name: ticketDetails['ticket.requester'].name
-      },
-      assignee: ticketDetails['ticket.assignee'] ? {
-        id: ticketDetails['ticket.assignee'].id,
-        name: ticketDetails['ticket.assignee'].name
+      requestor: ticketDetails.ticket.requester ? {
+        id: ticketDetails.ticket.requester.id,
+        name: ticketDetails.ticket.requester.name
+      } : undefined,
+      assignee: ticketDetails.ticket.assignee ? {
+        id: ticketDetails.ticket.assignee.id,
+        name: ticketDetails.ticket.assignee.name
       } : undefined
     };
 
