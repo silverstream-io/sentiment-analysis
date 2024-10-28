@@ -11,20 +11,20 @@
   "location": {
     "support": {
       "ticket_sidebar": {
-        "url": "http://localhost:8080/sentiment-checker/",
+        "url": "https://api.silverstream.io/sentiment-checker/",
         "flexible": true
       },
       "background": {
-        "url": "http://localhost:8080/sentiment-checker/background-refresh",
+        "url": "https://api.silverstream.io/sentiment-checker/background-refresh",
         "flexible": true,
         "postData": {}
       },
       "top_bar": {
-        "url": "http://localhost:8080/sentiment-checker/topbar",
+        "url": "https://api.silverstream.io/sentiment-checker/topbar",
         "flexible": true
       },
       "nav_bar": {
-        "url": "http://localhost:8080/sentiment-checker/navbar",
+        "url": "https://api.silverstream.io/sentiment-checker/navbar",
         "flexible": true
       }
     }

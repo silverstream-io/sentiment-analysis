@@ -19,13 +19,8 @@ logger = logging.getLogger('sentiment_checker')
 
 class Root: 
     def index(self):
-        return render_template('root/index.html')
-class Root: 
-    def index(self):
-        return render_template('root/index.html')
+        return render_template('root/index.tmpl')
 
-    def health(self):
-        return "OK"
     def health(self):
         return "OK"
 
@@ -102,6 +97,26 @@ class SentimentChecker:
             self.logger.warning(f"Missing ticket id(s) in request data, data is {self.data}, request remote addr: {self.remote_addr}")
         self.original_query_string = request.query_string.decode()
 
+    # Private methods
+    def _return_render(self, template, view_type, session_token=None):
+        try:
+            response = make_response(render_template(
+                template, 
+                view_type=view_type,
+                subdomain=self.subdomain,
+                original_query_string=self.original_query_string
+            ))
+            self.logger.info("Template rendered successfully")
+            
+            if session_token:
+                response.set_cookie('session_token', session_token, secure=True, httponly=True, samesite='None')
+                self.logger.info("Cookie set successfully")
+            
+            return response
+        except Exception as e:
+            self.logger.error(f"Error rendering template: {str(e)}")
+            raise
+
     # Entry Points
     @auth_required
     def entry(self):
@@ -110,66 +125,53 @@ class SentimentChecker:
         """
         self.init()
         self.logger.info(f"Entry point request received from {self.remote_addr}")
-        self.logger.info(f"Request data: {self.data}")
         self.logger.info(f"Query string: {self.original_query_string}")
         
         session_token = os.urandom(24).hex()
         session['session_token'] = session_token
 
-        if self.debug_mode:
-            template = f'{self.templates}/entry_debug.html'
-        else:
-            template = f'{self.templates}/entry.html'
+        template = f'{self.templates}/index.tmpl'
+        view_type = 'Sidebar'
             
         self.logger.info(f"Using template: {template}")
         
-        try:
-            response = make_response(render_template(
-                template, 
-                subdomain=self.subdomain,
-                original_query_string=self.original_query_string
-            ))
-            self.logger.info("Template rendered successfully")
-            
-            response.set_cookie('session_token', session_token, secure=True, httponly=True, samesite='None')
-            self.logger.info("Cookie set successfully")
-            
-            return response
-        except Exception as e:
-            self.logger.error(f"Error rendering template: {str(e)}")
-            raise
+        return self._return_render(template, view_type, session_token)
+
 
     @auth_required
     def background_refresh(self):
         self.init()
-        if self.debug_mode:
-            template = f'{self.templates}/background_debug.html'
-        else:
-            template = f'{self.templates}/background.html'
-            
-        response = make_response(render_template(
-            template,
-            subdomain=self.subdomain,
-            original_query_string=self.original_query_string
-        ))
-        return response
+        template = f'{self.templates}/index.tmpl'
+        view_type = 'Background'
+        
+        return self._return_render(template, view_type)
     
+
     @auth_required
     def topbar(self):
         self.init()
         self.logger.info(f"Received request for topbar, request remote addr: {self.remote_addr}")
         
-        if self.debug_mode:
-            template = f'{self.templates}/topbar_debug.html'
-        else:
-            template = f'{self.templates}/topbar.html'
-            
-        response = make_response(render_template(
-            template,
-            subdomain=self.subdomain,
-            original_query_string=self.original_query_string
-        ))
-        return response
+        template = f'{self.templates}/index.tmpl'
+        view_type = 'Top Bar'
+        
+        return self._return_render(template, view_type)
+
+
+    @auth_required
+    def navbar(self):
+        """Handle navbar requests"""
+        self.init()
+        self.logger.info(f"Received request for navbar, request remote addr: {self.remote_addr}")
+        
+        # Get the selected range from query params if any
+        selected_range = request.args.get('range')
+        self.logger.info(f"Selected range: {selected_range}")
+        
+        template = f'{self.templates}/index.tmpl'
+        view_type = 'Nav Bar'
+        
+        return self._return_render(template, view_type, selected_range)
 
     # Analysis Methods
     def _analyze(self, ticket_id: str, comment: Dict[str, Any]) -> Dict[str, Any]:
@@ -712,7 +714,7 @@ class SentimentChecker:
             self.logger.error(f"Redis health check failed, request remote addr: {remote_addr}")
             return jsonify({'error': 'Redis service is not healthy'}), 500
             
-        return render_template(f'{self.templates}/health.html')
+        return self._return_render(f'{self.templates}/health.tmpl', 'Health')
 
     @session_required
     def get_unsolved_tickets(self) -> Tuple[Dict[str, Any], int]:
@@ -757,25 +759,3 @@ class SentimentChecker:
             self.logger.error(f"Error getting unsolved tickets from cache: {e}")
             return jsonify({'error': str(e)}), 500
 
-    @auth_required
-    def navbar(self):
-        """Handle navbar requests"""
-        self.init()
-        self.logger.info(f"Received request for navbar, request remote addr: {self.remote_addr}")
-        
-        # Get the selected range from query params if any
-        selected_range = request.args.get('range')
-        self.logger.info(f"Selected range: {selected_range}")
-        
-        if self.debug_mode:
-            template = f'{self.templates}/navbar_debug.html'
-        else:
-            template = f'{self.templates}/navbar.html'
-            
-        response = make_response(render_template(
-            template,
-            subdomain=self.subdomain,
-            original_query_string=self.original_query_string,
-            selected_range=selected_range
-        ))
-        return response

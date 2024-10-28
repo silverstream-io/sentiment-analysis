@@ -1,57 +1,42 @@
-import React, { Suspense } from 'react';
+import React from 'react';
 import ReactDOM from 'react-dom';
 import { HashRouter as Router, Route, Routes } from 'react-router-dom';
 import './tailwind.css';
 import './index.css';
 
-// Create separate chunks for each app type
-const apps = {
-  main: React.lazy(() => import('./apps/main').then(module => ({ 
-    default: module.MainApp 
-  }))),
-  topbar: React.lazy(() => import('./apps/topbar').then(module => ({ 
-    default: module.TopbarApp 
-  }))),
-  background: React.lazy(() => import('./apps/background').then(module => ({ 
-    default: module.BackgroundApp 
-  }))),
-  navbar: React.lazy(() => import('./apps/navbar').then(module => ({ 
-    default: module.NavBarApp 
-  }))),
-};
+import SidebarApp from './components/SidebarApp';
+import TopbarApp from './components/TopbarApp';
+import BackgroundApp from './components/BackgroundApp';
+import NavBarApp from './components/NavBarApp';
 
 declare global {
   interface Window {
     initializeApp: (client: any, originalQueryString: string) => void;
+    APP_CONTEXT: {
+      needsTicketContext: boolean;
+    };
   }
 }
 
-const LoadingComponent = () => (
-  <div>Loading application...</div>
-);
-
 window.initializeApp = (zafClient, originalQueryString) => {
-  const appType = new URLSearchParams(window.location.search).get('type') || 'main';
+  const appType = new URLSearchParams(window.location.search).get('type') || 'sidebar';
   console.log('[Index] Initializing app type:', appType);
-  
-  const Component = apps[appType as keyof typeof apps];
-  
-  if (!Component) {
-    console.error('[Index] Unknown app type:', appType);
-    return;
-  }
+
+  // Define APP_CONTEXT before rendering
+  window.APP_CONTEXT = {
+    needsTicketContext: appType === 'sidebar'
+  };
 
   ReactDOM.render(
     <React.StrictMode>
       <Router>
-        <Suspense fallback={<LoadingComponent />}>
-          <Routes>
-            <Route 
-              path="/" 
-              element={<Component zafClient={zafClient} originalQueryString={originalQueryString} />} 
-            />
-          </Routes>
-        </Suspense>
+        <Routes>
+          <Route path="/sidebar" element={<SidebarApp zafClient={zafClient} originalQueryString={originalQueryString} />} />
+          <Route path="/topbar" element={<TopbarApp zafClient={zafClient} originalQueryString={originalQueryString} />} />
+          <Route path="/navbar" element={<NavBarApp zafClient={zafClient} originalQueryString={originalQueryString} />} />
+          <Route path="/background" element={<BackgroundApp zafClient={zafClient} originalQueryString={originalQueryString} />} />
+          <Route path="/" element={<SidebarApp zafClient={zafClient} originalQueryString={originalQueryString} />} />
+        </Routes>
       </Router>
     </React.StrictMode>,
     document.getElementById('root')

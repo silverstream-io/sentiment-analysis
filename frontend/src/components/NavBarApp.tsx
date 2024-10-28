@@ -26,7 +26,7 @@ const getSortValue = (ticket: TicketData, field: SortField): number => {
   }
 };
 
-const NavBarContent: React.FC<NavBarAppProps> = ({ zafClient, originalQueryString, selectedRange }) => {
+const NavBarApp: React.FC<NavBarAppProps> = ({ zafClient, originalQueryString, selectedRange }) => {
   const [tickets, setTickets] = useState<TicketData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -180,6 +180,7 @@ const NavBarContent: React.FC<NavBarAppProps> = ({ zafClient, originalQueryStrin
           <table className="ticket-table">
             <thead>
               <tr>
+                <th>Subject</th>
                 <th onClick={() => handleSort('sentiment')}>
                   Sentiment {sortField === 'sentiment' && (sortDirection === 'asc' ? '↑' : '↓')}
                 </th>
@@ -196,6 +197,7 @@ const NavBarContent: React.FC<NavBarAppProps> = ({ zafClient, originalQueryStrin
             <tbody>
               {tickets.map(ticket => (
                 <tr key={ticket.id} onClick={() => zafClient.invoke('routeTo', 'ticket', ticket.id)}>
+                  <td><a href={`https://${subdomain}.zendesk.com/agent/tickets/${ticket.id}`}>{ticket.subject}</a></td>
                   <td>
                     <div 
                       className="sentiment-box"
@@ -234,4 +236,4 @@ const NavBarContent: React.FC<NavBarAppProps> = ({ zafClient, originalQueryStrin
   );
 };
 
-export default NavBarContent;
+export default NavBarApp;
