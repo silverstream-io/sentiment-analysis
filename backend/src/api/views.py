@@ -1,24 +1,18 @@
 from typing import Tuple, Dict, Any, Optional, List
 from flask import jsonify, request, render_template, make_response, session
-from flask import jsonify, request, render_template, make_response, session
 from datetime import datetime
 from bs4 import BeautifulSoup as bs
 from services.auth_service import auth_required, session_required
-from bs4 import BeautifulSoup as bs
-from services.auth_service import auth_required, session_required
 from services.pinecone_service import PineconeService
-import numpy as np
-import numpy as np
 from models.emotions import emotions
 from utils import get_subdomain
+import numpy as np
 import logging
-import os
-import math
 import os
 import math
 from config.redis_config import RedisClient, RedisConfigError
 import json
-from datetime import datetime, timedelta
+from datetime import datetime
 
 logger = logging.getLogger('sentiment_checker')
 logger = logging.getLogger('sentiment_checker')
@@ -763,7 +757,7 @@ class SentimentChecker:
             self.logger.error(f"Error getting unsolved tickets from cache: {e}")
             return jsonify({'error': str(e)}), 500
 
-    @session_required
+    @auth_required
     def navbar(self):
         """Handle navbar requests"""
         self.init()
