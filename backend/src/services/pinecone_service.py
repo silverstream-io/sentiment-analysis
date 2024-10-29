@@ -13,6 +13,9 @@ class PineconeService:
         self.index = self.pc.Index(os.getenv("PINECONE_INDEX_NAME"))
         self.namespace = subdomain
         self.openai_client = OpenAI()
+    
+    def describe_index_stats(self):
+        return self.index.describe_index_stats()
 
 
     def get_embedding(self, text):
@@ -97,6 +100,11 @@ class PineconeService:
 
             pagination_token = response.pagination.next
         return vectors
+
+
+    def list_ticket_ids(self):
+        vectors = self.list_ticket_vectors()
+        return [vector['id'].split('#')[0] for vector in vectors]
 
 
     def fetch_vectors(self, vector_ids, namespace=None, include_metadata=True, include_values=False):

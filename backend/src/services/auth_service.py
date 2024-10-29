@@ -23,7 +23,7 @@ def verify_jwt(token):
         failed = []
         for algorithm in algorithms:    
             try:
-                payload = jwt.decode(token, key, algorithms=[algorithm], audience=audience)
+                payload = jwt.decode(token, key, algorithms=[algorithm], audience=audience, leeway=30)
                 return payload
             except jwt.InvalidAlgorithmError as e:
                 logger.warning(f"Invalid algorithm: {str(e)}, request remote addr: {request.remote_addr}")

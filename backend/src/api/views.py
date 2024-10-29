@@ -12,9 +12,7 @@ import os
 import math
 from config.redis_config import RedisClient, RedisConfigError
 import json
-from datetime import datetime
 
-logger = logging.getLogger('sentiment_checker')
 logger = logging.getLogger('sentiment_checker')
 
 class Root: 
@@ -106,11 +104,11 @@ class SentimentChecker:
                 subdomain=self.subdomain,
                 original_query_string=self.original_query_string
             ))
-            self.logger.info("Template rendered successfully")
+            self.logger.debug(f"Template rendered successfully for {view_type}")
             
             if session_token:
                 response.set_cookie('session_token', session_token, secure=True, httponly=True, samesite='None')
-                self.logger.info("Cookie set successfully")
+                self.logger.debug(f"Cookie set successfully for {view_type}")
             
             return response
         except Exception as e:
@@ -275,6 +273,18 @@ class SentimentChecker:
             'upserted_count': upsert_response.upserted_count
         }
 
+    @session_required
+    def get_ticket_count(self) -> Tuple[Dict[str, str], int]:
+        """Get the number of tickets in the database"""
+        self.init()
+        ticket_ids = self.pinecone_service.list_ticket_ids()
+        if ticket_ids:  
+            data = {}
+            sorted_ticket_ids = sorted(ticket_ids)
+            data['count'] = len(ticket_ids)
+            data['latest_ticket'] = sorted_ticket_ids[-1]
+        return jsonify(data), 200
+
     def _convert_date_to_timestamp(self, date_str: str) -> int:
         """Convert ISO date string to Unix timestamp"""
         try:
@@ -344,6 +354,7 @@ class SentimentChecker:
                 
                 if not comments:
                     self.logger.warning(f"No comments found for ticket {ticket_id}")
+                    self.logger.debug(f"Ticket data: {ticket_data}")
                     continue
 
                 # Process comments and get sentiment
@@ -757,5 +768,62 @@ class SentimentChecker:
             
         except Exception as e:
             self.logger.error(f"Error getting unsolved tickets from cache: {e}")
+            return jsonify({'error': str(e)}), 500
+
+    @session_required
+    def check_namespace(self):
+        """Check if a namespace exists in Pinecone for this tenant"""
+        try:
+            data = request.get_json()
+            subdomain = data.get('subdomain')
+        except Exception as e:
+            self.logger.error(f"Error getting subdomain: {str(e)}")
+            return jsonify({'error': str(e)}), 500
+
+        # Check if namespace exists in Pinecone
+        namespaces = self.pinecone_service.describe_index_stats()
+        exists = subdomain in namespaces.get('namespaces', {})
+
+        return jsonify({'exists': exists})
+
+    @session_required
+    def get_ticket_vectors(self):
+        """Get vectors for specific tickets"""
+        try:
+            data = request.get_json()
+            tickets = data.get('tickets', [])
+            if not tickets:
+                return jsonify({'error': 'No tickets provided'}), 400
+
+            # Get vectors from Pinecone
+            index = self.pinecone_client.Index(self.pinecone_index)
+            vectors = {}
+            for ticket_id in tickets:
+                query_response = index.query(
+                    namespace=self.subdomain,
+                    filter={"ticket_id": str(ticket_id)},
+                    top_k=100,
+                    include_metadata=True
+                )
+                vectors[ticket_id] = query_response.matches
+
+            return jsonify({'vectors': vectors})
+        except Exception as e:
+            self.logger.error(f"Error getting ticket vectors: {str(e)}")
+            return jsonify({'error': str(e)}), 500
+
+    @session_required
+    def get_unsolved_tickets(self):
+        """Get unsolved tickets from cache"""
+        try:
+            redis_client = RedisClient.get_instance()
+            cache_key = f"unsolved_tickets:{self.subdomain}"
+            cached_data = redis_client.get(cache_key)
+
+            if cached_data:
+                return jsonify({'results': json.loads(cached_data)})
+            return jsonify({'results': []})
+        except Exception as e:
+            self.logger.error(f"Error getting unsolved tickets from cache: {str(e)}")
             return jsonify({'error': str(e)}), 500
 

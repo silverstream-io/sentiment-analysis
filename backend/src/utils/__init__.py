@@ -9,7 +9,7 @@ from logging.handlers import TimedRotatingFileHandler
 log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '../logs')
 os.makedirs(log_dir, exist_ok=True)
 log_file = os.path.join(log_dir, f"{datetime.now().strftime('%Y-%m-%d')}.log")
-logger = logging.getLogger('api.server')
+logger = logging.getLogger('sentiment-checker')
 logger.setLevel(logging.DEBUG)
 file_handler = TimedRotatingFileHandler(log_file, when="midnight", interval=1, backupCount=30)
 file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
@@ -20,9 +20,6 @@ def get_subdomain(request: Request) -> Tuple[Optional[str], Optional[Tuple[Dict[
     Get the subdomain from the request headers or query parameters.
     Prioritizes X-Zendesk-Subdomain header, then query parameters, then Origin.
     """
-    logger.debug(f"Full request args: {request.args}")
-    logger.debug(f"Request headers: {request.headers}")
-    
     # First check for X-Zendesk-Subdomain header
     subdomain = request.headers.get('X-Zendesk-Subdomain')
     if subdomain:

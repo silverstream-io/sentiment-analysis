@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { getUnsolvedTicketsFromCache } from '../services/apiService';
+import { getUnsolvedTicketsFromCache, debugLog } from '../services/apiService';
 import { TicketData } from '../types';
 
 interface TopbarAppProps {
@@ -14,7 +14,30 @@ const TopbarApp: React.FC<TopbarAppProps> = ({ zafClient, originalQueryString })
     positive: 0
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [isInitializing, setIsInitializing] = useState(false);
   const POLL_INTERVAL = 60000; // Poll every 60 seconds
+
+  useEffect(() => {
+    // Listen for initialization messages
+    const messageHandler = (data: any) => {
+      if (data.type === 'INIT_START') {
+        setIsInitializing(true);
+        setIsLoading(true);
+      } else if (data.type === 'INIT_COMPLETE') {
+        setIsInitializing(false);
+        fetchCounts();
+      }
+    };
+
+    zafClient.on('message', messageHandler);
+    fetchCounts();
+    const pollInterval = setInterval(fetchCounts, POLL_INTERVAL);
+
+    return () => {
+      zafClient.off('message', messageHandler);
+      clearInterval(pollInterval);
+    };
+  }, [zafClient]);
 
   const fetchCounts = async () => {
     try {
@@ -32,22 +55,24 @@ const TopbarApp: React.FC<TopbarAppProps> = ({ zafClient, originalQueryString })
       setCounts(newCounts);
       setIsLoading(false);
     } catch (error) {
-      console.error('Error fetching counts:', error);
+      debugLog('Error fetching counts:', error);
       setIsLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchCounts();
-    const pollInterval = setInterval(fetchCounts, POLL_INTERVAL);
-    return () => clearInterval(pollInterval);
-  }, [zafClient]);
+  if (isInitializing) {
+    return (
+      <div className="topbar-counts initializing">
+        <div className="message">Evaluating backlog, please stand by...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="topbar-counts">
-      <div className="count-box negative">{counts.negative}</div>
-      <div className="count-box neutral">{counts.neutral}</div>
-      <div className="count-box positive">{counts.positive}</div>
+      <div className="count-box negative">{isLoading ? '...' : counts.negative}</div>
+      <div className="count-box neutral">{isLoading ? '...' : counts.neutral}</div>
+      <div className="count-box positive">{isLoading ? '...' : counts.positive}</div>
     </div>
   );
 };

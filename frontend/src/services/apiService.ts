@@ -87,6 +87,39 @@ export async function listTicketVectors(zafClient: any, ticketId: string | numbe
   }
 }
 
+export async function getTicketComments(zafClient: any, ticketId: string | number): Promise<any[]> {
+  const numericTicketId = ensureIntId(ticketId);
+  debugLog('Getting ticket comments for ticket:', numericTicketId);
+  if (zafClient.context().view.type === 'ticket_sidebar') {
+    const commentEvents = await zafClient.get('ticket.comments');
+    const comments = [];
+    for (const comment of commentEvents['ticket.comments']) {
+      const commentData = await zafClient.get('comment', { id: comment.id });
+      comments.push(commentData);
+    }
+    return comments;
+  } else {
+    const ticketComments = await zafClient.request({
+      url: `/api/v2/tickets/${numericTicketId}/comments`,
+      type: 'GET'
+    });
+    return ticketComments.comments;
+  }
+}
+
+export async function getTicketCountData(zafClient: any): Promise<any> {
+  const data = await zafClient.request({
+    url: '/api/v2/tickets/count',
+    type: 'GET'
+  });
+  return data;
+}
+
+export async function getTicketVectorData(zafClient: any): Promise<any> {
+  const data = await makeApiRequest(zafClient, '/get-ticket-count', 'POST');
+  return data;
+}
+
 export async function analyzeComments(zafClient: any, ticketId: string | number, ticketComments: any): Promise<void> {
   const numericTicketId = ensureIntId(ticketId);
   debugLog('Analyzing comments for ticket:', numericTicketId, ticketComments);
@@ -251,12 +284,16 @@ interface PaginatedResponse<T> {
 export async function getUnsolvedTickets(
   zafClient: any, 
   page: number = 1, 
-  perPage: number = 25
+  perPage: number = 25,
+  startTimestamp?: string
 ): Promise<PaginatedResponse<TicketData>> {
-  debugLog('Getting unsolved tickets', { page, perPage });
+  debugLog('Getting unsolved tickets', { page, perPage, startTimestamp });
   try {
+    const context = await zafClient.context();
+    const subdomain = context.account.subdomain;
+
     const response = await zafClient.request({
-      url: `/api/v2/search.json?query=type:ticket status<solved&page=${page}&per_page=${perPage}`,
+      url: `/api/v2/search.json?query=type:ticket status<solved&page=${page}&per_page=${perPage}${startTimestamp ? `&created_at>=${startTimestamp}` : ''}`,
       type: 'GET'
     });
 
@@ -268,7 +305,7 @@ export async function getUnsolvedTickets(
     const tickets: TicketData[] = response.results.map((ticket: any) => ({
       id: ticket.id.toString(),
       subject: ticket.subject,
-      url: `https://${zafClient.context().account.subdomain}.zendesk.com/agent/tickets/${ticket.id}`,
+      url: `https://${subdomain}.zendesk.com/agent/tickets/${ticket.id}`,
       state: ticket.status as ZendeskTicketStatus,
       created_at: ticket.created_at,
       updated_at: ticket.updated_at,
@@ -364,3 +401,13 @@ export async function getTicketId(zafClient: any): Promise<number> {
     throw new Error('Could not get ticket ID in current context');
   }
 }
+
+export const checkNamespace = async (zafClient: any, subdomain: string): Promise<boolean> => {
+  try {
+    const response = await makeApiRequest(zafClient, '/check-namespace', 'POST', { subdomain });
+      return response.exists;
+    } catch (error) {
+      errorLog('Error checking namespace:', error);
+    return false;
+  }
+};
