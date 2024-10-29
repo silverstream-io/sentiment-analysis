@@ -115,8 +115,8 @@ export async function getTicketCountData(zafClient: any): Promise<any> {
   return data;
 }
 
-export async function getTicketVectorData(zafClient: any): Promise<any> {
-  const data = await makeApiRequest(zafClient, '/get-ticket-count', 'POST');
+export async function getTicketVectorCountData(zafClient: any): Promise<any> {
+  const data = await makeApiRequest(zafClient, '/get-ticket-count', 'GET');
   return data;
 }
 
@@ -411,3 +411,15 @@ export const checkNamespace = async (zafClient: any, subdomain: string): Promise
     return false;
   }
 };
+
+export const notifyApp = (zafClient: any, type: string, data: any) => {
+  zafClient.request({
+      url: '/api/v2/apps/notify',
+      type: 'POST',
+      data: {
+        "app_id": process.env.ZAF_APP_ID,
+        "event": "app_notification." + type,
+        "body": data
+      }
+    });
+  };

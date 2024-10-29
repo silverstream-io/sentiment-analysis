@@ -15,28 +15,21 @@ const TopbarApp: React.FC<TopbarAppProps> = ({ zafClient, originalQueryString })
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isInitializing, setIsInitializing] = useState(false);
-  const POLL_INTERVAL = 60000; // Poll every 60 seconds
 
   useEffect(() => {
     // Listen for initialization messages
     const messageHandler = (data: any) => {
-      if (data.type === 'INIT_START') {
+      if (data.status === 'pause') {
         setIsInitializing(true);
         setIsLoading(true);
-      } else if (data.type === 'INIT_COMPLETE') {
+      } else if (data.status === 'resume') {
         setIsInitializing(false);
         fetchCounts();
       }
     };
 
-    zafClient.on('message', messageHandler);
+    zafClient.on('api_notification.pauseTicketDisplay', messageHandler);
     fetchCounts();
-    const pollInterval = setInterval(fetchCounts, POLL_INTERVAL);
-
-    return () => {
-      zafClient.off('message', messageHandler);
-      clearInterval(pollInterval);
-    };
   }, [zafClient]);
 
   const fetchCounts = async () => {

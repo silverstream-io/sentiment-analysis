@@ -6,8 +6,9 @@ import {
   analyzeComments,
   getUnsolvedTickets,
   updateTicketSentiment,
-  getTicketVectorData,
-  getTicketCountData
+  getTicketCountData,
+  getTicketVectorCountData,
+  notifyApp
 } from '../services/apiService';
 import { TicketData } from '../types';
 
@@ -24,10 +25,6 @@ const BackgroundApp: React.FC<BackgroundAppProps> = ({ zafClient, originalQueryS
     setupEventListeners();
   }, []);
 
-  const timestamp = (dateString: string) => {
-    return new Date(dateString).getTime();
-  };
-
   const initializeApp = async () => {
     try {
       // Check if namespace exists
@@ -37,7 +34,7 @@ const BackgroundApp: React.FC<BackgroundAppProps> = ({ zafClient, originalQueryS
 
       if (!namespaceExists) {
         // Notify other components we're starting initialization
-        broadcastMessage('INIT_START');
+        zafClient.trigger('api_notification.pauseTicketDisplay', {'status': 'pause'});
 
         // Get all unsolved tickets
         const tickets = await getAllUnsolvedTickets();
@@ -49,25 +46,41 @@ const BackgroundApp: React.FC<BackgroundAppProps> = ({ zafClient, originalQueryS
         }
 
         // Notify other components we're done
-        broadcastMessage('INIT_COMPLETE');
+        zafClient.trigger('api_notification.pauseTicketDisplay', {'status': 'resume'});
       } else {
-        const ticketVectors = await getTicketVectorData(zafClient);
-        const vectorCount = ticketVectors.count;
+        const ticketVectorCountData = await getTicketVectorCountData(zafClient);
+        const vectorCount = ticketVectorCountData?.count || 0;
         debugLog(`Found ${vectorCount} tickets in vector database`);
+
         const ticketCountData = await getTicketCountData(zafClient);
-        const ticketCount = ticketCountData.count.value;
+        const ticketCount = ticketCountData?.count?.value || 0;
         debugLog(`Found ${ticketCount} tickets in Zendesk`);
         if (vectorCount < ticketCount) {
-          const latestTicket = await zafClient.request({
-            url: `/api/v2/tickets/recent?sort_by=created_at&sort_order=desc&page=1&per_page=1`,
-            type: 'GET'
-          });
-          if (latestTicket.ticket.id > ticketCountData.latest_ticket) {
-            debugLog(`Mismatch between vector database and Zendesk. Refreshing vector database...`);
-            const tickets = await getAllUnsolvedTickets(latestTicket.ticket.created_at);
-            for (const ticket of tickets) {
-              await processTicket(ticket);
+          try {
+            const latestTicketResponse = await zafClient.request({
+              url: `/api/v2/tickets/recent?sort_by=created_at&sort_order=desc&page=1&per_page=1`,
+              type: 'GET'
+            });
+
+            debugLog('Latest ticket response:', latestTicketResponse);
+
+            if (!latestTicketResponse || !latestTicketResponse.ticket) {
+              errorLog('Invalid response format for latest ticket:', latestTicketResponse);
+              return;
             }
+
+            const latestTicketId = latestTicketResponse.ticket.id;
+            debugLog(`Latest ticket ID: ${latestTicketId}`);
+
+            if (latestTicketId > (ticketCountData?.latest_ticket || 0)) {
+              debugLog(`Mismatch between vector database and Zendesk. Refreshing vector database...`);
+              const tickets = await getAllUnsolvedTickets(latestTicketResponse.ticket.created_at);
+              for (const ticket of tickets) {
+                await processTicket(ticket);
+              }
+            }
+          } catch (error) {
+            errorLog('Error fetching latest ticket:', error);
           }
         }
       }
@@ -174,13 +187,6 @@ const BackgroundApp: React.FC<BackgroundAppProps> = ({ zafClient, originalQueryS
     } catch (error) {
       errorLog(`Error processing ticket ${ticket.id}:`, error);
     }
-  };
-
-  const broadcastMessage = (type: 'INIT_START' | 'INIT_COMPLETE') => {
-    zafClient.invoke('routeTo', 'message', {
-      type,
-      data: { timestamp: new Date().toISOString() }
-    });
   };
 
   return null;  // Background app has no UI

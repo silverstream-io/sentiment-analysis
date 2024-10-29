@@ -224,10 +224,10 @@ class SentimentChecker:
         # If no existing vector or invalid metadata, create new analysis
         embedding = self.pinecone_service.get_embedding(text)
         emotion_matches = self.pinecone_service.query_vectors(embedding, 
-                                                          namespace='emotions', 
-                                                          top_k=100, 
-                                                          include_metadata=True, 
-                                                          include_values=False)
+                                                              namespace='emotions', 
+                                                              top_k=100, 
+                                                              include_metadata=True, 
+                                                              include_values=False)
         
         self.logger.debug(f"Emotion matches: {emotion_matches}, request remote addr: {self.remote_addr}")
         emotion_sum = 0
@@ -283,7 +283,9 @@ class SentimentChecker:
             sorted_ticket_ids = sorted(ticket_ids)
             data['count'] = len(ticket_ids)
             data['latest_ticket'] = sorted_ticket_ids[-1]
-        return jsonify(data), 200
+            return jsonify(data), 200
+        else:
+            return jsonify({'error': 'No ticket ids found'}), 404
 
     def _convert_date_to_timestamp(self, date_str: str) -> int:
         """Convert ISO date string to Unix timestamp"""
@@ -783,6 +785,9 @@ class SentimentChecker:
         # Check if namespace exists in Pinecone
         namespaces = self.pinecone_service.describe_index_stats()
         exists = subdomain in namespaces.get('namespaces', {})
+        empty = namespaces.get('namespaces', {}).get(subdomain, {}).get('vector_count', 0) == 0
+        if exists and empty:
+            exists = False
 
         return jsonify({'exists': exists})
 
@@ -796,16 +801,9 @@ class SentimentChecker:
                 return jsonify({'error': 'No tickets provided'}), 400
 
             # Get vectors from Pinecone
-            index = self.pinecone_client.Index(self.pinecone_index)
             vectors = {}
             for ticket_id in tickets:
-                query_response = index.query(
-                    namespace=self.subdomain,
-                    filter={"ticket_id": str(ticket_id)},
-                    top_k=100,
-                    include_metadata=True
-                )
-                vectors[ticket_id] = query_response.matches
+                vectors[ticket_id] = self.pinecone_service.list_ticket_vectors(ticket_id)
 
             return jsonify({'vectors': vectors})
         except Exception as e:

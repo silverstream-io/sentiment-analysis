@@ -5,7 +5,7 @@ from datetime import datetime
 import logging
 
 dotenv.load_dotenv()
-logger = logging.getLogger('sentiment_checker')
+logger = logging.getLogger('pinecone_service')
 
 class PineconeService:
     def __init__(self, subdomain=None):

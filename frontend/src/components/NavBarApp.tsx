@@ -43,21 +43,18 @@ const NavBarApp: React.FC<NavBarAppProps> = ({ zafClient, originalQueryString, s
   useEffect(() => {
     // Listen for initialization messages
     const messageHandler = (data: any) => {
-      if (data.type === 'INIT_START') {
+      if (data.status === 'pause') {
         setIsInitializing(true);
         setIsLoading(true);
-      } else if (data.type === 'INIT_COMPLETE') {
+      } else if (data.status === 'resume') {
         setIsInitializing(false);
         fetchTickets();
       }
     };
 
-    zafClient.on('message', messageHandler);
+    zafClient.on('api_notification.pauseTicketDisplay', messageHandler);
     fetchTickets();
 
-    return () => {
-      zafClient.off('message', messageHandler);
-    };
   }, [zafClient, selectedRange]);
 
   const fetchTickets = async () => {
