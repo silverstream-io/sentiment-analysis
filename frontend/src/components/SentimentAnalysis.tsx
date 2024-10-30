@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { listTicketVectors, analyzeComments, getScore, debugLog, getLast30DaysSentiment, errorLog, getTicketId } from '../services/apiService';
-import { SentimentRange, MIN_SENTIMENT, MAX_SENTIMENT } from '../types';
+import { SentimentRange, TicketInput, MIN_SENTIMENT, MAX_SENTIMENT } from '../types';
 
 interface SentimentAnalysisProps {
   zafClient: any;
@@ -83,22 +83,40 @@ const SentimentAnalysis: React.FC<SentimentAnalysisProps> = ({ zafClient, onSent
       }
 
       // Get all vectors associated with the current ticket
-      const storedVectors = await listTicketVectors(zafClient, ticketId);
+      const storedVectors = await listTicketVectors(zafClient, { ticketId: ticketId });
       debugLog('storedVectors', storedVectors);
 
       if (Object.keys(storedVectors).length === 0) {
         debugLog('No vectors found for ticket:', ticketId);
-        // Create vectors for every comment on the ticket
-        await analyzeComments(zafClient, ticketId, ticketComments);
+        const ticketInput: TicketInput = {
+          ticketId: ticketId,
+          comments: ticketComments['ticket.comments'].map((comment: any) => ({
+            commentId: comment.id,
+            text: comment.value,
+            createdAt: comment.created_at
+          }))
+        };
+        await analyzeComments(zafClient, ticketInput);
       } else {
         // Analyze new comments if any
         if (Array.isArray(ticketComments['ticket.comments'])) {
-          const newComments = ticketComments['ticket.comments'].filter((comment: any) => 
-            !Object.values(storedVectors).some((vector: any) => vector.id === `${ticketId}#${comment.id}`)
-          );
-            if (newComments.length > 0) {
+          const newComments = ticketComments['ticket.comments']
+            .filter((comment: any) => 
+              !Object.values(storedVectors).some((vector: any) => 
+                vector.id === `${ticketId}#${comment.id}`
+              )
+            );
+          if (newComments.length > 0) {
             debugLog('Analyzing new comments:', newComments);
-            await analyzeComments(zafClient, ticketId, { 'ticket.comments': newComments });
+            const ticketInput: TicketInput = {
+              ticketId: ticketId,
+              comments: newComments.map((comment: any) => ({
+                commentId: comment.id,
+                text: comment.value,
+                createdAt: comment.created_at
+              }))
+            };
+            await analyzeComments(zafClient, ticketInput);
           }
         } else {
           debugLog('Unexpected structure in ticketComments:', ticketComments);

@@ -1,5 +1,12 @@
 import Cookies from 'js-cookie';
-import { TicketData, SentimentRange, DEFAULT_SENTIMENT, ZendeskTicketStatus } from '../types';
+import { 
+  DEFAULT_SENTIMENT, 
+  SentimentRange, 
+  TicketData, 
+  TicketInput,
+  TicketRequestData, 
+  ZendeskTicketStatus, 
+} from '../types';
 
 declare global {
     interface Window {
@@ -28,30 +35,44 @@ export async function initializeApp(zafClient: any, queryString: string): Promis
   debugLog('App initialized with query string:', queryString);
 }
 
+function validateRequestBody(body: any): TicketRequestData {
+  if (!body || !body.tickets || !Array.isArray(body.tickets)) {
+    throw new Error('Invalid request body: missing tickets array');
+  }
+  
+  return {
+    tickets: body.tickets.map((ticket: TicketInput) => ({
+      ticketId: ensureIntId(ticket.ticketId),
+      comments: ticket.comments || null
+    }))
+  };
+}
+
 async function makeApiRequest(zafClient: any, endpoint: string, method: string, body?: any) {
   const context = await zafClient.context();
   const subdomain = context.account.subdomain;
 
+  // Validate body unless this is a form-data request (initial connection)
+  if (body && !body.token) {
+    body = validateRequestBody(body);
+  }
+
   debugLog(`Making API request to ${BACKEND_URL}${endpoint}`, { method, subdomain, body });
 
-  const sessionToken = Cookies.get('session_token');
-  debugLog('Session token in cookie:', sessionToken);
-
-  // Only add ticket context for endpoints that need it
   const searchParams = new URLSearchParams(originalQueryString);
   searchParams.set('subdomain', subdomain);
   
   const url = `${BACKEND_URL}${endpoint}?${searchParams.toString()}`;
-  //console.log('Constructed URL:', url);
 
-  //console.log(`Trying to fetch ${url} with method ${method}`);
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'X-Zendesk-Subdomain': subdomain,
+  };
+
   try {
     const response = await fetch(url, {
       method,
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Zendesk-Subdomain': subdomain,
-      },
+      headers,
       body: JSON.stringify(body),
       credentials: 'include',
     });
@@ -63,7 +84,6 @@ async function makeApiRequest(zafClient: any, endpoint: string, method: string, 
     }
 
     const responseData = await response.json();
-    
     debugLog(`API response from ${url}:`, responseData);
     return responseData;
   } catch (error) {
@@ -72,19 +92,9 @@ async function makeApiRequest(zafClient: any, endpoint: string, method: string, 
   }
 }
 
-export async function listTicketVectors(zafClient: any, ticketId: string | number): Promise<any[]> {
-  const numericTicketId = ensureIntId(ticketId);
-  debugLog('Listing ticket vectors for ticket:', numericTicketId);
-  const data = await makeApiRequest(zafClient, '/get-ticket-vectors', 'POST', { tickets: [numericTicketId] });
-  if (data.vectors && typeof data.vectors === 'object') {
-    return data.vectors[numericTicketId] || [];
-  } else if (data.Error) {
-    errorLog('Error fetching vectors:', data.Error);
-    return [];
-  } else {
-    errorLog('Unexpected response from API:', data);
-    return [];
-  }
+export async function listTicketVectors(zafClient: any, ticketData: TicketInput): Promise<any[]> {
+  const data = await makeApiRequest(zafClient, '/get-ticket-vectors', 'POST', { tickets: [ticketData] });
+  return data
 }
 
 export async function getTicketComments(zafClient: any, ticketId: string | number): Promise<any[]> {
@@ -120,25 +130,11 @@ export async function getTicketVectorCountData(zafClient: any): Promise<any> {
   return data;
 }
 
-export async function analyzeComments(zafClient: any, ticketId: string | number, ticketComments: any): Promise<void> {
-  const numericTicketId = ensureIntId(ticketId);
-  debugLog('Analyzing comments for ticket:', numericTicketId, ticketComments);
-  const formattedComments: { [commentId: string]: { text: string, created_at: string } } = {};
-  
-  ticketComments['ticket.comments'].forEach((comment: any) => {
-    formattedComments[comment.id] = {
-      text: comment.value,
-      created_at: comment.created_at || new Date().toISOString()
-    };
-  });
+export async function analyzeComments(zafClient: any, ticketData: TicketInput): Promise<void> {
+  const numericTicketId = ensureIntId(ticketData.ticketId);
+  debugLog('Analyzing comments for ticket:', numericTicketId, ticketData);
 
-  await makeApiRequest(zafClient, '/analyze-comments', 'POST', { 
-    tickets: { 
-      [numericTicketId]: { 
-        comments: formattedComments,
-      }
-    } 
-  });
+  await makeApiRequest(zafClient, '/analyze-comments', 'POST', { tickets: [ticketData] });
 }
 
 export async function getScore(zafClient: any, ticketIds: string | string[] | { ticketId: string } | number | number[]): Promise<SentimentRange> {
@@ -243,30 +239,15 @@ export async function getScores(zafClient: any, ticketIds: string[]): Promise<{ 
 }
 
 // Add this new function
-export async function updateTicketSentiment(zafClient: any, ticketData: TicketData): Promise<void> {
-  debugLog('Updating ticket sentiment:', ticketData);
+export async function removeTicketFromCache(zafClient: any, ticketData: TicketData): Promise<void> {
+  debugLog('Removing ticket from cache:', ticketData);
   try {
     const numericTicketId = ensureIntId(ticketData.id);
-    const ticketDetails = await zafClient.request({
-      url: `/api/v2/tickets/${numericTicketId}.json`,
-      type: 'GET'
-    });
     
-    const updatedTicketData = {
-      ...ticketData,
-      id: numericTicketId,
-      requestor: ticketDetails.ticket.requester ? {
-        id: ensureIntId(ticketDetails.ticket.requester.id),
-        name: ticketDetails.ticket.requester.name
-      } : undefined,
-      assignee: ticketDetails.ticket.assignee ? {
-        id: ensureIntId(ticketDetails.ticket.assignee.id),
-        name: ticketDetails.ticket.assignee.name
-      } : undefined
-    };
-
-    await makeApiRequest(zafClient, '/analyze-comments', 'POST', {
-      ticket: updatedTicketData
+    await makeApiRequest(zafClient, '/remove-ticket-from-cache', 'POST', {
+      tickets: [{
+        ticketId: numericTicketId,
+      }]
     });
   } catch (error) {
     errorLog('Error updating ticket sentiment:', error);

@@ -34,5 +34,5 @@ def create_blueprints():
     sentiment_checker.add_url_rule('/get-scores', 'get_scores', sentiment_checker_obj.get_scores, methods=['POST'])
     sentiment_checker.add_url_rule('/check-namespace', 'check_namespace', sentiment_checker_obj.check_namespace, methods=['POST'])
     sentiment_checker.add_url_rule('/get-ticket-count', 'get_ticket_count', sentiment_checker_obj.get_ticket_count, methods=['GET'])
-
+    sentiment_checker.add_url_rule('/remove-ticket-from-cache', 'remove_ticket_from_cache', sentiment_checker_obj.remove_ticket_from_cache, methods=['POST'])
     return root, sentiment_checker

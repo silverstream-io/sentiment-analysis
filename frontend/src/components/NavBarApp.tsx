@@ -52,7 +52,7 @@ const NavBarApp: React.FC<NavBarAppProps> = ({ zafClient, originalQueryString, s
       }
     };
 
-    zafClient.on('api_notification.pauseTicketDisplay', messageHandler);
+    zafClient.on('pauseTicketDisplay', messageHandler);
     fetchTickets();
 
   }, [zafClient, selectedRange]);

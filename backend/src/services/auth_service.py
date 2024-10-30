@@ -4,7 +4,7 @@ import jwt
 import os
 import logging
 
-logger = logging.getLogger('sentiment_checker')
+logger = logging.getLogger('auth_service')
 
 def verify_jwt(token):
     logger.debug(f"Verifying JWT: {token[:10]}...")  # Log first 10 characters of token
@@ -61,6 +61,21 @@ def auth_required(f):
         return response
     return decorated_function
 
+def process_jwt(token):
+    logger.debug(f"JWT found in request {request.url}, remote addr: {request.remote_addr}")
+    verified_token = verify_jwt(token)
+    if isinstance(verified_token, str):
+        logger.error(f"Invalid JWT: {verified_token}, request remote addr: {request.remote_addr}")
+        return None, verified_token
+        
+    # Set up session
+    session_token = os.urandom(24).hex()
+    session['session_token'] = session_token
+    
+    return {
+        'jwt_token': token,
+        'session_token': session_token
+    }, None
 
 def session_required(f):
     @wraps(f)

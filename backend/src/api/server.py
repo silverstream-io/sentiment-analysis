@@ -1,3 +1,4 @@
+from datetime import timedelta
 from flask import Flask, render_template
 from flask_session import Session
 from flask_cors import CORS
@@ -5,6 +6,7 @@ import dotenv
 import logging
 import os
 import sys
+
 
 dotenv.load_dotenv()
 logging.basicConfig(
@@ -17,6 +19,8 @@ logging.getLogger('pinecone_plugin_interface').setLevel(logging.CRITICAL)
 
 def create_app():
     app = Flask(__name__)
+    app.secret_key = os.environ.get('SECRET_KEY', 'dev-key-change')
+    app.permanent_session_lifetime = timedelta(days=1)
     app.template_folder = '../templates'
     app.static_folder = '../static'
     app.config['SESSION_TYPE'] = 'filesystem'

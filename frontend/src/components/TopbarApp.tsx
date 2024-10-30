@@ -28,7 +28,7 @@ const TopbarApp: React.FC<TopbarAppProps> = ({ zafClient, originalQueryString })
       }
     };
 
-    zafClient.on('api_notification.pauseTicketDisplay', messageHandler);
+    zafClient.on('pauseTicketDisplay', messageHandler);
     fetchCounts();
   }, [zafClient]);
 

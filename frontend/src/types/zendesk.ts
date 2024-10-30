@@ -45,3 +45,23 @@ export interface TicketData {
     name: string;
   };
 }
+
+export interface TicketRequestData {
+  tickets: Array<{
+    ticketId: number;
+    comments?: Array<{
+      id?: string;
+      text?: string;
+      created_at?: string;
+    }>;
+  }>;
+}
+
+export interface TicketInput {
+  ticketId: string | number;
+  comments?: Array<{
+    commentId?: string;
+    text?: string;
+    createdAt?: string;
+  }>;
+}

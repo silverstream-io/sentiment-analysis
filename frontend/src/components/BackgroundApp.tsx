@@ -5,12 +5,12 @@ import {
   checkNamespace, 
   analyzeComments,
   getUnsolvedTickets,
-  updateTicketSentiment,
+  removeTicketFromCache,
   getTicketCountData,
   getTicketVectorCountData,
   notifyApp,
 } from '../services/apiService';
-import { TicketData } from '../types';
+import { TicketData, TicketInput } from '../types';
 
 interface BackgroundAppProps {
   zafClient: any;
@@ -22,11 +22,18 @@ const BackgroundApp: React.FC<BackgroundAppProps> = ({ zafClient, originalQueryS
 
   useEffect(() => {
     debugLog('[BackgroundApp] Running useEffect...');
+    
+    // Initial setup
     initializeApp();
     setupEventListeners();
+
+    // Set up periodic refresh (45 minutes)
+    const refreshInterval = setInterval(refreshCache, 45 * 60 * 1000);
+    
+    // Cleanup
     return () => {
-      debugLog('[BackgroundApp] Cleaning up event listeners...');
-      // Add cleanup if needed
+      debugLog('[BackgroundApp] Cleaning up...');
+      clearInterval(refreshInterval);
     };
   }, [zafClient, originalQueryString]);
 
@@ -40,7 +47,7 @@ const BackgroundApp: React.FC<BackgroundAppProps> = ({ zafClient, originalQueryS
 
       if (!namespaceExists) {
         // Notify other components we're starting initialization
-        zafClient.trigger('api_notification.pauseTicketDisplay', {'status': 'pause'});
+        zafClient.trigger('pauseTicketDisplay', {'status': 'pause'});
         debugLog('[BackgroundApp] initializeApp Paused ticket display');
 
         // Get all unsolved tickets
@@ -53,7 +60,7 @@ const BackgroundApp: React.FC<BackgroundAppProps> = ({ zafClient, originalQueryS
         }
 
         // Notify other components we're done
-        zafClient.trigger('api_notification.pauseTicketDisplay', {'status': 'resume'});
+        zafClient.trigger('pauseTicketDisplay', {'status': 'resume'});
         debugLog('[BackgroundApp] initializeApp Resumed ticket display');
       } else {
         const ticketVectorCountData = await getTicketVectorCountData(zafClient);
@@ -112,10 +119,7 @@ const BackgroundApp: React.FC<BackgroundAppProps> = ({ zafClient, originalQueryS
 
         // If ticket is solved or closed, remove from cache
         if (ticket.state === 'solved' || ticket.state === 'closed') {
-          await updateTicketSentiment(zafClient, {
-            ...ticket,
-            state: ticket.state
-          });
+          await removeTicketFromCache(zafClient, ticket);
           debugLog(`[BackgroundApp] setupEventListeners Removed solved/closed ticket ${ticketId} from cache`);
           return;
         }
@@ -189,19 +193,41 @@ const BackgroundApp: React.FC<BackgroundAppProps> = ({ zafClient, originalQueryS
 
       debugLog(`[BackgroundApp] processTicket Processing ${commentsResponse.comments.length} comments for ticket ${ticket.id}`);
 
-      // Process comments
-      await analyzeComments(zafClient, ticket.id, {
-        'ticket.comments': commentsResponse.comments.map((comment: any) => ({
-          id: comment.id,
-          value: comment.body,
-          created_at: comment.created_at,
-          author: comment.author
+      const ticketInput: TicketInput = {
+        ticketId: ticket.id,
+        comments: commentsResponse.comments.map((comment: any) => ({
+          commentId: comment.id,
+          text: comment.body,
+          createdAt: comment.created_at
         }))
-      });
+      };
 
+      await analyzeComments(zafClient, ticketInput);
       debugLog(`[BackgroundApp] processTicket Processed ticket ${ticket.id}`);
     } catch (error) {
       errorLog(`[BackgroundApp] processTicket Error processing ticket ${ticket.id}:`, error);
+    }
+  };
+
+  const refreshCache = async () => {
+    debugLog('[BackgroundApp] Starting cache refresh...');
+    try {
+      const tickets = await getAllUnsolvedTickets();
+      debugLog(`[BackgroundApp] Found ${tickets.length} unsolved tickets to refresh`);
+      if (tickets.length > 0) {
+        zafClient.trigger('pauseTicketDisplay', {'status': 'pause'});
+      
+        for (const ticket of tickets) {
+          await processTicket(ticket);
+        }
+
+        zafClient.trigger('pauseTicketDisplay', {'status': 'resume'});
+      }
+      
+      // Notify components to update their displays
+      debugLog('[BackgroundApp] Cache refresh complete');
+    } catch (error) {
+      errorLog('[BackgroundApp] Error refreshing cache:', error);
     }
   };
 
