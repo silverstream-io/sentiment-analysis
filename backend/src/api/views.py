@@ -4,7 +4,7 @@ from datetime import datetime
 from bs4 import BeautifulSoup as bs
 from services.auth_service import process_jwt, verify_jwt
 from services.pinecone_service import PineconeService
-from models import emotions, TicketInput, CommentInput, TicketResponse
+from models import emotions, TicketInput, CommentInput, TicketResponse, CommentResponse
 from utils import get_subdomain, tickets_needed
 import numpy as np
 import logging
@@ -565,31 +565,40 @@ class SentimentChecker:
 
 
     @tickets_needed
-    def get_ticket_vectors(self) -> Tuple[TicketResponse, int]:
+    def get_ticket_vectors(self) -> Tuple[Dict[str, TicketResponse], int]:
         """Get vectors for a ticket."""
         self.init()
         self.logger.info(f"Received request for get_ticket_vectors")
         
         results = {}
-        for ticket in self.data['tickets']:
-            ticket_id = str(ticket['ticketId'])
-            vectors = self.pinecone_service.list_ticket_vectors(ticket_id)
+        for ticket in self.ticket_data:
+            vectors = self.pinecone_service.list_ticket_vectors(ticket.ticketId)
             
-            # Transform vectors into TicketResponse format
             comments = []
             for vector in vectors:
                 if 'metadata' in vector:
-                    comments.append({
-                        'commentId': vector['id'].split('#')[1],
-                        'text': vector['metadata'].get('text'),
-                        'createdAt': vector['metadata'].get('created_at'),
-                        'score': vector['metadata'].get('emotion_score')
-                    })
+                    comment = CommentResponse(
+                        commentId=vector['id'].split('#')[1],
+                        text=vector['metadata'].get('text'),
+                        createdAt=vector['metadata'].get('created_at'),
+                        score=vector['metadata'].get('emotion_score'),
+                        author=vector['metadata'].get('author')
+                    )
+                    comments.append(comment)
             
-            results[ticket_id] = {
-                'ticketId': ticket_id,
-                'comments': comments
-            }
+            ticket_response = TicketResponse(
+                ticketId=ticket.ticketId,
+                comments=comments,
+                score=next((v['metadata'].get('score') for v in vectors 
+                           if 'metadata' in v and 'score' in v['metadata']), None),
+                state=next((v['metadata'].get('state') for v in vectors 
+                           if 'metadata' in v and 'state' in v['metadata']), None),
+                updatedAt=next((v['metadata'].get('updated_at') for v in vectors 
+                              if 'metadata' in v and 'updated_at' in v['metadata']), None),
+                createdAt=next((v['metadata'].get('created_at') for v in vectors 
+                              if 'metadata' in v and 'created_at' in v['metadata']), None)
+            )
+            results[str(ticket.ticketId)] = ticket_response
         
         return self._return_response({'vectors': results}), 200
 
