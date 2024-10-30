@@ -17,8 +17,8 @@ def create_blueprints():
     sentiment_checker = Blueprint('sentiment-checker', __name__, url_prefix='/sentiment-checker')
 
     # Entry routes
-    sentiment_checker.add_url_rule('/', 'entry', sentiment_checker_obj.entry, methods=['POST'])
-    sentiment_checker.add_url_rule('', 'entry', sentiment_checker_obj.entry, methods=['POST'])
+    sentiment_checker.add_url_rule('/', 'sidebar', sentiment_checker_obj.sidebar, methods=['POST'])
+    sentiment_checker.add_url_rule('', 'sidebar', sentiment_checker_obj.sidebar, methods=['POST'])
     sentiment_checker.add_url_rule('/background-refresh', 'background_refresh', sentiment_checker_obj.background_refresh, methods=['POST'])
     sentiment_checker.add_url_rule('/topbar', 'topbar', sentiment_checker_obj.topbar, methods=['POST'])
     sentiment_checker.add_url_rule('/navbar', 'navbar', sentiment_checker_obj.navbar, methods=['POST'])

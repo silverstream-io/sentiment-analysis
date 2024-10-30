@@ -2,10 +2,10 @@ from typing import Tuple, Dict, Any, Optional, List
 from flask import jsonify, request, render_template, make_response, session
 from datetime import datetime
 from bs4 import BeautifulSoup as bs
-from services.auth_service import auth_required, session_required
+from services.auth_service import verify_jwt
 from services.pinecone_service import PineconeService
 from models.emotions import emotions
-from utils import get_subdomain
+from utils import get_subdomain, tickets_needed
 import numpy as np
 import logging
 import os
@@ -19,8 +19,6 @@ class Root:
     def index(self):
         return render_template('root/index.tmpl')
 
-    def health(self):
-        return "OK"
 
 class SentimentChecker:
     """
@@ -50,34 +48,61 @@ class SentimentChecker:
             self.logger.error(f"Failed to initialize Redis - continuing without caching: {e}")
         self.cache_ttl = 3600  # 1 hour cache TTL
 
+
     def init(self):
+        """Initialize the request data and handle authentication."""
+        self.original_query_string = request.query_string.decode()
         self.remote_addr = request.headers.get('X-Forwarded-For', request.remote_addr)
         self.subdomain, error = get_subdomain(request)
+        
         if error:
             self.logger.error(f"Error getting subdomain: {error}, request remote addr: {self.remote_addr}")
-            raise Exception(error)
-        
-        # Log the subdomain being used
-        self.logger.info(f"Using subdomain: {self.subdomain} for request from {self.remote_addr}")
-        
-        if request.method == 'POST':
-            if request.is_json:
-                self.logger.info(f"Received JSON data for background_refresh")
-                self.data = request.get_json()
-            elif request.form:
-                self.logger.info(f"Received form data for background_refresh")
-                self.data = request.form.to_dict()
-            elif request.data:
-                self.logger.info(f"Received data for background_refresh")
-                self.data = request.data.decode('utf-8')
-            else:
-                self.logger.warning(f"Received unknown data for background_refresh")
-                self.data = None 
+            return error
+
+        # Parse request data
+        if request.is_json:
+            self.data = request.get_json()
+        elif request.form:
+            self.data = request.form.to_dict()
+        elif request.data:
+            self.data = request.data
         else:
-            self.logger.warning(f"Received unknown method for init")
-            return jsonify({'error': 'Unknown method'}), 400
+            self.data = {}
+
+        # Check for JWT token
+        token = self.data.get('token')
+        if token:
+            self.logger.debug(f"JWT found in request {request.url}, remote addr: {self.remote_addr}")
+            verified_token = verify_jwt(token)
+            if isinstance(verified_token, str):
+                self.logger.error(f"Invalid JWT: {verified_token}, request remote addr: {self.remote_addr}")
+                return jsonify({'error': verified_token}), 401
+                
+            # Set up session
+            session_token = os.urandom(24).hex()
+            session['session_token'] = session_token
+            
+            # Remove token from data after verification
+            self.data.pop('token', None)
+            
+            # Prepare response with cookies
+            response = make_response(jsonify({'status': 'authenticated'}))
+            response.set_cookie('jwt_token', token, httponly=True, secure=True, samesite='Strict')
+            response.set_cookie('session_token', session_token, secure=True, httponly=True, samesite='Strict')
+            return response
+        
+        # Check for existing session
+        elif 'session_token' in session:
+            session_cookie = request.cookies.get('session_token')
+            if not session_cookie or session_cookie != session['session_token']:
+                self.logger.warning(f"Invalid session attempt from IP: {self.remote_addr}")
+                return jsonify({'error': 'Invalid session'}), 401
+        else:
+            self.logger.warning(f"No authentication found for request from IP: {self.remote_addr}")
+            return jsonify({'error': 'Authentication required'}), 401
+
         self.pinecone_service = PineconeService(self.subdomain)
-        self.logger.debug(f"Initialized SentimentChecker with subdomain: {self.subdomain}, request remote addr: {self.remote_addr}")
+        self.logger.debug(f"Initialized SentimentChecker with subdomain: {self.subdomain}")
         self.ticket_ids = []
         if 'ticket' in self.data:
             if isinstance(self.data['ticket'], str):
@@ -90,88 +115,9 @@ class SentimentChecker:
             elif isinstance(self.data['tickets'], dict):
                 self.ticket_ids.extend([str(ticket_id) for ticket_id in self.data['tickets'].keys()])
             self.ticket_ids = list(set(self.ticket_ids))  # Remove duplicates
-        
-        if not self.ticket_ids and not request.form:
-            self.logger.warning(f"Missing ticket id(s) in request data, data is {self.data}, request remote addr: {self.remote_addr}")
-        self.original_query_string = request.query_string.decode()
+       
 
     # Private methods
-    def _return_render(self, template, view_type, session_token=None):
-        try:
-            response = make_response(render_template(
-                template, 
-                view_type=view_type,
-                subdomain=self.subdomain,
-                original_query_string=self.original_query_string
-            ))
-            self.logger.debug(f"Template rendered successfully for {view_type}")
-            
-            if session_token:
-                response.set_cookie('session_token', session_token, secure=True, httponly=True, samesite='None')
-                self.logger.debug(f"Cookie set successfully for {view_type}")
-            
-            return response
-        except Exception as e:
-            self.logger.error(f"Error rendering template: {str(e)}")
-            raise
-
-    # Entry Points
-    @auth_required
-    def entry(self):
-        """
-        Serve the entry point for the Zendesk application.
-        """
-        self.init()
-        self.logger.info(f"Entry point request received from {self.remote_addr}")
-        self.logger.info(f"Query string: {self.original_query_string}")
-        
-        session_token = os.urandom(24).hex()
-        session['session_token'] = session_token
-
-        template = f'{self.templates}/index.tmpl'
-        view_type = 'Sidebar'
-            
-        self.logger.info(f"Using template: {template}")
-        
-        return self._return_render(template, view_type, session_token)
-
-
-    @auth_required
-    def background_refresh(self):
-        self.init()
-        template = f'{self.templates}/index.tmpl'
-        view_type = 'Background'
-        
-        return self._return_render(template, view_type)
-    
-
-    @auth_required
-    def topbar(self):
-        self.init()
-        self.logger.info(f"Received request for topbar, request remote addr: {self.remote_addr}")
-        
-        template = f'{self.templates}/index.tmpl'
-        view_type = 'Top Bar'
-        
-        return self._return_render(template, view_type)
-
-
-    @auth_required
-    def navbar(self):
-        """Handle navbar requests"""
-        self.init()
-        self.logger.info(f"Received request for navbar, request remote addr: {self.remote_addr}")
-        
-        # Get the selected range from query params if any
-        selected_range = request.args.get('range')
-        self.logger.info(f"Selected range: {selected_range}")
-        
-        template = f'{self.templates}/index.tmpl'
-        view_type = 'Nav Bar'
-        
-        return self._return_render(template, view_type, selected_range)
-
-    # Analysis Methods
     def _analyze(self, ticket_id: str, comment: Dict[str, Any]) -> Dict[str, Any]:
         """
         Analyze a single comment and store the result in the database.
@@ -196,20 +142,16 @@ class SentimentChecker:
         except Exception as e:
             self.logger.error(f"Error getting timestamp for comment {comment_id}: {e}, request remote addr: {self.remote_addr}")
             timestamp = int(datetime.now().timestamp())
-        
         if not text:
             return None
-
         text = bs(text, 'html.parser').get_text()
         text = ' '.join(text.split())
         vector_id = f"{ticket_id}#{comment_id}"
-
         try:
             existing_vector = self.pinecone_service.fetch_vector(vector_id)
         except Exception as e:
             self.logger.debug(f"Error fetching vector {vector_id}: {e}, request remote addr: {self.remote_addr}")
             existing_vector = None
-
         if existing_vector:
             self.logger.debug(f"Existing vector found for comment {comment_id}: {existing_vector}, request remote addr: {self.remote_addr}")
             if 'metadata' in existing_vector and 'emotion_score' in existing_vector['metadata']:
@@ -243,7 +185,6 @@ class SentimentChecker:
                         self.logger.debug(f"Emotion \"{emotion_name}\" not found in emotions dictionary or has no value. Request remote addr: {self.remote_addr}")
                 else:
                     self.logger.debug(f"Emotion \"{emotion_name}\" not found in emotions dictionary or has no value. Request remote addr: {self.remote_addr}")
-
         self.logger.debug(f"Emotion sum for comment {comment_id}: {emotion_sum}, request remote addr: {self.remote_addr}")
         
         if matched_count > 0:   
@@ -273,42 +214,19 @@ class SentimentChecker:
             'upserted_count': upsert_response.upserted_count
         }
 
-    @session_required
-    def get_ticket_count(self) -> Tuple[Dict[str, str], int]:
-        """Get the number of tickets in the database"""
-        self.init()
-        ticket_ids = self.pinecone_service.list_ticket_ids()
-        if ticket_ids:  
-            data = {}
-            sorted_ticket_ids = sorted(ticket_ids)
-            data['count'] = len(ticket_ids)
-            data['latest_ticket'] = sorted_ticket_ids[-1]
-            return jsonify(data), 200
-        else:
-            return jsonify({'error': 'No ticket ids found'}), 404
 
-    def _convert_date_to_timestamp(self, date_str: str) -> int:
-        """Convert ISO date string to Unix timestamp"""
-        try:
-            dt = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
-            return int(dt.timestamp())
-        except Exception as e:
-            self.logger.error(f"Error converting date {date_str}: {e}")
-            return int(datetime.now().timestamp())
 
     def _cache_ticket_data(self, ticket_id: str, data: Dict[str, Any], ttl: int = 3600) -> None:
         """Cache ticket data including score and timestamps"""
         if not self.redis:
             self.logger.debug(f"Redis not available - skipping cache for ticket {ticket_id}")
             return
-
         try:
             # Convert dates to timestamps
             if 'updated_at' in data:
                 data['updated_at'] = self._convert_date_to_timestamp(data['updated_at'])
             if 'created_at' in data:
                 data['created_at'] = self._convert_date_to_timestamp(data['created_at'])
-
             # Add user data if present
             if 'requestor' in data:
                 requestor = data['requestor']
@@ -323,7 +241,6 @@ class SentimentChecker:
                     'id': assignee.get('id'),
                     'name': assignee.get('name')
                 }
-
             cache_key = self._get_cache_key(ticket_id)
             self.redis.set(cache_key, json.dumps(data), ex=ttl)
             self.logger.debug(f"Cached data for ticket {ticket_id}: {data}")
@@ -338,16 +255,157 @@ class SentimentChecker:
         except Exception as e:
             self.logger.error(f"Error caching data for ticket {ticket_id}: {e}")
 
-    @session_required
+
+    def _convert_date_to_timestamp(self, date_str: str) -> int:
+        """Convert ISO date string to Unix timestamp"""
+        try:
+            dt = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+            return int(dt.timestamp())
+        except Exception as e:
+            self.logger.error(f"Error converting date {date_str}: {e}")
+            return int(datetime.now().timestamp())
+
+
+    def _get_cache_key(self, key_type: str, ticket_id: Optional[str] = None) -> str:
+        """Generate a cache key with subdomain
+        Args:
+            key_type: Type of cache key (e.g., 'sentiment_scores', 'ticket')
+            ticket_id: Optional ticket ID for ticket-specific keys
+        """
+        if ticket_id:
+            return f"{self.subdomain}:{key_type}:{ticket_id}"
+        return f"{self.subdomain}:{key_type}"
+
+
+    def _get_cached_scores(self) -> dict:
+        """Get scores from cache"""
+        cache_key = self._get_cache_key("sentiment_scores")
+        cached_data = self.redis.get(cache_key)
+        if cached_data:
+            return json.loads(cached_data)
+        return {}
+
+
+    def _get_cached_ticket_data(self, ticket_id: str) -> Optional[Dict[str, Any]]:
+        """Get ticket data from cache"""
+        try:
+            cache_key = self._get_cache_key(ticket_id)
+            cached_data = self.redis.get(cache_key)
+            if cached_data:
+                self.logger.debug(f"Cache hit for ticket {ticket_id}")
+                return json.loads(cached_data)
+            self.logger.debug(f"Cache miss for ticket {ticket_id}")
+            return None
+        except Exception as e:
+            self.logger.error(f"Error getting cached data for ticket {ticket_id}: {e}")
+            return None
+
+
+    def _populate_cache(self) -> None:
+        """Populate cache with all available scores"""
+        try:
+            # Get all vectors from Pinecone
+            vectors = self.pinecone_service.list_all_vectors()
+            
+            scores = {}
+            for vector in vectors:
+                if '#' in vector.id:  # Ensure it's a comment vector
+                    ticket_id = vector.id.split('#')[0]
+                    if ticket_id not in scores:
+                        scores[ticket_id] = {
+                            'score': vector.metadata.get('emotion_score', 0),
+                            'timestamp': vector.metadata.get('timestamp', 0)
+                        }
+            
+            self._update_cache(scores)
+            self.logger.info(f"Cache populated with {len(scores)} ticket scores")
+            
+        except Exception as e:
+            self.logger.error(f"Error populating cache: {e}")
+
+
+    def _return_render(self, template, view_type, session_token=None):
+        try:
+            response = make_response(render_template(
+                template, 
+                view_type=view_type,
+                subdomain=self.subdomain,
+                original_query_string=self.original_query_string
+            ))
+            self.logger.debug(f"Template rendered successfully for {view_type}")
+            
+            if session_token:
+                response.set_cookie('session_token', session_token, secure=True, httponly=True, samesite='None')
+                self.logger.debug(f"Cookie set successfully for {view_type}")
+            
+            return response
+        except Exception as e:
+            self.logger.error(f"Error rendering template: {str(e)}")
+            raise
+
+
+    def _update_cache(self, scores: dict):
+        """Update the cache with new scores"""
+        cache_key = self._get_cache_key("sentiment_scores")
+        self.redis.set(cache_key, json.dumps(scores), ex=self.cache_ttl)
+
+
+    # Entry Points
+    def sidebar(self):
+        """
+        Serve the sidebar for the Zendesk application.
+        """
+        self.init()
+        self.logger.info(f"Sidebar request received from {self.remote_addr}")
+        self.logger.info(f"Query string: {self.original_query_string}")
+        
+        template = f'{self.templates}/index.tmpl'
+        view_type = 'Sidebar'
+            
+        self.logger.info(f"Using template: {template}")
+        
+        return self._return_render(template, view_type)
+
+
+    def background_refresh(self):
+        self.init()
+        template = f'{self.templates}/index.tmpl'
+        view_type = 'Background'
+        
+        return self._return_render(template, view_type)
+    
+
+    def topbar(self):
+        self.init()
+        self.logger.info(f"Received request for topbar, request remote addr: {self.remote_addr}")
+        
+        template = f'{self.templates}/index.tmpl'
+        view_type = 'Top Bar'
+        
+        return self._return_render(template, view_type)
+
+
+    def navbar(self):
+        """Handle navbar requests"""
+        self.init()
+        self.logger.info(f"Received request for navbar, request remote addr: {self.remote_addr}")
+        
+        # Get the selected range from query params if any
+        selected_range = request.args.get('range')
+        self.logger.info(f"Selected range: {selected_range}")
+        
+        template = f'{self.templates}/index.tmpl'
+        view_type = 'Nav Bar'
+        
+        return self._return_render(template, view_type, selected_range)
+
+
+    # Analysis Methods
+    @tickets_needed
     def analyze_comments(self) -> Tuple[Dict[str, str], int]:
         """Analyze comments and store results with metadata"""
         self.init()
         self.logger.info(f"Received request for analyze_comments")
-
-        if not self.ticket_ids:
-            self.logger.warning(f"Missing ticket ids in request data")
-            return jsonify({'error': 'Missing ticket ids'}), 400
-
         all_results = []
         for ticket_id in self.ticket_ids:
             try:
@@ -358,7 +416,6 @@ class SentimentChecker:
                     self.logger.warning(f"No comments found for ticket {ticket_id}")
                     self.logger.debug(f"Ticket data: {ticket_data}")
                     continue
-
                 # Process comments and get sentiment
                 comment_results = []
                 for comment_id, comment_data in comments.items():
@@ -374,10 +431,8 @@ class SentimentChecker:
                     except Exception as e:
                         self.logger.error(f"Error analyzing comment {comment_id}: {e}")
                         continue
-
                 if not comment_results:
                     continue
-
                 # Calculate overall ticket score from comment scores
                 total_weighted_score = 0
                 total_weight = 0
@@ -399,26 +454,21 @@ class SentimentChecker:
                         total_weighted_score += score * weight
                         total_weight += weight
                         all_scores.append(score)
-
                     if total_weight > 0:
                         calculated_score = total_weighted_score / total_weight
                     else:
                         calculated_score = 0
-
                     # Apply standard deviation adjustment
                     if all_scores:
                         all_scores_np = np.array(all_scores)
                         std_dev = np.std(all_scores_np)
                         most_recent_score = all_scores[0]
-
                         if most_recent_score < calculated_score and abs(calculated_score - most_recent_score) > std_dev:
                             calculated_score = most_recent_score
                         elif most_recent_score > calculated_score and abs(most_recent_score - calculated_score) > std_dev:
                             calculated_score = most_recent_score
-
                     # Normalize score to [-1, 1]
                     calculated_score = max(min(calculated_score / 10, 1), -1)
-
                     # Store ticket metadata
                     metadata = {
                         'score': calculated_score,
@@ -432,14 +482,13 @@ class SentimentChecker:
                         'ticket_id': ticket_id,
                         'score': calculated_score
                     })
-
             except Exception as e:
                 self.logger.error(f"Error processing ticket {ticket_id}: {e}")
                 continue
-
         return jsonify({'results': all_results}), 200
 
-    @session_required
+
+    @tickets_needed
     def update_sentiment(self) -> Tuple[Dict[str, Any], int]:
         """
         Update sentiment for new comments on a ticket.
@@ -450,9 +499,9 @@ class SentimentChecker:
         ticket_id = self.data.get('ticket_id')
         comments = self.data.get('comments', [])
         
-        if not ticket_id or not comments:
-            self.logger.warning(f"Missing ticket_id or comments in request data, data is {self.data}, request remote addr: {self.remote_addr}")
-            return jsonify({'error': 'Missing ticket_id or comments'}), 400
+        if len(comments) == 0:
+            self.logger.warning(f"Missing comments in request data, data is {self.data}, request remote addr: {self.remote_addr}")
+            return jsonify({'error': 'Missing comments'}), 400
             
         existing_vectors = self.pinecone_service.list_ticket_vectors(ticket_id)
         existing_comment_ids = set(vector['id'].split('#')[1] for vector in existing_vectors)
@@ -479,18 +528,29 @@ class SentimentChecker:
             'new_comments_count': len(new_comments)
         }), 200
 
+
     # Data Retrieval Methods
-    @session_required
+    def get_ticket_count(self) -> Tuple[Dict[str, str], int]:
+        """Get the number of tickets in the database"""
+        self.init()
+        ticket_ids = self.pinecone_service.list_ticket_ids()
+        if ticket_ids:  
+            data = {}
+            sorted_ticket_ids = sorted(ticket_ids)
+            data['count'] = len(ticket_ids)
+            data['latest_ticket'] = sorted_ticket_ids[-1]
+            return jsonify(data), 200
+        else:
+            return jsonify({'error': 'No ticket ids found'}), 404
+
+
+    @tickets_needed
     def get_ticket_vectors(self) -> Tuple[Dict[str, str], int]:
         """
         Get the vectors of one or more tickets.
         """
         self.init()
         self.logger.info(f"Received request for get_ticket_vectors, request remote addr: {self.remote_addr}")
-
-        if not self.ticket_ids:
-            self.logger.warning(f"Missing ticket ids in request data, data is {self.data}, request remote addr: {self.remote_addr}")
-            return jsonify({'error': 'Missing ticket ids'}), 400
 
         all_vectors = {}
         for ticket_id in self.ticket_ids:
@@ -504,17 +564,14 @@ class SentimentChecker:
 
         return jsonify({'vectors': all_vectors}), 200
 
-    @session_required
+
+    @tickets_needed
     def get_score(self, ticket_id: str = None) -> Tuple[Dict[str, str], int]:
         """
         Get the weighted score of a ticket or multiple tickets based on the emotions of the comments.
         """
         self.init()
         self.logger.info(f"Received request for get_score, request remote addr: {self.remote_addr}")
-
-        if not self.ticket_ids:
-            self.logger.warning(f"Missing ticket ids in request data, data is {self.data}, request remote addr: {self.remote_addr}")
-            return jsonify({'error': 'Missing ticket ids'}), 400
 
         self.logger.debug(f"Processing {len(self.ticket_ids)} tickets for score calculation, request remote addr: {self.remote_addr}")
         
@@ -587,72 +644,13 @@ class SentimentChecker:
         #self.logger.debug(f"Calculated weighted score for {len(self.ticket_ids)} tickets: {weighted_score}, request remote addr: {self.remote_addr}")
         return jsonify({'score': weighted_score}), 200
 
-    def _get_cache_key(self, key_type: str) -> str:
-        """Generate a cache key with subdomain"""
-        return f"{self.subdomain}:{key_type}"
 
-    def _get_cached_scores(self) -> dict:
-        """Get scores from cache"""
-        cache_key = self._get_cache_key("sentiment_scores")
-        cached_data = self.redis.get(cache_key)
-        if cached_data:
-            return json.loads(cached_data)
-        return {}
 
-    def _update_cache(self, scores: dict):
-        """Update the cache with new scores"""
-        cache_key = self._get_cache_key("sentiment_scores")
-        self.redis.set(cache_key, json.dumps(scores), ex=self.cache_ttl)
-
-    def _get_cache_key(self, ticket_id: str) -> str:
-        """Generate a cache key for a ticket"""
-        return f"{self.subdomain}:ticket:{ticket_id}"
-
-    def _get_cached_ticket_data(self, ticket_id: str) -> Optional[Dict[str, Any]]:
-        """Get ticket data from cache"""
-        try:
-            cache_key = self._get_cache_key(ticket_id)
-            cached_data = self.redis.get(cache_key)
-            if cached_data:
-                self.logger.debug(f"Cache hit for ticket {ticket_id}")
-                return json.loads(cached_data)
-            self.logger.debug(f"Cache miss for ticket {ticket_id}")
-            return None
-        except Exception as e:
-            self.logger.error(f"Error getting cached data for ticket {ticket_id}: {e}")
-            return None
-
-    def get_unsolved_tickets(self) -> List[Dict[str, Any]]:
-        """Get all unsolved tickets with their scores"""
-        try:
-            unsolved_key = f"{self.subdomain}:unsolved_tickets"
-            ticket_ids = self.redis.smembers(unsolved_key)
-            
-            tickets = []
-            for ticket_id in ticket_ids:
-                ticket_data = self._get_cached_ticket_data(ticket_id)
-                if ticket_data:
-                    tickets.append({
-                        'id': ticket_id,
-                        'score': ticket_data.get('score', 0),
-                        'state': ticket_data.get('state', ''),
-                        'updated_at': ticket_data.get('updated_at')
-                    })
-            
-            return tickets
-        except Exception as e:
-            self.logger.error(f"Error getting unsolved tickets: {e}")
-            return []
-
-    @session_required
+    @tickets_needed
     def get_scores(self) -> Tuple[Dict[str, str], int]:
         """Get scores, using cache when possible"""
         self.init()
         self.logger.info(f"Received request for get_scores, request remote addr: {self.remote_addr}")
-
-        if not self.ticket_ids:
-            self.logger.warning(f"Missing ticket ids in request data")
-            return jsonify({'error': 'Missing ticket ids'}), 400
 
         scores = {}
         for ticket_id in self.ticket_ids:
@@ -686,52 +684,10 @@ class SentimentChecker:
 
         return jsonify({'scores': scores}), 200
 
-    def _populate_cache(self) -> None:
-        """Populate cache with all available scores"""
-        try:
-            # Get all vectors from Pinecone
-            vectors = self.pinecone_service.list_all_vectors()
-            
-            scores = {}
-            for vector in vectors:
-                if '#' in vector.id:  # Ensure it's a comment vector
-                    ticket_id = vector.id.split('#')[0]
-                    if ticket_id not in scores:
-                        scores[ticket_id] = {
-                            'score': vector.metadata.get('emotion_score', 0),
-                            'timestamp': vector.metadata.get('timestamp', 0)
-                        }
-            
-            self._update_cache(scores)
-            self.logger.info(f"Cache populated with {len(scores)} ticket scores")
-            
-        except Exception as e:
-            self.logger.error(f"Error populating cache: {e}")
 
-    def health(self):
-        """Health check including Redis"""
-        remote_addr = request.headers.get('X-Forwarded-For', request.remote_addr)
-        
-        # Check Pinecone
-        pinecone_service = PineconeService('emotions')
-        check_pinecone = pinecone_service.check_health()
-        
-        # Check Redis
-        redis_healthy = RedisClient.health_check()
-        
-        if not check_pinecone.get('status', {}).get('ready', True):
-            self.logger.error(f"Pinecone health check failed, request remote addr: {remote_addr}")
-            return jsonify({'error': 'Pinecone service is not healthy'}), 500
-            
-        if not redis_healthy:
-            self.logger.error(f"Redis health check failed, request remote addr: {remote_addr}")
-            return jsonify({'error': 'Redis service is not healthy'}), 500
-            
-        return self._return_render(f'{self.templates}/health.tmpl', 'Health')
-
-    @session_required
     def get_unsolved_tickets(self) -> Tuple[Dict[str, Any], int]:
         """Get unsolved tickets from cache with pagination"""
+        self.init()
         try:
             page = int(request.args.get('page', 1))
             per_page = int(request.args.get('per_page', 10))
@@ -772,9 +728,10 @@ class SentimentChecker:
             self.logger.error(f"Error getting unsolved tickets from cache: {e}")
             return jsonify({'error': str(e)}), 500
 
-    @session_required
+
     def check_namespace(self):
         """Check if a namespace exists in Pinecone for this tenant"""
+        self.init()
         try:
             data = request.get_json()
             subdomain = data.get('subdomain')
@@ -791,37 +748,25 @@ class SentimentChecker:
 
         return jsonify({'exists': exists})
 
-    @session_required
-    def get_ticket_vectors(self):
-        """Get vectors for specific tickets"""
-        try:
-            data = request.get_json()
-            tickets = data.get('tickets', [])
-            if not tickets:
-                return jsonify({'error': 'No tickets provided'}), 400
 
-            # Get vectors from Pinecone
-            vectors = {}
-            for ticket_id in tickets:
-                vectors[ticket_id] = self.pinecone_service.list_ticket_vectors(ticket_id)
-
-            return jsonify({'vectors': vectors})
-        except Exception as e:
-            self.logger.error(f"Error getting ticket vectors: {str(e)}")
-            return jsonify({'error': str(e)}), 500
-
-    @session_required
-    def get_unsolved_tickets(self):
-        """Get unsolved tickets from cache"""
-        try:
-            redis_client = RedisClient.get_instance()
-            cache_key = f"unsolved_tickets:{self.subdomain}"
-            cached_data = redis_client.get(cache_key)
-
-            if cached_data:
-                return jsonify({'results': json.loads(cached_data)})
-            return jsonify({'results': []})
-        except Exception as e:
-            self.logger.error(f"Error getting unsolved tickets from cache: {str(e)}")
-            return jsonify({'error': str(e)}), 500
-
+    # Health Check
+    def health(self):
+        """Health check including Redis"""
+        remote_addr = request.headers.get('X-Forwarded-For', request.remote_addr)
+        
+        # Check Pinecone
+        pinecone_service = PineconeService('emotions')
+        check_pinecone = pinecone_service.check_health()
+        
+        # Check Redis
+        redis_healthy = RedisClient.health_check()
+        
+        if not check_pinecone.get('status', {}).get('ready', True):
+            self.logger.error(f"Pinecone health check failed, request remote addr: {remote_addr}")
+            return jsonify({'error': 'Pinecone service is not healthy'}), 500
+            
+        if not redis_healthy:
+            self.logger.error(f"Redis health check failed, request remote addr: {remote_addr}")
+            return jsonify({'error': 'Redis service is not healthy'}), 500
+            
+        return self._return_render(f'{self.templates}/health.tmpl', 'Health')
