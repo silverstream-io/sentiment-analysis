@@ -93,8 +93,14 @@ const SentimentAnalysis: React.FC<SentimentAnalysisProps> = ({ zafClient, onSent
           comments: ticketComments['ticket.comments'].map((comment: any) => ({
             commentId: comment.id,
             text: comment.value,
-            createdAt: comment.created_at
-          }))
+            createdAt: comment.created_at,
+            author: comment.author_id?.toString()
+          })),
+          state: await zafClient.get('ticket.status'),
+          createdAt: await zafClient.get('ticket.created_at'),
+          updatedAt: await zafClient.get('ticket.updated_at'),
+          requestor: (await zafClient.get('ticket.requester.name')),
+          assignee: (await zafClient.get('ticket.assignee.name'))
         };
         await analyzeComments(zafClient, ticketInput);
       } else {
@@ -113,8 +119,14 @@ const SentimentAnalysis: React.FC<SentimentAnalysisProps> = ({ zafClient, onSent
               comments: newComments.map((comment: any) => ({
                 commentId: comment.id,
                 text: comment.value,
-                createdAt: comment.created_at
-              }))
+                createdAt: comment.created_at,
+                author: comment.author_id?.toString()
+              })),
+              state: await zafClient.get('ticket.status'),
+              createdAt: await zafClient.get('ticket.created_at'),
+              updatedAt: await zafClient.get('ticket.updated_at'),
+              requestor: (await zafClient.get('ticket.requester.name')),
+              assignee: (await zafClient.get('ticket.assignee.name'))
             };
             await analyzeComments(zafClient, ticketInput);
           }

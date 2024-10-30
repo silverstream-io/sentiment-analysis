@@ -4,7 +4,7 @@ from datetime import datetime
 from bs4 import BeautifulSoup as bs
 from services.auth_service import process_jwt, verify_jwt
 from services.pinecone_service import PineconeService
-from models import emotions, TicketResponse
+from models import emotions, TicketInput, CommentInput, TicketResponse
 from utils import get_subdomain, tickets_needed
 import numpy as np
 import logging
@@ -83,6 +83,7 @@ class SentimentChecker:
             # Set up Flask session
             session['subdomain'] = self.subdomain
             session.permanent = True
+            self.data.pop('token', None)
             
         if not request.form and ('tickets' not in self.data or not isinstance(self.data['tickets'], list)):
             self.logger.warning(f"Invalid request format, missing tickets array: {self.data}, request remote addr: {self.remote_addr}")
@@ -92,17 +93,9 @@ class SentimentChecker:
             self.logger.warning(f"Invalid session attempt from IP: {self.remote_addr}")
             return self._return_response({'error': 'Authentication required'}), 401
         
-        self.ticket_ids = []
-        if 'ticket' in self.data:
-            if isinstance(self.data['ticket'], str):
-                self.ticket_ids.append(self.data['ticket'])
-            elif isinstance(self.data['ticket'], dict) and 'ticketId' in self.data['ticket']:
-                self.ticket_ids.append(self.data['ticket']['ticketId'])
-        if 'tickets' in self.data:
-            if isinstance(self.data['tickets'], list):
-                self.ticket_ids.extend([str(ticket) for ticket in self.data['tickets'] if isinstance(ticket, (str, int))])
-            elif isinstance(self.data['tickets'], dict):
-                self.ticket_ids.extend([str(ticket_id) for ticket_id in self.data['tickets'].keys()])
+        self.ticket_data = []
+        for ticket in self.data['tickets']:
+            self.ticket_data.append(TicketResponse(**ticket))
         self.ticket_ids = list(set(self.ticket_ids))  # Remove duplicates 
 
 
@@ -401,90 +394,94 @@ class SentimentChecker:
         return self._return_render(template, view_type, selected_range)
 
 
+    def _process_comment_results(self, ticket: TicketInput, comment_results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Process comment results and return a list of processed results"""
+        # Placeholder for future processing logic
+        total_weighted_score = 0
+        total_weight = 0
+        lambda_factor = 1.0  # Decay rate
+        all_scores = []
+        results = []
+        # Sort comments by timestamp
+        sorted_results = sorted(comment_results, 
+                                key=lambda x: x.get('timestamp', 0), 
+                                reverse=True)
+                
+        if sorted_results:
+            newest_timestamp = sorted_results[0].get('timestamp', 0)
+            
+            for result in sorted_results:
+                time_diff = (newest_timestamp - result.get('timestamp', 0)) / (24 * 3600)
+                weight = math.exp(-lambda_factor * time_diff)
+                score = result['emotion_score']
+                total_weighted_score += score * weight
+                total_weight += weight
+                all_scores.append(score)
+                
+            if total_weight > 0:
+                calculated_score = total_weighted_score / total_weight
+            else:
+                calculated_score = 0
+            # Apply standard deviation adjustment
+            if all_scores:
+                all_scores_np = np.array(all_scores)
+                std_dev = np.std(all_scores_np)
+                most_recent_score = all_scores[0]
+                if most_recent_score < calculated_score and abs(calculated_score - most_recent_score) > std_dev:
+                    calculated_score = most_recent_score
+                elif most_recent_score > calculated_score and abs(most_recent_score - calculated_score) > std_dev:
+                    calculated_score = most_recent_score
+                # Normalize score to [-1, 1]
+                calculated_score = max(min(calculated_score / 10, 1), -1)
+                # Store ticket metadata
+                metadata = {
+                        'score': calculated_score,
+                        'state': ticket.state,
+                        'updated_at': self._convert_date_to_timestamp(ticket.updated_at),
+                        'created_at': self._convert_date_to_timestamp(ticket.created_at)
+                    }
+                    
+                self._cache_ticket_data(ticket.ticketId, metadata)
+                results.append({
+                    'ticket_id': ticket.ticketId,
+                    'score': calculated_score
+                })
+        return results
+
     # Analysis Methods
     @tickets_needed
-    def analyze_comments(self) -> Tuple[Dict[str, str], int]:
-        """Analyze comments and store results with metadata"""
+    def analyze_comments(self) -> Tuple[Dict[str, Any], int]:
+        """Analyze comments for sentiment."""
         self.init()
         self.logger.info(f"Received request for analyze_comments")
+        
         all_results = []
-        for ticket_id in self.ticket_ids:
+        for ticket in self.ticket_data:
             try:
-                ticket_data = self.data.get('ticket', {})
-                comments = ticket_data.get('comments', [])
-                
-                if not comments:
-                    self.logger.warning(f"No comments found for ticket {ticket_id}")
-                    self.logger.debug(f"Ticket data: {ticket_data}")
+                if not ticket.comments:
                     continue
                 # Process comments and get sentiment
                 comment_results = []
-                for comment_id, comment_data in comments.items():
+                for comment in ticket.comments:
                     try:
                         formatted_comment = {
-                            'id': comment_id,
-                            'text': comment_data.get('text', ''),
-                            'created_at': comment_data.get('created_at')
+                            'id': comment.commentId,
+                            'text': comment.text,
+                            'created_at': comment.createdAt
                         }
-                        result = self._analyze(ticket_id, formatted_comment)
+                        result = self._analyze(ticket.ticketId, formatted_comment)
                         if result:
                             comment_results.append(result)
                     except Exception as e:
-                        self.logger.error(f"Error analyzing comment {comment_id}: {e}")
+                        self.logger.error(f"Error analyzing comment {comment.commentId}: {e}")
                         continue
                 if not comment_results:
                     continue
                 # Calculate overall ticket score from comment scores
-                total_weighted_score = 0
-                total_weight = 0
-                lambda_factor = 1.0  # Decay rate
-                all_scores = []
-                
-                # Sort comments by timestamp
-                sorted_results = sorted(comment_results, 
-                                     key=lambda x: x.get('timestamp', 0), 
-                                     reverse=True)
-                
-                if sorted_results:
-                    newest_timestamp = sorted_results[0].get('timestamp', 0)
-                    
-                    for result in sorted_results:
-                        time_diff = (newest_timestamp - result.get('timestamp', 0)) / (24 * 3600)
-                        weight = math.exp(-lambda_factor * time_diff)
-                        score = result['emotion_score']
-                        total_weighted_score += score * weight
-                        total_weight += weight
-                        all_scores.append(score)
-                    if total_weight > 0:
-                        calculated_score = total_weighted_score / total_weight
-                    else:
-                        calculated_score = 0
-                    # Apply standard deviation adjustment
-                    if all_scores:
-                        all_scores_np = np.array(all_scores)
-                        std_dev = np.std(all_scores_np)
-                        most_recent_score = all_scores[0]
-                        if most_recent_score < calculated_score and abs(calculated_score - most_recent_score) > std_dev:
-                            calculated_score = most_recent_score
-                        elif most_recent_score > calculated_score and abs(most_recent_score - calculated_score) > std_dev:
-                            calculated_score = most_recent_score
-                    # Normalize score to [-1, 1]
-                    calculated_score = max(min(calculated_score / 10, 1), -1)
-                    # Store ticket metadata
-                    metadata = {
-                        'score': calculated_score,
-                        'state': ticket_data.get('state', ''),
-                        'updated_at': self._convert_date_to_timestamp(ticket_data.get('updated_at', '')),
-                        'created_at': self._convert_date_to_timestamp(ticket_data.get('created_at', ''))
-                    }
-                    
-                    self._cache_ticket_data(ticket_id, metadata)
-                    all_results.append({
-                        'ticket_id': ticket_id,
-                        'score': calculated_score
-                    })
+                processed_comment_results = self._process_comment_results(ticket, comment_results)
+                all_results.extend(processed_comment_results)
             except Exception as e:
-                self.logger.error(f"Error processing ticket {ticket_id}: {e}")
+                self.logger.error(f"Error processing ticket {ticket.ticketId}: {e}")
                 continue
         return jsonify({'results': all_results}), 200
 
@@ -510,48 +507,45 @@ class SentimentChecker:
         """Remove a ticket from cache"""
         self.init()
         self.logger.info(f"Received request for remove_ticket_from_cache, request remote addr: {self.remote_addr}")
-        for ticket_id in self.ticket_ids:   
-            self._remove_ticket_from_cache(ticket_id)
+        for ticket in self.ticket_data:   
+            self._remove_ticket_from_cache(ticket.ticketId)
         return jsonify({'message': 'Tickets removed from cache'}), 200
 
     @tickets_needed
     def update_sentiment(self) -> Tuple[Dict[str, Any], int]:
-        """
-        Update sentiment for new comments on a ticket.
-        """
+        """Update sentiment for new comments on a ticket."""
         self.init()
-        self.logger.info(f"Received request for update_sentiment, request remote addr: {self.remote_addr}")
-        
-        ticket_id = self.data.get('ticket_id')
-        comments = self.data.get('comments', [])
-        
-        if len(comments) == 0:
-            self.logger.warning(f"Missing comments in request data, data is {self.data}, request remote addr: {self.remote_addr}")
-            return jsonify({'error': 'Missing comments'}), 400
-            
-        existing_vectors = self.pinecone_service.list_ticket_vectors(ticket_id)
-        existing_comment_ids = set(vector['id'].split('#')[1] for vector in existing_vectors)
-        new_comments = [comment for comment in comments if str(comment['id']) not in existing_comment_ids]
+        self.logger.info(f"Received request for update_sentiment")
         
         results = []
-        for comment in new_comments:
-            try:
-                formatted_comment = {
-                    'id': str(comment['id']),
-                    'text': comment['value'],
-                    'created_at': comment['created_at']
-                }
-                result = self._analyze(ticket_id, formatted_comment)
-                if result:
-                    results.append(result)
-            except Exception as e:
-                self.logger.error(f"Error analyzing comment {comment['id']}: {e}, request remote addr: {self.remote_addr}")
+        for ticket in self.ticket_data:
+            if not ticket.comments:
+                self.logger.warning(f"Missing comments in request data for ticket {ticket.ticketId}")
                 continue
-                
-        return jsonify({
+            
+            existing_vectors = self.pinecone_service.list_ticket_vectors(ticket.ticketId)
+            existing_comment_ids = set(vector['id'].split('#')[1] for vector in existing_vectors)
+            new_comments = [comment for comment in ticket.comments 
+                           if str(comment.commentId) not in existing_comment_ids]
+            
+            for comment in new_comments:
+                try:
+                    formatted_comment = {
+                        'id': str(comment.commentId),
+                        'text': comment.text,
+                        'created_at': comment.createdAt
+                    }
+                    result = self._analyze(ticket.ticketId, formatted_comment)
+                    if result:
+                        results.append(result)
+                except Exception as e:
+                    self.logger.error(f"Error analyzing comment {comment.commentId}: {e}")
+                    continue
+        
+        return self._return_response({
             'message': 'Sentiment updated successfully',
             'results': results,
-            'new_comments_count': len(new_comments)
+            'new_comments_count': len(results)
         }), 200
 
 
@@ -565,9 +559,9 @@ class SentimentChecker:
             sorted_ticket_ids = sorted(ticket_ids)
             data['count'] = len(ticket_ids)
             data['latest_ticket'] = sorted_ticket_ids[-1]
-            return jsonify(data), 200
+            return self._return_response(data), 200
         else:
-            return jsonify({'error': 'No ticket ids found'}), 404
+            return self._return_response({'error': 'No ticket ids found'}), 404
 
 
     @tickets_needed
@@ -597,7 +591,7 @@ class SentimentChecker:
                 'comments': comments
             }
         
-        return jsonify({'vectors': results}), 200
+        return self._return_response({'vectors': results}), 200
 
     @tickets_needed
     def get_score(self, ticket_id: str = None) -> Tuple[Dict[str, str], int]:
@@ -635,7 +629,7 @@ class SentimentChecker:
             if len(comment_vectors) == 0:
                 self.logger.warning(f"No vectors found for tickets: {self.ticket_ids}")
                 self.logger.info(f"namespace: {self.pinecone_service.namespace}")
-                return jsonify({'score': 0}), 200
+                return self._return_response({'score': 0}), 200
 
             sorted_vectors = sorted(comment_vectors[0].items(), key=lambda x: x[1]['metadata']['timestamp'], reverse=True)
             self.logger.info(f"Sorted vectors: {sorted_vectors}")
@@ -675,7 +669,6 @@ class SentimentChecker:
         weighted_score = max(min(weighted_score, 1), -1)
         
         self.logger.info(f"Calculated weighted score for {len(self.ticket_ids)} tickets: {weighted_score}, request remote addr: {self.remote_addr}")
-        #self.logger.debug(f"Calculated weighted score for {len(self.ticket_ids)} tickets: {weighted_score}, request remote addr: {self.remote_addr}")
         return self._return_response({'score': weighted_score})
 
     @tickets_needed
@@ -685,18 +678,18 @@ class SentimentChecker:
         self.logger.info(f"Received request for get_scores, request remote addr: {self.remote_addr}")
 
         scores = {}
-        for ticket_id in self.ticket_ids:
+        for ticket in self.ticket_data:
             try:
                 # Try to get data from cache first
-                cached_data = self._get_cached_ticket_data(ticket_id)
+                cached_data = self._get_cached_ticket_data(ticket.ticketId)
                 if cached_data:
-                    scores[ticket_id] = cached_data['score']
+                    scores[ticket.ticketId] = cached_data['score']
                     continue
 
                 # If not in cache, calculate and cache it
-                score_response, status_code = self.get_score(ticket_id)
+                score_response, status_code = self.get_score(ticket.ticketId)
                 if status_code != 200:
-                    self.logger.error(f"Error getting score for ticket {ticket_id}")
+                    self.logger.error(f"Error getting score for ticket {ticket.ticketId}")
                     continue
 
                 score_data = score_response.get_json()
@@ -705,16 +698,16 @@ class SentimentChecker:
                     'state': self.data.get('ticket_state', ''),
                     'updated_at': self.data.get('updated_at')
                 }
-                scores[ticket_id] = ticket_data['score']
+                scores[ticket.ticketId] = ticket_data['score']
                 
                 # Cache the new data
-                self._cache_ticket_data(ticket_id, ticket_data)
+                self._cache_ticket_data(ticket.ticketId, ticket_data)
 
             except Exception as e:
-                self.logger.error(f"Error processing ticket {ticket_id}: {e}")
+                self.logger.error(f"Error processing ticket {ticket.ticketId}: {e}")
                 continue
 
-        return jsonify({'scores': scores}), 200
+        return self._return_response({'scores': scores}), 200
 
     def get_unsolved_tickets(self) -> Tuple[Dict[str, Any], int]:
         """Get unsolved tickets from cache with pagination"""
@@ -748,7 +741,7 @@ class SentimentChecker:
                         'updated_at': updated_at
                     })
             
-            return jsonify({
+            return self._return_response({
                 'tickets': tickets,
                 'total_count': total_count,
                 'page': page,
@@ -757,7 +750,7 @@ class SentimentChecker:
             
         except Exception as e:
             self.logger.error(f"Error getting unsolved tickets from cache: {e}")
-            return jsonify({'error': str(e)}), 500
+            return self._return_response({'error': str(e)}), 500
 
     # Health Check
     def health(self):
@@ -773,10 +766,10 @@ class SentimentChecker:
         
         if not check_pinecone.get('status', {}).get('ready', True):
             self.logger.error(f"Pinecone health check failed, request remote addr: {remote_addr}")
-            return jsonify({'error': 'Pinecone service is not healthy'}), 500
+            return self._return_response({'error': 'Pinecone service is not healthy'}), 500
             
         if not redis_healthy:
             self.logger.error(f"Redis health check failed, request remote addr: {remote_addr}")
-            return jsonify({'error': 'Redis service is not healthy'}), 500
+            return self._return_response({'error': 'Redis service is not healthy'}), 500
             
         return self._return_render(f'{self.templates}/health.tmpl', 'Health')

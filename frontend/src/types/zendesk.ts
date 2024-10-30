@@ -57,11 +57,21 @@ export interface TicketRequestData {
   }>;
 }
 
+export interface CommentInput {
+  commentId: string | number;
+  text?: string;
+  createdAt?: string;
+  score?: number;
+  author?: string;
+}
+
 export interface TicketInput {
   ticketId: string | number;
-  comments?: Array<{
-    commentId?: string;
-    text?: string;
-    createdAt?: string;
-  }>;
+  comments?: CommentInput[];
+  score?: number;
+  requestor?: string;
+  assignee?: string;
+  state?: string;
+  updatedAt?: string;
+  createdAt?: string;
 }
