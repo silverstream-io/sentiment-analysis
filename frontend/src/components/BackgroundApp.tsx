@@ -79,17 +79,17 @@ const BackgroundApp: React.FC<BackgroundAppProps> = ({ zafClient, originalQueryS
 
             debugLog('[BackgroundApp] initializeApp Latest ticket response:', latestTicketResponse);
 
-            if (!latestTicketResponse || !latestTicketResponse.ticket) {
+            if (!latestTicketResponse || !latestTicketResponse.tickets) {
               errorLog('[BackgroundApp] initializeApp Invalid response format for latest ticket:', latestTicketResponse);
               return;
             }
 
-            const latestTicketId = latestTicketResponse.ticket.id;
+            const latestTicketId = latestTicketResponse.tickets[0].id;
             debugLog(`[BackgroundApp] initializeApp Latest ticket ID: ${latestTicketId}`);
 
             if (latestTicketId > (ticketCountData?.latest_ticket || 0)) {
               debugLog(`[BackgroundApp] initializeApp Mismatch between vector database and Zendesk. Refreshing vector database...`);
-              const tickets = await getAllUnsolvedTickets(latestTicketResponse.ticket.created_at);
+              const tickets = await getAllUnsolvedTickets(latestTicketResponse.tickets[0].created_at);
               for (const ticket of tickets) {
                 await processTicket(ticket);
               }

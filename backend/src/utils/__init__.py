@@ -1,5 +1,5 @@
 from datetime import datetime
-from flask import Request, jsonify, request
+from flask import Request, Response, jsonify, make_response, render_template, request
 from functools import wraps
 from typing import Optional, Tuple, Dict, Callable, List
 from logging.handlers import TimedRotatingFileHandler
@@ -59,7 +59,7 @@ def prune_duplicate_emotions(emotion_results):
     
     return list(unique_results.values())
 
-def _check_element(element, key, type=str) -> Tuple[bool, str]:
+def check_element(element, key, type=str) -> Tuple[bool, str]:
     if isinstance(element, dict):
         response = key in element and isinstance(element[key], type)
         element_type = 'dict'
@@ -70,3 +70,32 @@ def _check_element(element, key, type=str) -> Tuple[bool, str]:
         response = False
         element_type = 'unknown'
     return response, element_type
+
+def return_render(template, view_type, subdomain, original_query_string, session_token=None) -> Response:
+    if view_type == 'Health':
+        subdomain = 'health'
+        original_query_string = ''
+
+    try:
+        response = make_response(render_template(
+            template, 
+            view_type=view_type,
+            subdomain=subdomain,
+            original_query_string=original_query_string
+        ))
+        logger.debug(f"Template rendered successfully for {view_type}")
+            
+        if session_token:
+            response.set_cookie('session_token', session_token, secure=True, httponly=True, samesite='None')
+            logger.debug(f"Cookie set successfully for {view_type}")
+            
+        return response
+    except Exception as e:
+        logger.error(f"Error rendering template: {str(e)}")
+        raise
+
+def return_response(data, status_code=200) -> Response:
+    """Helper method to return response with session data if needed"""
+    response = jsonify(data)
+    response.status_code = status_code
+    return response

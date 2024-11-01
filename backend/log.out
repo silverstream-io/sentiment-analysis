@@ -152,3 +152,8 @@ Successfully connected to Redis
 2024-10-31 16:56:39,457 - sentiment_checker - INFO - Most recent score: 1.2931345135384604, weighted score: 1.2931345135384604, std_dev: 0.0
 2024-10-31 16:56:39,458 - sentiment_checker - INFO - Calculated weighted score for 1 tickets: 1, request remote addr: 127.0.0.1
 2024-10-31 16:56:39,459 - werkzeug - INFO - 127.0.0.1 - - [31/Oct/2024 16:56:39] "POST /sentiment-checker/get-score?subdomain=d3v-silverstream HTTP/1.1" 200 -
+2024-10-31 17:32:15,373 - werkzeug - INFO -  * Detected change in '/Users/cory/dev/silverstream-io/sentiment-analysis/backend/src/api/views.py', reloading
+2024-10-31 17:32:15,620 - werkzeug - INFO -  * Restarting with stat
+Successfully connected to Redis
+2024-10-31 17:32:17,327 - werkzeug - WARNING -  * Debugger is active!
+2024-10-31 17:32:17,343 - werkzeug - INFO -  * Debugger PIN: 144-184-965

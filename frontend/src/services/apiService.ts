@@ -105,25 +105,25 @@ async function makeApiRequest(
     'X-Zendesk-Subdomain': subdomain,
   };
 
+  const fetchOptions: RequestInit = {
+    method,
+    headers,
+    credentials: 'include',  // This ensures cookies are sent with requests
+    ...(method === 'POST' && body ? { body: JSON.stringify(body) } : {})
+  };
+
   try {
-    const response = await fetch(url, {
-      method,
-      headers,
-      body: method === 'POST' ? JSON.stringify(body) : undefined,
-      credentials: 'include',
-    });
-
+    const response = await fetch(url, fetchOptions);
     if (!response.ok) {
-      const errorText = await response.text();
-      errorLog(`API request failed: ${url} ${response.status} ${response.statusText}`, errorText);
-      throw new Error(`API request failed: ${url} {response.status} ${response.statusText}`);
+      if (response.status === 401) {
+        // Handle unauthorized - could trigger a re-auth flow if needed
+        throw new Error('Authentication required');
+      }
+      throw new Error(`API request failed: ${response.status} ${response.statusText}`);
     }
-
-    const responseData = await response.json();
-    debugLog(`API response from ${url}:`, responseData);
-    return responseData;
+    return response.json();
   } catch (error) {
-    debugLog(`API request failed: ${error}`);
+    errorLog('API request failed:', error);
     throw error;
   }
 }
@@ -178,6 +178,9 @@ export async function analyzeComments(zafClient: any, ticketData: TicketData): P
   debugLog('Analyzing comments for ticket:', ticketData.id, ticketData);
 
   const response = await makeApiRequest(zafClient, '/analyze-comments', 'POST', { tickets: [ticketData] });
+  warnLog('analyzeComments response:', response);
+  warnLog('ticketData:', ticketData);
+  
   return response;
 }
 

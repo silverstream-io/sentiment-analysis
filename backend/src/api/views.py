@@ -1,11 +1,11 @@
 from typing import Tuple, Dict, Any, Optional, List, Union
-from flask import Response, jsonify, request, render_template, make_response, session
+from flask import Response, jsonify, request, render_template, make_response
 from datetime import datetime
 from bs4 import BeautifulSoup as bs
-from services.auth_service import process_jwt, verify_jwt
+from services.auth_service import init_required
 from services.pinecone_service import PineconeService
 from models import emotions, TicketInput, CommentInput, TicketResponse, CommentResponse
-from utils import get_subdomain, _check_element
+from utils import check_element, return_render, return_response
 import numpy as np
 import logging
 import os
@@ -43,61 +43,7 @@ class SentimentChecker:
         self.logger = logger
         self.templates = 'sentiment-checker'
         self.debug_mode = os.environ.get('SENTIMENT_CHECKER_DEBUG') == 'true'
-        self.redis = None
-        self.response = None
-        try:
-            self.redis = RedisClient.get_instance()
-        except RedisConfigError as e:
-            self.logger.error(f"Failed to initialize Redis - continuing without caching: {e}")
-        self.cache_ttl = 3600  # 1 hour cache TTL
-
-
-    def init(self):
-        """Initialize the request data and handle authentication."""
-        self.original_query_string = request.query_string.decode()
-        self.remote_addr = request.headers.get('X-Forwarded-For', request.remote_addr)
-        self.subdomain, error = get_subdomain(request)
-        self.pinecone_service = PineconeService(self.subdomain)
-        
-        if error:
-            self.logger.error(f"Error getting subdomain: {error}, request remote addr: {self.remote_addr}")
-            return self._return_response({'Error in init': error}), 400 
-
-        # Parse request data
-        if request.is_json:
-            self.data = request.get_json()
-        elif request.form:
-            self.data = request.form.to_dict()
-        elif request.data:
-            self.data = request.data
-        elif request.method == 'GET':
-            self.data = request.args.to_dict()  
-        else:
-            self.data = {}
-
-        # Check for JWT token in form data (initial request)
-        token = None
-        if _check_element(self.data, 'token')[0]:
-            token = self.data.get('token')
-        if token:
-            verified_token = verify_jwt(token)
-            if isinstance(verified_token, str):
-                return self._return_response({'error': verified_token}), 401
-                
-            # Set up Flask session
-            session['subdomain'] = self.subdomain
-            session.permanent = True
-            self.data.pop('token', None)
-            
-        # Check for existing session
-        if 'subdomain' not in session or session['subdomain'] != self.subdomain:
-            self.logger.warning(f"Invalid session attempt from IP: {self.remote_addr}")
-            return self._return_response({'error': 'Authentication required'}), 401
-        
-        self.ticket_data = []
-        for ticket in self.data.get('tickets', []):
-            self.ticket_data.append(TicketInput(**ticket))
-
+        self.data = None
 
     # Private methods
     def _analyze(self, ticket: TicketInput, comment: CommentInput) -> CommentResponse:
@@ -112,6 +58,7 @@ class SentimentChecker:
         Returns:
             Dict containing the analysis results
         """
+        self.logger.debug(f"Analyzing comment {comment.id} for ticket {ticket.id}")
         if not comment.body:
             self.logger.warning(f"Missing body in comment {comment.id} for ticket {ticket.id}")
             self.logger.warning(f"Comment data: {comment.model_dump()}")
@@ -126,7 +73,7 @@ class SentimentChecker:
             self.logger.debug(f"Error fetching vector {vector_id}: {e}, request remote addr: {self.remote_addr}")
             existing_vector = None
         if existing_vector:
-            self.logger.debug(f"Existing vector found for comment {comment.id}: {existing_vector}, request remote addr: {self.remote_addr}")
+            self.logger.info(f"Existing vector found for comment {comment.id}: {existing_vector}, request remote addr: {self.remote_addr}")
             if 'metadata' in existing_vector and 'emotion_score' in existing_vector['metadata']:
                 response = CommentResponse(
                     **comment.model_dump(),
@@ -329,14 +276,14 @@ class SentimentChecker:
                 calculated_score = max(min(calculated_score / 10, 1), -1)
                 # Store ticket metadata
                 updated_at = None
-                check, element_type = _check_element(ticket, 'updated_at')
+                check, element_type = check_element(ticket, 'updated_at')
                 if check:
                     if element_type == 'dict':
                         updated_at = self._convert_date_to_timestamp(ticket.updated_at)
                     elif element_type == 'object':
                         updated_at = self._convert_date_to_timestamp(getattr(ticket, 'updated_at'))
                 created_at = None
-                check, element_type = _check_element(ticket, 'created_at')
+                check, element_type = check_element(ticket, 'created_at')
                 if check:
                     if element_type == 'dict':
                         created_at = self._convert_date_to_timestamp(ticket.created_at)
@@ -356,35 +303,6 @@ class SentimentChecker:
                 })
         return results
 
-    def _return_render(self, template, view_type, session_token=None) -> Response:
-        if view_type == 'Health':
-            self.subdomain = 'health'
-            self.original_query_string = ''
-
-        try:
-            response = make_response(render_template(
-                template, 
-                view_type=view_type,
-                subdomain=self.subdomain,
-                original_query_string=self.original_query_string
-            ))
-            self.logger.debug(f"Template rendered successfully for {view_type}")
-            
-            if session_token:
-                response.set_cookie('session_token', session_token, secure=True, httponly=True, samesite='None')
-                self.logger.debug(f"Cookie set successfully for {view_type}")
-            
-            return response
-        except Exception as e:
-            self.logger.error(f"Error rendering template: {str(e)}")
-            raise
-
-    def _return_response(self, data, status_code=200) -> Response:
-        """Helper method to return response with session data if needed"""
-        response = jsonify(data)
-        response.status_code = status_code
-        return response
-
     def _remove_ticket_from_cache(self, id: str):
         """Remove a ticket from cache"""
         cache_key = self._get_cache_key("ticket", id)
@@ -397,11 +315,11 @@ class SentimentChecker:
         self.redis.set(cache_key, json.dumps(scores), ex=self.cache_ttl)
 
     # Entry Points
+    @init_required
     def sidebar(self):
         """
         Serve the sidebar for the Zendesk application.
         """
-        self.init()
         self.logger.info(f"Sidebar request received from {self.remote_addr}")
         self.logger.info(f"Query string: {self.original_query_string}")
         
@@ -410,30 +328,30 @@ class SentimentChecker:
             
         self.logger.info(f"Using template: {template}")
         
-        return self._return_render(template, view_type)
+        return return_render(template, view_type, self.subdomain, self.original_query_string)
 
 
+    @init_required
     def background_refresh(self):
-        self.init()
         template = f'{self.templates}/index.tmpl'
         view_type = 'Background'
         
-        return self._return_render(template, view_type)
+        return return_render(template, view_type, self.subdomain, self.original_query_string)
     
 
+    @init_required
     def topbar(self):
-        self.init()
         self.logger.info(f"Received request for topbar, request remote addr: {self.remote_addr}")
         
         template = f'{self.templates}/index.tmpl'
         view_type = 'Top Bar'
         
-        return self._return_render(template, view_type)
+        return return_render(template, view_type, self.subdomain, self.original_query_string)
 
 
+    @init_required
     def navbar(self):
         """Handle navbar requests"""
-        self.init()
         self.logger.info(f"Received request for navbar, request remote addr: {self.remote_addr}")
         
         # Get the selected range from query params if any
@@ -443,17 +361,18 @@ class SentimentChecker:
         template = f'{self.templates}/index.tmpl'
         view_type = 'Nav Bar'
         
-        return self._return_render(template, view_type, selected_range)
+        return return_render(template, view_type, self.subdomain, self.original_query_string)
 
 
 
     # Analysis Methods
+    @init_required
     def analyze_comments(self) -> Tuple[Response, int]:
         """Analyze comments for sentiment."""
-        self.init()
         self.logger.info(f"Received request for analyze_comments")
         
         all_results = []
+        self.logger.info(f"Processing {len(self.ticket_data)} tickets for analysis, request remote addr: {self.remote_addr}")
         for ticket in self.ticket_data:
             try:
                 if not ticket.comments:
@@ -462,6 +381,7 @@ class SentimentChecker:
                 # Process comments and get sentiment
                 comment_results = []
                 for comment in ticket.comments:
+                    self.logger.info(f"Analyzing comment {comment.id} for ticket {ticket.id}")
                     try:
                         result = self._analyze(ticket, comment)
                         if result:
@@ -485,9 +405,9 @@ class SentimentChecker:
         return jsonify({'results': len(all_results), 'weighted_score': weighted_score}), 200
 
     
+    @init_required
     def check_namespace(self):
         """Check if a namespace exists in Pinecone for this tenant"""
-        self.init()
         try:
             data = request.get_json()
             subdomain = data.get('subdomain')
@@ -502,17 +422,17 @@ class SentimentChecker:
             exists = False
         return jsonify({'exists': exists})
 
+    @init_required
     def remove_ticket_from_cache(self):
         """Remove a ticket from cache"""
-        self.init()
         self.logger.info(f"Received request for remove_ticket_from_cache, request remote addr: {self.remote_addr}")
         for ticket in self.ticket_data:   
             self._remove_ticket_from_cache(ticket.id)
         return jsonify({'message': 'Tickets removed from cache'}), 200
 
+    @init_required
     def update_sentiment(self) -> Tuple[Response, int]:
         """Update sentiment for new comments on a ticket."""
-        self.init()
         self.logger.info(f"Received request for update_sentiment")
         
         results = []
@@ -529,14 +449,14 @@ class SentimentChecker:
             for comment in new_comments:
                 try:
                     created_at = None
-                    check, element_type = _check_element(comment, 'created_at')
+                    check, element_type = check_element(comment, 'created_at')
                     if check:
                         if element_type == 'dict':
                             created_at = self._convert_date_to_timestamp(comment.created_at)
                         elif element_type == 'object':
                             created_at = self._convert_date_to_timestamp(getattr(comment, 'created_at'))
                     author_id = None
-                    check, element_type = _check_element(comment, 'author_id')
+                    check, element_type = check_element(comment, 'author_id')
                     if check:
                         if element_type == 'dict':
                             author_id = comment.author_id
@@ -555,7 +475,7 @@ class SentimentChecker:
                     self.logger.error(f"Error analyzing comment {comment.commentId}: {e}")
                     continue
         
-        return self._return_response({
+        return return_response({
             'message': 'Sentiment updated successfully',
             'results': results,
             'new_comments_count': len(results)
@@ -563,24 +483,24 @@ class SentimentChecker:
 
 
     # Data Retrieval Methods
+    @init_required
     def get_ticket_count(self) -> Tuple[Response, int]:
         """Get the number of tickets in the database"""
-        self.init()
         ids = self.pinecone_service.list_ticket_ids()
         if ids:  
             data = {}
             sorted_ids = sorted(ids)
             data['count'] = len(ids)
             data['latest_ticket'] = sorted_ids[-1].id.split('#')[0]
-            #return self._return_response(data), 200
+            #return return_response(data), 200
             return data, 200
         else:
-            return self._return_response({'error': 'No ticket ids found'}), 404
+            return return_response({'error': 'No ticket ids found'}), 404
 
 
+    @init_required
     def get_ticket_vectors(self) -> Tuple[Response, int]:
         """Get vectors for a ticket."""
-        self.init()
         self.logger.info(f"Received request for get_ticket_vectors")
         
         results = {}
@@ -613,16 +533,16 @@ class SentimentChecker:
             )
             results[str(ticket.id)] = ticket_response.model_dump()
         
-        return self._return_response({'vectors': results}), 200
+        return return_response({'vectors': results}), 200
 
+    @init_required
     def get_score(self, tickets: List[TicketInput] = None, ticket: TicketInput = None) -> Tuple[Response, int]:
         """
         Get the weighted score of a ticket or multiple tickets based on the emotions of the comments.
         """
-        self.init()
         self.logger.info(f"Received request for get_score, request remote addr: {self.remote_addr}")
 
-        self.logger.debug(f"Processing {len(self.ticket_data)} tickets for score calculation, request remote addr: {self.remote_addr}")
+        self.logger.info(f"Processing {len(self.ticket_data)} tickets for score calculation, request remote addr: {self.remote_addr}")
         
         total_weighted_score = 0
         total_weight = 0
@@ -632,6 +552,8 @@ class SentimentChecker:
             tickets = [ticket]
         elif not tickets:
             tickets = self.ticket_data
+        
+        self.logger.info(f"Processing {len(tickets)} tickets for score calculation, request remote addr: {self.remote_addr}")
 
         for ticket in tickets:
             vector_ids, comment_vectors = [], []
@@ -650,7 +572,7 @@ class SentimentChecker:
             if len(comment_vectors) == 0:
                 self.logger.warning(f"No vectors found for tickets: {self.ticket_data}")
                 self.logger.info(f"namespace: {self.pinecone_service.namespace}")
-                return self._return_response({'score': 0}), 200
+                return return_response({'score': 0}), 200
 
             sorted_vectors = sorted(comment_vectors[0].items(), key=lambda x: x[1]['metadata']['timestamp'], reverse=True)
             self.logger.debug(f"Sorted vectors: {sorted_vectors}")
@@ -690,11 +612,11 @@ class SentimentChecker:
         weighted_score = max(min(weighted_score, 1), -1)
         
         self.logger.info(f"Calculated weighted score for {len(tickets)} tickets: {weighted_score}, request remote addr: {self.remote_addr}")
-        return self._return_response({'score': weighted_score})
+        return return_response({'score': weighted_score})
 
+    @init_required
     def get_scores(self) -> Tuple[Response, int]:
         """Get scores, using cache when possible"""
-        self.init()
         self.logger.info(f"Received request for get_scores, request remote addr: {self.remote_addr}")
 
         scores = {}
@@ -730,11 +652,11 @@ class SentimentChecker:
                 self.logger.error(f"Error processing ticket {ticket.id}: {e}")
                 continue
 
-        return self._return_response({'scores': scores}), 200
+        return return_response({'scores': scores}), 200
 
+    @init_required
     def get_unsolved_tickets(self) -> Tuple[Response, int]:
         """Get unsolved tickets from cache with pagination"""
-        self.init()
         try:
             page = int(request.args.get('page', 1))
             per_page = int(request.args.get('per_page', 10))
@@ -764,7 +686,7 @@ class SentimentChecker:
                         'updated_at': updated_at
                     })
             
-            return self._return_response({
+            return return_response({
                 'tickets': tickets,
                 'total_count': total_count,
                 'page': page,
@@ -774,7 +696,7 @@ class SentimentChecker:
             
         except Exception as e:
             self.logger.error(f"Error getting unsolved tickets from cache: {e}")
-            return self._return_response({'error': str(e)}), 500
+            return return_response({'error': str(e)}), 500
 
     # Health Check
     def health(self):
@@ -790,10 +712,10 @@ class SentimentChecker:
         
         if not check_pinecone.get('status', {}).get('ready', True):
             self.logger.error(f"Pinecone health check failed, request remote addr: {remote_addr}")
-            return self._return_response({'error': 'Pinecone service is not healthy'}), 500
+            return return_response({'error': 'Pinecone service is not healthy'}), 500
             
         if not redis_healthy:
             self.logger.error(f"Redis health check failed, request remote addr: {remote_addr}")
-            return self._return_response({'error': 'Redis service is not healthy'}), 500
+            return return_response({'error': 'Redis service is not healthy'}), 500
             
-        return self._return_render(f'{self.templates}/health.tmpl', 'Health')
+        return return_render(f'{self.templates}/health.tmpl', 'Health')

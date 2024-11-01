@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { 
-  listTicketVectors, 
   analyzeComments, 
   getScore, 
   debugLog, 
@@ -85,7 +84,7 @@ const SentimentAnalysis: React.FC<SentimentAnalysisProps> = ({ zafClient, onSent
         
       const analysisResult = await analyzeComments(zafClient, ticketInput);
       const normalizedScore = Math.max(MIN_SENTIMENT, Math.min(MAX_SENTIMENT, analysisResult.weighted_score)) as SentimentRange;
-      console.log('Normalized score:', normalizedScore);
+      console.log('Normalized score:', normalizedScore, 'for ticket', ticket.id);
       console.log('analysisResult:', analysisResult.weighted_score);
       onSentimentUpdate(String(ticket.id), normalizedScore);
 

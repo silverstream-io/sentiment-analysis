@@ -1,5 +1,9 @@
 from functools import wraps
 from flask import session, request, jsonify, make_response
+from config.redis_config import RedisClient, RedisConfigError
+from services.pinecone_service import PineconeService
+from utils import get_subdomain, check_element, return_response, return_render
+from models import TicketInput
 import jwt
 import os
 import logging
@@ -38,27 +42,76 @@ def verify_jwt(token):
         logger.warning(f"Invalid token: {str(e)}, request remote addr: {request.remote_addr}")
         return f'Invalid token: {str(e)}'
 
-def auth_required(f):
+def init_required(f):
     @wraps(f)
-    def decorated_function(*args, **kwargs):
+    def decorated_function(self, *args, **kwargs):
         try:
-            token = request.form.get('token')
+            # Get subdomain and check for errors
+            self.original_query_string = request.query_string.decode()
+            self.remote_addr = request.headers.get('X-Forwarded-For', request.remote_addr)
+            self.subdomain, error = get_subdomain(request)
+            
+            if error:
+                self.logger.error(f"Error getting subdomain: {error}, request remote addr: {self.remote_addr}")
+                return return_response({'Error in init': error}), 400 
+
+            # Check for valid session
+            if not session.get('subdomain'):
+                # No session exists - check for token
+                token = None
+                    
+                if check_element(self.data, 'token')[0]:
+                    token = self.data.get('token')
+                    
+                if not token:
+                    self.logger.warning(f"No session or token found for IP: {self.remote_addr}")
+                    return return_response({'error': 'Authentication required'}), 401
+                    
+                verified_token = verify_jwt(token)
+                if isinstance(verified_token, str):
+                    return return_response({'error': 'Authentication required'}), 401
+                    
+                # Set up Flask session
+                session['subdomain'] = self.subdomain
+                session.permanent = True
+                self.data.pop('token', None)
+            elif session['subdomain'] != self.subdomain:
+                session.clear()
+                self.logger.warning(f"Invalid session subdomain, expected {self.subdomain}, got {session['subdomain']}")
+                return return_response({'error': 'Authentication required'}), 401
+
+            if request.is_json:
+                self.data = request.get_json()
+            elif request.form:
+                self.data = request.form.to_dict()
+            elif request.method == 'GET':
+                self.data = request.args.to_dict()
+                self.ticket_data = []  # Empty list for GET requests
+            else:
+                self.data = {}
+
+            # Initialize services
+            self.pinecone_service = PineconeService(self.subdomain)
+            try:
+                self.redis = RedisClient.get_instance()
+            except RedisConfigError as e:
+                self.logger.error(f"Error connecting to Redis: {e}")
+                
+            self.cache_ttl = 3600  # 1 hour cache TTL
+
+            self.ticket_data = []
+            if 'tickets' in self.data:
+                for ticket in self.data['tickets']:
+                    self.logger.info(f"Processing ticket: {ticket.get('id')}, request remote addr: {self.remote_addr}")
+                    self.ticket_data.append(TicketInput(**ticket))
+            else:
+                self.logger.warning(f"No tickets found in request, request remote addr: {self.remote_addr}")
+
+            return f(self, *args, **kwargs)
         except Exception as e:
-            logger.error(f"Error getting token: {e}, request remote addr: {request.remote_addr}")
-            return jsonify({'error': 'Error getting token'}), 401
-        if not token:
-            logger.warning(f"Missing token in form, request remote addr: {request.remote_addr}")
-            logger.debug(f"Request form: {request.form}")
-            return jsonify({'error': 'Missing token'}), 401
-
-        verified_token = verify_jwt(token)
-        if isinstance(verified_token, str):
-            logger.warning(f"JWT verification failed: {verified_token}, request remote addr: {request.remote_addr}")
-            return jsonify({'error': verified_token}), 401
-
-        response = make_response(f(*args, **kwargs))
-        response.set_cookie('jwt_token', token, httponly=True, secure=True, samesite='Strict')
-        return response
+            logger.error(f"Error in init_required: {e}")
+            return return_response({'error': 'Internal server error'}), 500
+            
     return decorated_function
 
 def process_jwt(token):

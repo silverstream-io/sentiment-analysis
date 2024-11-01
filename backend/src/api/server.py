@@ -20,14 +20,14 @@ logging.getLogger('pinecone_plugin_interface').setLevel(logging.CRITICAL)
 def create_app():
     app = Flask(__name__)
     app.secret_key = os.environ.get('SECRET_KEY', 'dev-key-change')
-    app.permanent_session_lifetime = timedelta(days=1)
-    app.template_folder = '../templates'
-    app.static_folder = '../static'
     app.config['SESSION_TYPE'] = 'filesystem'
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
     app.config['SESSION_COOKIE_HTTPONLY'] = True
     app.config['SESSION_COOKIE_SECURE'] = True
     app.config['SESSION_COOKIE_SAMESITE'] = 'None'
+    app.permanent_session_lifetime = timedelta(days=1)
+    app.template_folder = '../templates'
+    app.static_folder = '../static'
 
     from .routes import create_blueprints
     root_blueprint, sentiment_checker_blueprint = create_blueprints()
