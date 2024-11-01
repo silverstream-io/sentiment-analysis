@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { listTicketVectors, analyzeComments, getScore, debugLog, getLast30DaysSentiment, errorLog } from '../services/apiService';
+import { listTicketVectors, analyzeComments, getScore, debugLog, getLast30DaysSentiment, errorLog, getTicketId } from '../services/apiService';
 import { SentimentRange, MIN_SENTIMENT, MAX_SENTIMENT } from '../types';
 
 interface SentimentAnalysisProps {
   zafClient: any;
-  onSentimentUpdate: (ticketId: string | null, sentiment: number) => void;
+  onSentimentUpdate: (ticketId: string | null, sentiment: SentimentRange) => void;
 }
 
 const SentimentAnalysis: React.FC<SentimentAnalysisProps> = ({ zafClient, onSentimentUpdate }) => {
@@ -31,14 +31,33 @@ const SentimentAnalysis: React.FC<SentimentAnalysisProps> = ({ zafClient, onSent
       if (!zafClient) {
         throw new Error('ZAFClient is not initialized');
       }
+
+      // Check if we need ticket context
+      if (!window.APP_CONTEXT?.needsTicketContext) {
+        debugLog('Skipping sentiment analysis - no ticket context needed');
+        return;
+      }
+
       setIsAnalyzing(true);
       //rotateMessages(); // Uncomment to see the rotating messages
 
-      const ticketIdObject = await zafClient.get('ticket.id');
-      const ticketId = ticketIdObject['ticket.id'];
+      // Use getTicketId instead of direct ZAF client call
+      const ticketId = await getTicketId(zafClient);
       debugLog('Analyzing sentiment for ticket:', ticketId);
 
       const ticketComments = await zafClient.get('ticket.comments');
+      // Add guard for ticketComments
+      if (!ticketComments || !ticketComments['ticket.comments']) {
+        debugLog('No ticket comments data found');
+        return "No comments found, check back later.";
+      }
+
+      // Add guard for comments array
+      if (!Array.isArray(ticketComments['ticket.comments'])) {
+        debugLog('Ticket comments is not an array:', ticketComments);
+        return "Invalid comments data structure";
+      }
+
       if (ticketComments['ticket.comments'].length === 0) {
         debugLog('No comments found for ticket:', ticketId);
         return "No comments found, check back later.";
@@ -77,7 +96,7 @@ const SentimentAnalysis: React.FC<SentimentAnalysisProps> = ({ zafClient, onSent
           const newComments = ticketComments['ticket.comments'].filter((comment: any) => 
             !Object.values(storedVectors).some((vector: any) => vector.id === `${ticketId}#${comment.id}`)
           );
-          if (newComments.length > 0) {
+            if (newComments.length > 0) {
             debugLog('Analyzing new comments:', newComments);
             await analyzeComments(zafClient, ticketId, { 'ticket.comments': newComments });
           }
@@ -91,7 +110,7 @@ const SentimentAnalysis: React.FC<SentimentAnalysisProps> = ({ zafClient, onSent
       const currentTicketScore = await getScore(zafClient, ticketId);
       const normalizedCurrentScore = Math.max(MIN_SENTIMENT, Math.min(MAX_SENTIMENT, currentTicketScore)) as SentimentRange;
       debugLog('Current ticket score:', normalizedCurrentScore);
-      onSentimentUpdate(ticketId, normalizedCurrentScore);
+      onSentimentUpdate(ticketId.toString(), normalizedCurrentScore);
 
       // Get the sentiment for the last 30 days
       const last30DaysScore = await getLast30DaysSentiment(zafClient);

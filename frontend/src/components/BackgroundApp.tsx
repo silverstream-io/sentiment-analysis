@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { TicketData } from '../types';
 import { updateTicketSentiment, debugLog, errorLog } from '../services/apiService';
 
 interface BackgroundAppProps {
@@ -13,16 +14,22 @@ const BackgroundApp: React.FC<BackgroundAppProps> = ({ zafClient, originalQueryS
       console.log('[BackgroundApp] Ticket saved event received:', data);
       
       try {
-        // Get the ticket details using the search API instead of direct access
+        // Get ticket details using search API
         const response = await zafClient.request({
           url: `/api/v2/search.json?query=id:${data.id}`,
           type: 'GET'
         });
-        
+
         if (response && response.results && response.results.length > 0) {
-          const ticketId = response.results[0].id;
-          console.log(`[BackgroundApp] Processing ticket ${ticketId}`);
-          await updateTicketSentiment(zafClient, ticketId);
+          const ticket = response.results[0];
+          const ticketData: TicketData = {
+            id: ticket.id,
+            state: ticket.status,
+            created_at: ticket.created_at,
+            updated_at: ticket.updated_at
+          };
+          console.log('[BackgroundApp] Sending ticket data:', ticketData);
+          await updateTicketSentiment(zafClient, ticketData);
         } else {
           console.error('[BackgroundApp] Could not find ticket details');
         }
@@ -40,7 +47,6 @@ const BackgroundApp: React.FC<BackgroundAppProps> = ({ zafClient, originalQueryS
     };
   }, [zafClient]);
 
-  console.log('[BackgroundApp] Component rendered');
   return null;
 };
 

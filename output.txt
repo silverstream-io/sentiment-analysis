@@ -1,0 +1,212 @@
+npm verbose cli /usr/local/Cellar/node/22.9.0/bin/node /usr/local/bin/npm
+npm info using npm@10.9.0
+npm info using node@v22.9.0
+npm verbose title npm run build
+npm verbose argv "run" "build" "--loglevel" "verbose"
+npm verbose logfile logs-max:10 dir:/Users/cory/.npm/_logs/2024-10-28T22_26_28_108Z-
+npm verbose logfile /Users/cory/.npm/_logs/2024-10-28T22_26_28_108Z-debug-0.log
+
+> sentiment-checker-zendesk-app@1.0.0 build
+> react-app-rewired build
+
+Creating an optimized production build...
+2024-10-28T22:26:29.634Z eslintrc:config-array-factory Loading {extends:"/Users/cory/dev/silverstream-io/sentiment-analysis/frontend/node_modules/eslint-config-react-app/base.js"} relative to 
+2024-10-28T22:26:29.634Z eslintrc:config-array-factory package.json was not found: Cannot find module '/Users/cory/dev/silverstream-io/sentiment-analysis/frontend/node_modules/eslint-config-react-app/base.js/package.json'
+Require stack:
+- /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/__placeholder__.js
+2024-10-28T22:26:29.634Z eslintrc:config-array-factory Loaded: /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/node_modules/eslint-config-react-app/base.js (/Users/cory/dev/silverstream-io/sentiment-analysis/frontend/node_modules/eslint-config-react-app/base.js)
+2024-10-28T22:26:29.635Z eslintrc:config-array-factory Loading JS config file: /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/node_modules/eslint-config-react-app/base.js
+2024-10-28T22:26:29.636Z eslintrc:config-array-factory Loading parser "@babel/eslint-parser" from /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/node_modules/eslint-config-react-app/base.js
+2024-10-28T22:26:29.637Z eslintrc:config-array-factory Loaded: @babel/eslint-parser@7.25.9 (/Users/cory/dev/silverstream-io/sentiment-analysis/frontend/node_modules/@babel/eslint-parser/lib/index.cjs)
+2024-10-28T22:26:29.648Z eslintrc:config-array-factory Loading plugin "react" from /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/node_modules/eslint-config-react-app/base.js
+2024-10-28T22:26:29.648Z eslintrc:config-array-factory Loaded: eslint-plugin-react@7.37.2 (/Users/cory/dev/silverstream-io/sentiment-analysis/frontend/node_modules/eslint-plugin-react/index.js)
+2024-10-28T22:26:29.800Z eslintrc:config-array-factory Plugin /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/node_modules/eslint-plugin-react/index.js loaded in: 152ms
+2024-10-28T22:26:29.801Z eslintrc:config-array-factory Loading JSON config file: /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/package.json
+2024-10-28T22:26:29.804Z eslintrc:ignore-pattern Create with: [ IgnorePattern { patterns: [ '/**/node_modules/*' ], basePath: '/Users/cory/dev/silverstream-io/sentiment-analysis/frontend', loose: false } ]
+2024-10-28T22:26:29.805Z eslintrc:ignore-pattern   processed: { basePath: '/Users/cory/dev/silverstream-io/sentiment-analysis/frontend', patterns: [ '/**/node_modules/*' ] }
+2024-10-28T22:26:29.806Z eslint:lint-result-cache Caching results to /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/node_modules/.cache/.eslintcache
+2024-10-28T22:26:29.806Z eslint:lint-result-cache Using "metadata" strategy to detect changes
+2024-10-28T22:26:29.817Z eslintrc:ignore-pattern Create with: [ IgnorePattern { patterns: [ '/**/node_modules/*' ], basePath: '/Users/cory/dev/silverstream-io/sentiment-analysis/frontend', loose: false } ]
+2024-10-28T22:26:29.817Z eslintrc:ignore-pattern   processed: { basePath: '/Users/cory/dev/silverstream-io/sentiment-analysis/frontend', patterns: [ '/**/node_modules/*' ] }
+2024-10-28T22:26:30.043Z babel:config:loading:files:plugins Loaded preset '/Users/cory/dev/silverstream-io/sentiment-analysis/frontend/node_modules/babel-preset-react-app/index.js' from '/Users/cory/dev/silverstream-io/sentiment-analysis/frontend'.
+2024-10-28T22:26:30.079Z babel:config:loading:files:plugins Loaded preset '/Users/cory/dev/silverstream-io/sentiment-analysis/frontend/node_modules/babel-preset-react-app/dependencies.js' from '/Users/cory/dev/silverstream-io/sentiment-analysis/frontend'.
+2024-10-28T22:26:30.829Z eslint:file-enumerator Start to iterate files: [ '/Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/apps/navbar.tsx', '/Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/apps/topbar.tsx', '/Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/apps/sidebar.tsx', '/Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/apps/background.tsx', '/Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/components/NavBarApp.tsx', '/Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/components/SidebarApp.tsx', '/Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/components/TopbarApp.tsx', '/Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/components/BackgroundApp.tsx', '/Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/components/SentimentAnalysis.tsx', '/Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/services/apiService.ts', '/Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/components/SentimentDisplay.tsx', '/Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/types/index.ts', '/Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/types/zendesk.ts', '/Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/types/sentiment.ts' ]
+2024-10-28T22:26:30.830Z eslint:file-enumerator File: /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/apps/navbar.tsx
+2024-10-28T22:26:30.830Z eslintrc:cascading-config-array-factory Load config files for /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/apps.
+2024-10-28T22:26:30.830Z eslintrc:cascading-config-array-factory No cache found: /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/apps.
+2024-10-28T22:26:30.830Z eslintrc:config-array-factory Config file not found on /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/apps
+2024-10-28T22:26:30.830Z eslintrc:cascading-config-array-factory No cache found: /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src.
+2024-10-28T22:26:30.830Z eslintrc:config-array-factory Config file not found on /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src
+2024-10-28T22:26:30.830Z eslintrc:cascading-config-array-factory No cache found: /Users/cory/dev/silverstream-io/sentiment-analysis/frontend.
+2024-10-28T22:26:30.830Z eslintrc:config-array-factory Loading package.json config file: /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/package.json
+2024-10-28T22:26:30.830Z eslintrc:config-array-factory Loading JSON config file: /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/package.json
+2024-10-28T22:26:30.831Z eslintrc:config-array-factory Error reading package.json file: /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/package.json
+2024-10-28T22:26:30.831Z eslintrc:config-array-factory Config file not found on /Users/cory/dev/silverstream-io/sentiment-analysis/frontend
+2024-10-28T22:26:30.831Z eslintrc:cascading-config-array-factory No cache found: /Users/cory/dev/silverstream-io/sentiment-analysis.
+2024-10-28T22:26:30.831Z eslintrc:config-array-factory Config file not found on /Users/cory/dev/silverstream-io/sentiment-analysis
+2024-10-28T22:26:30.831Z eslintrc:cascading-config-array-factory No cache found: /Users/cory/dev/silverstream-io.
+2024-10-28T22:26:30.831Z eslintrc:config-array-factory Config file not found on /Users/cory/dev/silverstream-io
+2024-10-28T22:26:30.831Z eslintrc:cascading-config-array-factory No cache found: /Users/cory/dev.
+2024-10-28T22:26:30.831Z eslintrc:config-array-factory Config file not found on /Users/cory/dev
+2024-10-28T22:26:30.831Z eslintrc:cascading-config-array-factory No cache found: /Users/cory.
+2024-10-28T22:26:30.831Z eslintrc:cascading-config-array-factory Stop traversing because of considered root.
+2024-10-28T22:26:30.832Z eslintrc:cascading-config-array-factory Configuration was determined: ConfigArray(3) [ { type: 'config', name: 'DefaultIgnorePattern', filePath: '', criteria: null, env: undefined, globals: undefined, ignorePattern: IgnorePattern { patterns: [Array], basePath: '/Users/cory/dev/silverstream-io/sentiment-analysis/frontend', loose: false }, noInlineConfig: undefined, parser: undefined, parserOptions: undefined, plugins: undefined, processor: undefined, reportUnusedDisableDirectives: undefined, root: undefined, rules: undefined, settings: undefined }, { type: 'config', name: 'BaseConfig » /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/node_modules/eslint-config-react-app/base.js', filePath: '/Users/cory/dev/silverstream-io/sentiment-analysis/frontend/node_modules/eslint-config-react-app/base.js', criteria: null, env: { browser: true, commonjs: true, es6: true, jest: true, node: true }, globals: undefined, ignorePattern: undefined, noInlineConfig: undefined, parser: { error: null, filePath: '/Users/cory/dev/silverstream-io/sentiment-analysis/frontend/node_modules/@babel/eslint-parser/lib/index.cjs', id: '@babel/eslint-parser', importerName: 'BaseConfig » /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/node_modules/eslint-config-react-app/base.js', importerPath: '/Users/cory/dev/silverstream-io/sentiment-analysis/frontend/node_modules/eslint-config-react-app/base.js' }, parserOptions: { sourceType: 'module', requireConfigFile: false, babelOptions: [Object] }, plugins: { react: [Object] }, processor: undefined, reportUnusedDisableDirectives: undefined, root: true, rules: { 'react/jsx-uses-vars': 'warn', 'react/jsx-uses-react': 'warn' }, settings: { react: [Object] } }, { type: 'config', name: 'BaseConfig', filePath: '', criteria: null, env: undefined, globals: undefined, ignorePattern: undefined, noInlineConfig: undefined, parser: undefined, parserOptions: undefined, plugins: undefined, processor: undefined, reportUnusedDisableDirectives: undefined, root: undefined, rules: {}, settings: undefined } ] on /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/apps
+2024-10-28T22:26:30.833Z eslintrc:ignore-pattern Create with: [ IgnorePattern { patterns: [ '/**/node_modules/*' ], basePath: '/Users/cory/dev/silverstream-io/sentiment-analysis/frontend', loose: false } ]
+2024-10-28T22:26:30.833Z eslintrc:ignore-pattern   processed: { basePath: '/Users/cory/dev/silverstream-io/sentiment-analysis/frontend', patterns: [ '/**/node_modules/*' ] }
+2024-10-28T22:26:30.833Z eslintrc:ignore-pattern Check {
+  filePath: '/Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/apps/navbar.tsx',
+  dot: false,
+  relativePath: 'src/apps/navbar.tsx',
+  result: false
+}
+2024-10-28T22:26:30.834Z eslint:cli-engine Skipping file since it hasn't changed: /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/apps/navbar.tsx
+2024-10-28T22:26:30.834Z eslint:file-enumerator File: /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/apps/topbar.tsx
+2024-10-28T22:26:30.834Z eslintrc:cascading-config-array-factory Load config files for /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/apps.
+2024-10-28T22:26:30.834Z eslintrc:cascading-config-array-factory Cache hit: /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/apps.
+2024-10-28T22:26:30.835Z eslintrc:ignore-pattern Check {
+  filePath: '/Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/apps/topbar.tsx',
+  dot: false,
+  relativePath: 'src/apps/topbar.tsx',
+  result: false
+}
+2024-10-28T22:26:30.835Z eslint:cli-engine Skipping file since it hasn't changed: /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/apps/topbar.tsx
+2024-10-28T22:26:30.835Z eslint:file-enumerator File: /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/apps/sidebar.tsx
+2024-10-28T22:26:30.835Z eslintrc:cascading-config-array-factory Load config files for /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/apps.
+2024-10-28T22:26:30.835Z eslintrc:cascading-config-array-factory Cache hit: /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/apps.
+2024-10-28T22:26:30.835Z eslintrc:ignore-pattern Check {
+  filePath: '/Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/apps/sidebar.tsx',
+  dot: false,
+  relativePath: 'src/apps/sidebar.tsx',
+  result: false
+}
+2024-10-28T22:26:30.835Z eslint:cli-engine Skipping file since it hasn't changed: /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/apps/sidebar.tsx
+2024-10-28T22:26:30.835Z eslint:file-enumerator File: /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/apps/background.tsx
+2024-10-28T22:26:30.835Z eslintrc:cascading-config-array-factory Load config files for /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/apps.
+2024-10-28T22:26:30.835Z eslintrc:cascading-config-array-factory Cache hit: /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/apps.
+2024-10-28T22:26:30.835Z eslintrc:ignore-pattern Check {
+  filePath: '/Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/apps/background.tsx',
+  dot: false,
+  relativePath: 'src/apps/background.tsx',
+  result: false
+}
+2024-10-28T22:26:30.835Z eslint:cli-engine Skipping file since it hasn't changed: /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/apps/background.tsx
+2024-10-28T22:26:30.835Z eslint:file-enumerator File: /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/components/NavBarApp.tsx
+2024-10-28T22:26:30.835Z eslintrc:cascading-config-array-factory Load config files for /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/components.
+2024-10-28T22:26:30.835Z eslintrc:cascading-config-array-factory No cache found: /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/components.
+2024-10-28T22:26:30.835Z eslintrc:config-array-factory Config file not found on /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/components
+2024-10-28T22:26:30.835Z eslintrc:cascading-config-array-factory Cache hit: /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src.
+2024-10-28T22:26:30.835Z eslintrc:ignore-pattern Check {
+  filePath: '/Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/components/NavBarApp.tsx',
+  dot: false,
+  relativePath: 'src/components/NavBarApp.tsx',
+  result: false
+}
+2024-10-28T22:26:30.835Z eslint:cli-engine Skipping file since it hasn't changed: /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/components/NavBarApp.tsx
+2024-10-28T22:26:30.835Z eslint:file-enumerator File: /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/components/SidebarApp.tsx
+2024-10-28T22:26:30.835Z eslintrc:cascading-config-array-factory Load config files for /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/components.
+2024-10-28T22:26:30.835Z eslintrc:cascading-config-array-factory Cache hit: /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/components.
+2024-10-28T22:26:30.835Z eslintrc:ignore-pattern Check {
+  filePath: '/Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/components/SidebarApp.tsx',
+  dot: false,
+  relativePath: 'src/components/SidebarApp.tsx',
+  result: false
+}
+2024-10-28T22:26:30.836Z eslint:cli-engine Skipping file since it hasn't changed: /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/components/SidebarApp.tsx
+2024-10-28T22:26:30.836Z eslint:file-enumerator File: /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/components/TopbarApp.tsx
+2024-10-28T22:26:30.836Z eslintrc:cascading-config-array-factory Load config files for /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/components.
+2024-10-28T22:26:30.836Z eslintrc:cascading-config-array-factory Cache hit: /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/components.
+2024-10-28T22:26:30.836Z eslintrc:ignore-pattern Check {
+  filePath: '/Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/components/TopbarApp.tsx',
+  dot: false,
+  relativePath: 'src/components/TopbarApp.tsx',
+  result: false
+}
+2024-10-28T22:26:30.836Z eslint:cli-engine Skipping file since it hasn't changed: /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/components/TopbarApp.tsx
+2024-10-28T22:26:30.836Z eslint:file-enumerator File: /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/components/BackgroundApp.tsx
+2024-10-28T22:26:30.836Z eslintrc:cascading-config-array-factory Load config files for /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/components.
+2024-10-28T22:26:30.836Z eslintrc:cascading-config-array-factory Cache hit: /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/components.
+2024-10-28T22:26:30.836Z eslintrc:ignore-pattern Check {
+  filePath: '/Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/components/BackgroundApp.tsx',
+  dot: false,
+  relativePath: 'src/components/BackgroundApp.tsx',
+  result: false
+}
+2024-10-28T22:26:30.836Z eslint:cli-engine Skipping file since it hasn't changed: /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/components/BackgroundApp.tsx
+2024-10-28T22:26:30.836Z eslint:file-enumerator File: /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/components/SentimentAnalysis.tsx
+2024-10-28T22:26:30.836Z eslintrc:cascading-config-array-factory Load config files for /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/components.
+2024-10-28T22:26:30.836Z eslintrc:cascading-config-array-factory Cache hit: /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/components.
+2024-10-28T22:26:30.836Z eslintrc:ignore-pattern Check {
+  filePath: '/Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/components/SentimentAnalysis.tsx',
+  dot: false,
+  relativePath: 'src/components/SentimentAnalysis.tsx',
+  result: false
+}
+2024-10-28T22:26:30.836Z eslint:cli-engine Skipping file since it hasn't changed: /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/components/SentimentAnalysis.tsx
+2024-10-28T22:26:30.836Z eslint:file-enumerator File: /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/services/apiService.ts
+2024-10-28T22:26:30.836Z eslintrc:cascading-config-array-factory Load config files for /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/services.
+2024-10-28T22:26:30.836Z eslintrc:cascading-config-array-factory No cache found: /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/services.
+2024-10-28T22:26:30.836Z eslintrc:config-array-factory Config file not found on /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/services
+2024-10-28T22:26:30.836Z eslintrc:cascading-config-array-factory Cache hit: /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src.
+2024-10-28T22:26:30.836Z eslintrc:ignore-pattern Check {
+  filePath: '/Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/services/apiService.ts',
+  dot: false,
+  relativePath: 'src/services/apiService.ts',
+  result: false
+}
+2024-10-28T22:26:30.837Z eslint:cli-engine Skipping file since it hasn't changed: /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/services/apiService.ts
+2024-10-28T22:26:30.837Z eslint:file-enumerator File: /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/components/SentimentDisplay.tsx
+2024-10-28T22:26:30.837Z eslintrc:cascading-config-array-factory Load config files for /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/components.
+2024-10-28T22:26:30.837Z eslintrc:cascading-config-array-factory Cache hit: /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/components.
+2024-10-28T22:26:30.837Z eslintrc:ignore-pattern Check {
+  filePath: '/Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/components/SentimentDisplay.tsx',
+  dot: false,
+  relativePath: 'src/components/SentimentDisplay.tsx',
+  result: false
+}
+2024-10-28T22:26:30.837Z eslint:cli-engine Skipping file since it hasn't changed: /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/components/SentimentDisplay.tsx
+2024-10-28T22:26:30.837Z eslint:file-enumerator File: /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/types/index.ts
+2024-10-28T22:26:30.837Z eslintrc:cascading-config-array-factory Load config files for /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/types.
+2024-10-28T22:26:30.837Z eslintrc:cascading-config-array-factory No cache found: /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/types.
+2024-10-28T22:26:30.837Z eslintrc:config-array-factory Config file not found on /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/types
+2024-10-28T22:26:30.837Z eslintrc:cascading-config-array-factory Cache hit: /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src.
+2024-10-28T22:26:30.837Z eslintrc:ignore-pattern Check {
+  filePath: '/Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/types/index.ts',
+  dot: false,
+  relativePath: 'src/types/index.ts',
+  result: false
+}
+2024-10-28T22:26:30.837Z eslint:cli-engine Skipping file since it hasn't changed: /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/types/index.ts
+2024-10-28T22:26:30.837Z eslint:file-enumerator File: /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/types/zendesk.ts
+2024-10-28T22:26:30.837Z eslintrc:cascading-config-array-factory Load config files for /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/types.
+2024-10-28T22:26:30.837Z eslintrc:cascading-config-array-factory Cache hit: /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/types.
+2024-10-28T22:26:30.837Z eslintrc:ignore-pattern Check {
+  filePath: '/Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/types/zendesk.ts',
+  dot: false,
+  relativePath: 'src/types/zendesk.ts',
+  result: false
+}
+2024-10-28T22:26:30.837Z eslint:cli-engine Skipping file since it hasn't changed: /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/types/zendesk.ts
+2024-10-28T22:26:30.837Z eslint:file-enumerator File: /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/types/sentiment.ts
+2024-10-28T22:26:30.837Z eslintrc:cascading-config-array-factory Load config files for /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/types.
+2024-10-28T22:26:30.837Z eslintrc:cascading-config-array-factory Cache hit: /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/types.
+2024-10-28T22:26:30.837Z eslintrc:ignore-pattern Check {
+  filePath: '/Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/types/sentiment.ts',
+  dot: false,
+  relativePath: 'src/types/sentiment.ts',
+  result: false
+}
+2024-10-28T22:26:30.837Z eslint:cli-engine Skipping file since it hasn't changed: /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/types/sentiment.ts
+2024-10-28T22:26:30.837Z eslint:file-enumerator Complete iterating files: ["/Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/apps/navbar.tsx","/Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/apps/topbar.tsx","/Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/apps/sidebar.tsx","/Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/apps/background.tsx","/Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/components/NavBarApp.tsx","/Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/components/SidebarApp.tsx","/Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/components/TopbarApp.tsx","/Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/components/BackgroundApp.tsx","/Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/components/SentimentAnalysis.tsx","/Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/services/apiService.ts","/Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/components/SentimentDisplay.tsx","/Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/types/index.ts","/Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/types/zendesk.ts","/Users/cory/dev/silverstream-io/sentiment-analysis/frontend/src/types/sentiment.ts"]
+2024-10-28T22:26:30.837Z eslint:lint-result-cache Persisting cached results: /Users/cory/dev/silverstream-io/sentiment-analysis/frontend/node_modules/.cache/.eslintcache
+2024-10-28T22:26:30.838Z eslint:cli-engine Linting complete in: 9ms
+Failed to compile.
+
+Cannot read properties of undefined (reading 'filter')
+
+
+npm verbose cwd /Users/cory/dev/silverstream-io/sentiment-analysis/frontend
+npm verbose os Darwin 23.4.0
+npm verbose node v22.9.0
+npm verbose npm  v10.9.0
+npm verbose exit 1
+npm verbose code 1

@@ -1,9 +1,9 @@
-import React, { useState, Suspense, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import SentimentAnalysis from './SentimentAnalysis';
 import SentimentDisplay from './SentimentDisplay';
 import { SentimentRange } from '../types';
 
-interface AppProps {
+interface SidebarAppProps {
   zafClient: any;
   originalQueryString: string;
 }
@@ -31,7 +31,7 @@ class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasErr
   }
 }
 
-const App: React.FC<AppProps> = ({ zafClient, originalQueryString }) => {
+const SidebarApp: React.FC<SidebarAppProps> = ({ zafClient, originalQueryString }) => {
   console.log('[App] Initializing with ZAF client');
   const [currentSentiment, setCurrentSentiment] = useState<SentimentRange | null>(null);
   const [lastThirtySentiment, setLastThirtySentiment] = useState<SentimentRange | null>(null);
@@ -83,4 +83,4 @@ const App: React.FC<AppProps> = ({ zafClient, originalQueryString }) => {
   );
 };
 
-export default App;
+export default SidebarApp;
