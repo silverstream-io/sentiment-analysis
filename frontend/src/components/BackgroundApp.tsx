@@ -10,7 +10,7 @@ import {
   getTicketVectorCountData,
   notifyApp,
 } from '../services/apiService';
-import { TicketData, TicketInput } from '../types';
+import { TicketData } from '../types';
 
 interface BackgroundAppProps {
   zafClient: any;
@@ -114,19 +114,19 @@ const BackgroundApp: React.FC<BackgroundAppProps> = ({ zafClient, originalQueryS
     zafClient.on('ticket.saved', async (context: any) => {
       debugLog('[BackgroundApp] Received ticket.saved event:', context);
       try {
-        const ticketId = context.ticketId;
-        const ticket = await getTicketDetails(ticketId);
+        const id = context.id;
+        const ticket = await getTicketDetails(id);
 
         // If ticket is solved or closed, remove from cache
-        if (ticket.state === 'solved' || ticket.state === 'closed') {
+        if (ticket.status === 'solved' || ticket.status === 'closed') {
           await removeTicketFromCache(zafClient, ticket);
-          debugLog(`[BackgroundApp] setupEventListeners Removed solved/closed ticket ${ticketId} from cache`);
+          debugLog(`[BackgroundApp] setupEventListeners Removed solved/closed ticket ${id} from cache`);
           return;
         }
 
         // For unsolved tickets, check the latest comment
         const commentsResponse = await zafClient.request({
-          url: `/api/v2/tickets/${ticketId}/comments?sort=created_at&per_page=1&page=1&sort_order=desc`,
+          url: `/api/v2/tickets/${id}/comments?sort=created_at&per_page=1&page=1&sort_order=desc`,
           type: 'GET'
         });
         debugLog('[BackgroundApp] setupEventListeners Comments response:', commentsResponse);
@@ -136,7 +136,7 @@ const BackgroundApp: React.FC<BackgroundAppProps> = ({ zafClient, originalQueryS
         // Only analyze if the latest comment is from an end-user
         if (latestComment && latestComment.author.role === 'end-user') {
           await processTicket(ticket);
-          debugLog(`[BackgroundApp] setupEventListeners Processed new end-user comment for ticket ${ticketId}`);
+          debugLog(`[BackgroundApp] setupEventListeners Processed new end-user comment for ticket ${id}`);
         }
       } catch (error) {
         errorLog('[BackgroundApp] setupEventListeners Error handling ticket.saved event:', error);
@@ -157,21 +157,21 @@ const BackgroundApp: React.FC<BackgroundAppProps> = ({ zafClient, originalQueryS
     let hasMore = true;
     let currentTimestamp = startTimestamp;
 
-    while (hasMore) {
+    while (hasMore && currentTimestamp) {
       const response = await getUnsolvedTickets(zafClient, page, 100, currentTimestamp);
       allTickets = [...allTickets, ...response.results];
       hasMore = response.next_page !== null;
       page++;
-      currentTimestamp = response.results[response.results.length - 1].created_at;
+      currentTimestamp = response.results[response.results.length - 1].created_at || undefined;
       debugLog(`[BackgroundApp] getAllUnsolvedTickets Loaded ${allTickets.length} tickets...`);
     }
 
     return allTickets;
   };
 
-  const getTicketDetails = async (ticketId: number): Promise<TicketData> => {
+  const getTicketDetails = async (id: number): Promise<TicketData> => {
     const response = await zafClient.request({
-      url: `/api/v2/tickets/${ticketId}.json`,
+      url: `/api/v2/tickets/${id}.json`,
       type: 'GET'
     });
     return response.ticket;
@@ -193,12 +193,19 @@ const BackgroundApp: React.FC<BackgroundAppProps> = ({ zafClient, originalQueryS
 
       debugLog(`[BackgroundApp] processTicket Processing ${commentsResponse.comments.length} comments for ticket ${ticket.id}`);
 
-      const ticketInput: TicketInput = {
-        ticketId: ticket.id,
+      const ticketInput: TicketData = {
+        id: ticket.id,
+        status: ticket.status,
+        created_at: ticket.created_at,
+        updated_at: ticket.updated_at,
         comments: commentsResponse.comments.map((comment: any) => ({
-          commentId: comment.id,
-          text: comment.body,
-          createdAt: comment.created_at
+          id: comment.id,
+          body: comment.body,
+          created_at: comment.created_at,
+          updated_at: comment.updated_at,
+          author_id: comment.author.id,
+          ticket_requester_id: ticket.requester?.id,
+          ticket_assignee_id: ticket.assignee?.id
         }))
       };
 

@@ -3,9 +3,9 @@ import {
   DEFAULT_SENTIMENT, 
   SentimentRange, 
   TicketData, 
-  TicketInput,
-  TicketRequestData, 
   ZendeskTicketStatus, 
+  CommentData, 
+  TicketResponse
 } from '../types';
 
 declare global {
@@ -22,11 +22,6 @@ const DEBUG = window.ENV?.DEBUG === 'true';
 
 let originalQueryString = '';  // Global variable
 
-// Add a helper function at the top
-function ensureIntId(id: string | number): number {
-  return typeof id === 'string' ? parseInt(id, 10) : id;
-}
-
 export async function initializeApp(zafClient: any, queryString: string): Promise<void> {
   if (!zafClient) {
     throw new Error('ZAFClient is not initialized');
@@ -35,26 +30,57 @@ export async function initializeApp(zafClient: any, queryString: string): Promis
   debugLog('App initialized with query string:', queryString);
 }
 
-function validateRequestBody(body: any): TicketRequestData {
+function validateTicketRequestBody(body: any): { tickets: TicketData[] } {
   if (!body || !body.tickets || !Array.isArray(body.tickets)) {
-    throw new Error('Invalid request body: missing tickets array');
+    throw new Error(`Invalid request body: missing tickets array ${body}`);
   }
   
-  return {
-    tickets: body.tickets.map((ticket: TicketInput) => ({
-      ticketId: ensureIntId(ticket.ticketId),
-      comments: ticket.comments || null
-    }))
-  };
+  const tickets = body.tickets.map((ticket: any) => {
+    // Ensure id is present and is a string
+    if (!ticket.id) {
+      throw new Error(`Invalid ticket data: missing id ${JSON.stringify(ticket)}`);
+    }
+    
+    return {
+      id: ticket.id.toString(),
+      comments: ticket.comments || null,
+      status: ticket.status || null,
+      created_at: ticket.created_at || null,
+      updated_at: ticket.updated_at || null,
+      requester: ticket.requester || null,
+      assignee: ticket.assignee || null
+    };
+  });
+
+  return { tickets };
 }
 
-async function makeApiRequest(zafClient: any, endpoint: string, method: string, body?: any) {
+function validateCommentRequestBody(body: any): { tickets: TicketData[] } {
+  // Ensure comment ids are strings
+  body.tickets.comments.forEach((comment: any) => {
+    comment.id = comment.id.toString();
+  });
+  return body;
+}
+
+type ApiRequestType = 'TICKET' | 'SYSTEM';
+
+async function makeApiRequest(
+  zafClient: any, 
+  endpoint: string, 
+  method: string, 
+  body?: any,
+  requestType: ApiRequestType = 'TICKET'
+) {
   const context = await zafClient.context();
   const subdomain = context.account.subdomain;
 
-  // Validate body unless this is a form-data request (initial connection)
-  if (body && !body.token) {
-    body = validateRequestBody(body);
+  // Only validate ticket-related POST requests that have a body
+  if (method === 'POST' && requestType === 'TICKET' && body && !body.token) {
+    body = validateTicketRequestBody(body);
+    if (body.tickets.comments) {
+      body = validateCommentRequestBody(body);
+    }
   }
 
   debugLog(`Making API request to ${BACKEND_URL}${endpoint}`, { method, subdomain, body });
@@ -62,10 +88,20 @@ async function makeApiRequest(zafClient: any, endpoint: string, method: string, 
   const searchParams = new URLSearchParams(originalQueryString);
   searchParams.set('subdomain', subdomain);
   
+  // For GET requests, add body params to URL
+  if (method === 'GET' && body) {
+    Object.entries(body).forEach(([key, value]) => {
+      if (Array.isArray(value)) {
+        value.forEach((item: any) => searchParams.append(key, JSON.stringify(item)));
+      } else {
+        searchParams.set(key, JSON.stringify(value));
+      }
+    });
+  }
+  
   const url = `${BACKEND_URL}${endpoint}?${searchParams.toString()}`;
-
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
+    ...(method === 'POST' ? { 'Content-Type': 'application/json' } : {}),
     'X-Zendesk-Subdomain': subdomain,
   };
 
@@ -73,14 +109,14 @@ async function makeApiRequest(zafClient: any, endpoint: string, method: string, 
     const response = await fetch(url, {
       method,
       headers,
-      body: JSON.stringify(body),
+      body: method === 'POST' ? JSON.stringify(body) : undefined,
       credentials: 'include',
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      errorLog(`API request failed: ${response.status} ${response.statusText}`, errorText);
-      throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+      errorLog(`API request failed: ${url} ${response.status} ${response.statusText}`, errorText);
+      throw new Error(`API request failed: ${url} {response.status} ${response.statusText}`);
     }
 
     const responseData = await response.json();
@@ -92,29 +128,31 @@ async function makeApiRequest(zafClient: any, endpoint: string, method: string, 
   }
 }
 
-export async function listTicketVectors(zafClient: any, ticketData: TicketInput): Promise<any[]> {
-  const data = await makeApiRequest(zafClient, '/get-ticket-vectors', 'POST', { tickets: [ticketData] });
-  return data
+export async function listTicketVectors(zafClient: any, ticketData: TicketData): Promise<any[]> {
+  if (!ticketData || !ticketData.id) {
+    throw new Error('Ticket ID is required to list ticket vectors');
+  }
+  const ticketInput = {
+    id: ticketData.id,
+    comments: null,
+    status: null,
+    created_at: null,
+    updated_at: null,
+    requester: null,
+    assignee: null
+  };
+  
+  const data = await makeApiRequest(zafClient, '/get-ticket-vectors', 'POST', { tickets: [ticketInput] });
+  return data;
 }
 
-export async function getTicketComments(zafClient: any, ticketId: string | number): Promise<any[]> {
-  const numericTicketId = ensureIntId(ticketId);
-  debugLog('Getting ticket comments for ticket:', numericTicketId);
-  if (zafClient.context().view.type === 'ticket_sidebar') {
-    const commentEvents = await zafClient.get('ticket.comments');
-    const comments = [];
-    for (const comment of commentEvents['ticket.comments']) {
-      const commentData = await zafClient.get('comment', { id: comment.id });
-      comments.push(commentData);
-    }
-    return comments;
-  } else {
-    const ticketComments = await zafClient.request({
-      url: `/api/v2/tickets/${numericTicketId}/comments`,
-      type: 'GET'
-    });
-    return ticketComments.comments;
-  }
+export async function getTicketComments(zafClient: any, id: string): Promise<any[]> {
+  debugLog('Getting ticket comments for ticket:', id);
+  const ticketComments = await zafClient.request({
+    url: `/api/v2/tickets/${id}/comments`,
+    type: 'GET'
+  });
+  return ticketComments.comments;
 }
 
 export async function getTicketCountData(zafClient: any): Promise<any> {
@@ -126,38 +164,33 @@ export async function getTicketCountData(zafClient: any): Promise<any> {
 }
 
 export async function getTicketVectorCountData(zafClient: any): Promise<any> {
-  const data = await makeApiRequest(zafClient, '/get-ticket-count', 'GET');
+  const data = await makeApiRequest(
+    zafClient, 
+    '/get-ticket-count', 
+    'GET', 
+    undefined,
+    'SYSTEM'
+  );
   return data;
 }
 
-export async function analyzeComments(zafClient: any, ticketData: TicketInput): Promise<void> {
-  const numericTicketId = ensureIntId(ticketData.ticketId);
-  debugLog('Analyzing comments for ticket:', numericTicketId, ticketData);
+export async function analyzeComments(zafClient: any, ticketData: TicketData): Promise<TicketResponse> {
+  debugLog('Analyzing comments for ticket:', ticketData.id, ticketData);
 
-  await makeApiRequest(zafClient, '/analyze-comments', 'POST', { tickets: [ticketData] });
+  const response = await makeApiRequest(zafClient, '/analyze-comments', 'POST', { tickets: [ticketData] });
+  return response;
 }
 
-export async function getScore(zafClient: any, ticketIds: string | string[] | { ticketId: string } | number | number[]): Promise<SentimentRange> {
-  debugLog('Getting score for tickets:', ticketIds);
-  let numericTicketIds: number[];
+export async function getScore(
+  zafClient: any, 
+  ticketData: TicketData | TicketData[]
+): Promise<TicketResponse> {
+  debugLog('Getting score for ticket:', ticketData);
   
-  if (Array.isArray(ticketIds)) {
-    numericTicketIds = ticketIds.map(id => ensureIntId(id));
-  } else if (typeof ticketIds === 'object' && 'ticketId' in ticketIds) {
-    numericTicketIds = [ensureIntId(ticketIds.ticketId)];
-  } else if (ticketIds) {
-    numericTicketIds = [ensureIntId(ticketIds as string)];
-  } else if (window.APP_CONTEXT?.needsTicketContext) {
-    // Only try to get ticket ID if we're in a ticket context
-    const currentTicketId = await getTicketId(zafClient);
-    numericTicketIds = [currentTicketId];
-  } else {
-    numericTicketIds = [];  // Return empty array if no ticket context
-  }
-
-  const data = await makeApiRequest(zafClient, '/get-score', 'POST', { tickets: numericTicketIds });
-  debugLog('Score data:', data.score);
-  return data.score;
+  const tickets = Array.isArray(ticketData) ? ticketData : [ticketData];
+  const response = await makeApiRequest(zafClient, '/get-score', 'POST', { tickets });
+  debugLog('Score data:', response);
+  return response;
 }
 
 export function debugLog(...args: any[]) {
@@ -178,59 +211,47 @@ export function warnLog(...args: any[]) {
   console.warn('[WARN]', ...args);
 } 
 
-export async function getLast30DaysSentiment(zafClient: any): Promise<SentimentRange> {
+export async function getLast30DaysSentiment(zafClient: any, ticketData: TicketData): Promise<number> {
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-  const ticketData = await zafClient.get('ticket');
-  const requesterId = ticketData.ticket.requester.id;
+  const requesterId = ticketData.requester?.id;
 
+  const query = `type:ticket created>${thirtyDaysAgo.toISOString()} requester:${requesterId}`;
   const searchResponse = await zafClient.request({
-    url: '/api/v2/search.json',
+    url: `/api/v2/search.json?query=${query}`,
     type: 'GET',
-    data: {
-      query: `type:ticket created>${thirtyDaysAgo.toISOString()} requester:${requesterId}`,
-    },
   });
 
-  const ticketIds = searchResponse.results.map((result: any) => result.id);
+  const ticketResults: TicketData[] = searchResponse.results.map((result: any) => ({
+    id: result.id,
+    status: result.status,
+    created_at: result.created_at,
+    updated_at: result.updated_at,
+    requester: result.requester ? { id: result.requester.id } : null,
+    assignee: result.assignee ? { id: result.assignee.id } : null
+  }));
   
-  if (ticketIds.length === 0) {
+  if (ticketResults.length === 0) {
     warnLog('No ticket IDs found for last 30 days');
+    warnLog('ticketResults:', ticketResults);
+    warnLog('query:', query)
     return DEFAULT_SENTIMENT;
   } else {
-    debugLog('Ticket IDs for last 30 days:', ticketIds);
+    debugLog('Ticket IDs for last 30 days:', ticketResults.map((result: any) => result.id));
   }
-  return await getScore(zafClient, ticketIds);
+  const thirtyDayScore = await getScore(zafClient, ticketResults);
+  if (!thirtyDayScore) {
+    errorLog('getScore returned non-array:', thirtyDayScore);
+    return DEFAULT_SENTIMENT;
+  }
+  return thirtyDayScore.score || DEFAULT_SENTIMENT;
 }
 
-export async function getScores(zafClient: any, ticketIds: string[]): Promise<{ [key: string]: number }> {
-  debugLog('Getting scores for tickets:', ticketIds);
+export async function getScores(zafClient: any, ticketData: TicketData[]): Promise<TicketResponse[]> {
+  debugLog('Getting scores for tickets:', ticketData);
   try {
-    const numericTicketIds = ticketIds.map(id => ensureIntId(id));
-    const ticketsResponse = await zafClient.request({
-      url: `/api/v2/search.json?query=id:${numericTicketIds.join(' OR id:')}`,
-      type: 'GET'
-    });
-
-    const ticketData = ticketsResponse.results.map((ticket: any) => ({
-      id: ensureIntId(ticket.id),
-      state: ticket.status as ZendeskTicketStatus,
-      created_at: ticket.created_at,
-      updated_at: ticket.updated_at,
-      requestor: ticket.requester ? {
-        id: ensureIntId(ticket.requester.id),
-        name: ticket.requester.name
-      } : undefined,
-      assignee: ticket.assignee ? {
-        id: ensureIntId(ticket.assignee.id),
-        name: ticket.assignee.name
-      } : undefined
-    }));
-
-    const response = await makeApiRequest(zafClient, '/get-scores', 'POST', {
-      tickets: ticketData
-    });
+    const response = await makeApiRequest(zafClient, '/get-scores', 'POST', { tickets: ticketData });
     return response.scores;
   } catch (error) {
     errorLog('Error getting scores:', error);
@@ -242,11 +263,9 @@ export async function getScores(zafClient: any, ticketIds: string[]): Promise<{ 
 export async function removeTicketFromCache(zafClient: any, ticketData: TicketData): Promise<void> {
   debugLog('Removing ticket from cache:', ticketData);
   try {
-    const numericTicketId = ensureIntId(ticketData.id);
-    
     await makeApiRequest(zafClient, '/remove-ticket-from-cache', 'POST', {
       tickets: [{
-        ticketId: numericTicketId,
+        id: ticketData.id,
       }]
     });
   } catch (error) {
@@ -266,15 +285,23 @@ export async function getUnsolvedTickets(
   zafClient: any, 
   page: number = 1, 
   perPage: number = 25,
-  startTimestamp?: string
+  startTimestamp?: string,
+  excludeIds?: Set<string>
 ): Promise<PaginatedResponse<TicketData>> {
-  debugLog('Getting unsolved tickets', { page, perPage, startTimestamp });
+  debugLog('Getting unsolved tickets', { page, perPage, startTimestamp, excludeIds });
   try {
     const context = await zafClient.context();
     const subdomain = context.account.subdomain;
 
+    // Build exclusion string if we have IDs to exclude
+    const exclusionString = excludeIds && excludeIds.size > 0 
+      ? excludeIds.size < 100  // Zendesk has query length limits
+        ? ` ${Array.from(excludeIds).map(id => `-id:${id}`).join(' ')}`
+        : ` -id:<${Array.from(excludeIds).join(',')}` // Use less-than operator for large sets
+      : '';
+
     const response = await zafClient.request({
-      url: `/api/v2/search.json?query=type:ticket status<solved&page=${page}&per_page=${perPage}${startTimestamp ? `&created_at>=${startTimestamp}` : ''}`,
+      url: `/api/v2/search.json?query=type:ticket status<solved${exclusionString}&page=${page}&per_page=${perPage}${startTimestamp ? `&created_at>=${startTimestamp}` : ''}`,
       type: 'GET'
     });
 
@@ -290,7 +317,7 @@ export async function getUnsolvedTickets(
       state: ticket.status as ZendeskTicketStatus,
       created_at: ticket.created_at,
       updated_at: ticket.updated_at,
-      requestor: ticket.requester ? {
+      requester: ticket.requester ? {
         id: ticket.requester.id.toString(),
         name: ticket.requester.name
       } : undefined,
@@ -312,69 +339,91 @@ export async function getUnsolvedTickets(
   }
 }
 
-export async function getUnsolvedTicketsFromCache(zafClient: any): Promise<{ results: TicketData[] }> {
+export async function getUnsolvedTicketsFromCache(zafClient: any, page: number = 1, perPage: number = 100): Promise<{ results: TicketData[] }> {
   debugLog('Getting unsolved tickets from cache');
+  const cacheResults: TicketData[] = [];
+  const cachedTicketIds = new Set<string>();
+  
   try {
-    // Try cache first
-    const response = await makeApiRequest(zafClient, '/get-unsolved-tickets', 'POST');
-    debugLog('Cache response:', response);
-
-    if (response?.results?.length > 0) {
-      return {
-        results: response.results
-      };
-    }
-
-    // If cache fails or is empty, fall back to direct API and load all pages
-    debugLog('Cache empty or failed, falling back to direct API');
-    let allTickets: TicketData[] = [];
-    let page = 1;
     let hasMore = true;
-
     while (hasMore) {
-      const response = await getUnsolvedTickets(zafClient, page, 100);  // Get max per page
-      allTickets = [...allTickets, ...response.results];
+      // Try cache first
+      const response = await makeApiRequest(
+        zafClient, 
+        '/get-unsolved-tickets', 
+        'POST',
+        { page, perPage },
+      'SYSTEM'
+    );
+      debugLog('Cache response:', response);
       
-      // Check if there are more pages
-      hasMore = response.next_page !== null && response.next_page !== undefined;
+      if (response.tickets) {
+        response.tickets.forEach((ticket: TicketData) => {
+          cacheResults.push(ticket);
+          cachedTicketIds.add(ticket.id);
+        });
+      }
+      
+      hasMore = response.has_more;
       page++;
-
-      debugLog(`Loaded ${allTickets.length} tickets so far...`);
     }
-
-    return {
-      results: allTickets
-    };
-
   } catch (error) {
     errorLog('Cache error, falling back to direct API:', error);
-    // Same pagination logic for error fallback
-    let allTickets: TicketData[] = [];
-    let page = 1;
-    let hasMore = true;
+  }
 
+  // If we have cached results, only search for non-cached tickets
+  let apiResults: TicketData[] = [];
+  if (cachedTicketIds.size > 0) {
+    let hasMore = true;
+    page = 1; // Reset page for API search
+    
     while (hasMore) {
       const response = await getUnsolvedTickets(zafClient, page, 100);
-      allTickets = [...allTickets, ...response.results];
+      
+      // Filter out tickets we already have in cache
+      const newTickets = response.results.filter(ticket => !cachedTicketIds.has(ticket.id));
+      apiResults = [...apiResults, ...newTickets];
+      
       hasMore = response.next_page !== null && response.next_page !== undefined;
       page++;
+      
+      debugLog(`Loaded ${apiResults.length} new tickets from API...`);
     }
-
-    return {
-      results: allTickets
-    };
   }
+
+  const allTickets = [...cacheResults, ...apiResults];
+  return {
+    results: allTickets,
+  };
 }
 
-export async function getTicketId(zafClient: any): Promise<number> {
+export async function getComments(zafClient: any, ticket: TicketData): Promise<CommentData[]> {
+  if (!window.APP_CONTEXT?.needsTicketContext) {
+    throw new Error('Ticket context not available in current view');
+  }
+  const comments = await getTicketComments(zafClient, ticket.id);
+  return comments.map((comment: any) => ({
+    id: String(comment.id),
+    body: comment.body || comment.html_body,
+    created_at: comment.created_at,
+    html_body: comment.html_body,
+    plain_body: comment.plain_body,
+    author_id: comment.author_id,
+    public: comment.public,
+    ticket_requester_id: ticket.requester ? Number(ticket.requester.id) : null,
+    ticket_assignee_id: ticket.assignee ? Number(ticket.assignee.id) : null
+  }));
+}
+
+export async function getTicket(zafClient: any): Promise<TicketData> {
   if (!window.APP_CONTEXT?.needsTicketContext) {
     throw new Error('Ticket context not available in current view');
   }
 
   try {
-    const ticketData = await zafClient.get('ticket.id');
-    if (ticketData['ticket.id']) {
-      return ensureIntId(ticketData['ticket.id']);
+    const ticketData = await zafClient.get('ticket');
+    if (ticketData['ticket'] && ticketData['ticket'].id) {
+      return ticketData['ticket'];
     }
     throw new Error('No ticket ID found in response');
   } catch (err) {
@@ -383,15 +432,21 @@ export async function getTicketId(zafClient: any): Promise<number> {
   }
 }
 
-export const checkNamespace = async (zafClient: any, subdomain: string): Promise<boolean> => {
+export async function checkNamespace(zafClient: any, subdomain: string): Promise<boolean> {
   try {
-    const response = await makeApiRequest(zafClient, '/check-namespace', 'POST', { subdomain });
-      return response.exists;
-    } catch (error) {
-      errorLog('Error checking namespace:', error);
+    const response = await makeApiRequest(
+      zafClient, 
+      '/check-namespace', 
+      'POST', 
+      { subdomain },
+      'SYSTEM'
+    );
+    return response.exists;
+  } catch (error) {
+    errorLog('Error checking namespace:', error);
     return false;
   }
-};
+}
 
 export const notifyApp = (zafClient: any, type: string, data: any) => {
   zafClient.request({

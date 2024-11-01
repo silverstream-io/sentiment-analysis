@@ -1,26 +1,29 @@
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 from pydantic import BaseModel, Field
 
 class CommentInput(BaseModel):
-    commentId: str | int
-    text: Optional[str] = None
-    createdAt: Optional[str] = None
+    id: str
+    body: Optional[str] = None
+    created_at: Optional[Union[str, int]] = None
     score: Optional[float] = None
-    author: Optional[str] = None
+    author_id: Optional[Union[str, int]] = None
+    ticket_requestor_id: Optional[Union[str, int]] = None
+    ticket_assignee_id: Optional[Union[str, int]] = None
 
 class TicketInput(BaseModel):
-    ticketId: str | int
+    id: str
     comments: Optional[List[CommentInput]] = None
     score: Optional[float] = None
-    requestor: Optional[str] = None
-    assignee: Optional[str] = None
-    state: Optional[str] = None
-    updatedAt: Optional[str] = None
-    createdAt: Optional[str] = None
+    requestor: Optional[dict] = None
+    assignee: Optional[dict] = None
+    status: Optional[str] = None
+    updated_at: Optional[Union[str, int]] = None
+    created_at: Optional[Union[str, int]] = None
 
 class CommentResponse(CommentInput):
-    pass
+    emotion_score: Optional[float] = None
 
 class TicketResponse(TicketInput):
-    pass
+    comments: Optional[List[CommentResponse]] = None
+    weighted_score: Optional[float] = None
 

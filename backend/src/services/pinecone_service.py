@@ -103,8 +103,15 @@ class PineconeService:
 
 
     def list_ticket_ids(self):
-        vectors = self.list_ticket_vectors()
-        return [vector['id'].split('#')[0] for vector in vectors]
+        pagination_token = None
+        vectors = []
+        while True:
+            response = self.index.list_paginated(prefix="", namespace=self.namespace, pagination_token=pagination_token)
+            vectors.extend(response.vectors)
+            if not response.pagination:
+                break
+            pagination_token = response.pagination.next
+        return vectors
 
 
     def fetch_vectors(self, vector_ids, namespace=None, include_metadata=True, include_values=False):

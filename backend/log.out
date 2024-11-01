@@ -1,0 +1,154 @@
+Successfully connected to Redis
+ * Serving Flask app 'api.server'
+ * Debug mode: on
+2024-10-31 16:49:38,643 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:8080
+ * Running on http://192.168.4.24:8080
+2024-10-31 16:49:38,643 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2024-10-31 16:49:38,646 - werkzeug - INFO -  * Restarting with stat
+Successfully connected to Redis
+2024-10-31 16:49:39,788 - werkzeug - WARNING -  * Debugger is active!
+2024-10-31 16:49:39,801 - werkzeug - INFO -  * Debugger PIN: 144-184-965
+2024-10-31 16:49:41,837 - sentiment-checker - INFO - Using subdomain from query parameters: d3v-silverstream
+2024-10-31 16:49:42,483 - sentiment_checker - ERROR - Ticket data: {'count': 1, 'latest_ticket': id: "24#29741274358555"
+}
+2024-10-31 16:49:42,483 - sentiment_checker - ERROR - 24#29741274358555
+2024-10-31 16:49:42,485 - werkzeug - INFO - 127.0.0.1 - - [31/Oct/2024 16:49:42] "GET /sentiment-checker/get-ticket-count?subdomain=d3v-silverstream HTTP/1.1" 200 -
+2024-10-31 16:49:56,727 - werkzeug - INFO -  * Detected change in '/Users/cory/dev/silverstream-io/sentiment-analysis/backend/src/api/views.py', reloading
+2024-10-31 16:49:56,968 - werkzeug - INFO -  * Restarting with stat
+Successfully connected to Redis
+2024-10-31 16:49:57,982 - werkzeug - WARNING -  * Debugger is active!
+2024-10-31 16:49:57,993 - werkzeug - INFO -  * Debugger PIN: 144-184-965
+2024-10-31 16:49:58,041 - sentiment-checker - INFO - Using subdomain from query parameters: d3v-silverstream
+2024-10-31 16:49:58,693 - sentiment_checker - ERROR - Ticket data: {'count': 1, 'latest_ticket': id: "24#29741274358555"
+}
+2024-10-31 16:49:58,693 - sentiment_checker - ERROR - 24
+2024-10-31 16:49:58,695 - werkzeug - INFO - 127.0.0.1 - - [31/Oct/2024 16:49:58] "GET /sentiment-checker/get-ticket-count?subdomain=d3v-silverstream HTTP/1.1" 200 -
+2024-10-31 16:50:26,339 - werkzeug - INFO -  * Detected change in '/Users/cory/dev/silverstream-io/sentiment-analysis/backend/src/api/views.py', reloading
+2024-10-31 16:50:26,480 - werkzeug - INFO -  * Restarting with stat
+Successfully connected to Redis
+2024-10-31 16:50:27,706 - werkzeug - WARNING -  * Debugger is active!
+2024-10-31 16:50:27,717 - werkzeug - INFO -  * Debugger PIN: 144-184-965
+2024-10-31 16:50:32,085 - sentiment-checker - INFO - Using subdomain from query parameters: d3v-silverstream
+2024-10-31 16:50:34,413 - werkzeug - INFO - 127.0.0.1 - - [31/Oct/2024 16:50:34] "[35m[1mGET /sentiment-checker/get-ticket-count?subdomain=d3v-silverstream HTTP/1.1[0m" 500 -
+2024-10-31 16:50:34,447 - werkzeug - INFO - 127.0.0.1 - - [31/Oct/2024 16:50:34] "[36mGET /sentiment-checker/get-ticket-count?__debugger__=yes&cmd=resource&f=style.css HTTP/1.1[0m" 304 -
+2024-10-31 16:50:34,452 - werkzeug - INFO - 127.0.0.1 - - [31/Oct/2024 16:50:34] "[36mGET /sentiment-checker/get-ticket-count?__debugger__=yes&cmd=resource&f=debugger.js HTTP/1.1[0m" 304 -
+2024-10-31 16:50:34,474 - werkzeug - INFO - 127.0.0.1 - - [31/Oct/2024 16:50:34] "GET /sentiment-checker/get-ticket-count?__debugger__=yes&cmd=resource&f=console.png&s=daZzoumXx7GeeIZ1Ypow HTTP/1.1" 200 -
+2024-10-31 16:50:34,519 - werkzeug - INFO - 127.0.0.1 - - [31/Oct/2024 16:50:34] "[36mGET /sentiment-checker/get-ticket-count?__debugger__=yes&cmd=resource&f=console.png HTTP/1.1[0m" 304 -
+2024-10-31 16:50:54,086 - werkzeug - INFO -  * Detected change in '/Users/cory/dev/silverstream-io/sentiment-analysis/backend/src/api/views.py', reloading
+2024-10-31 16:50:54,237 - werkzeug - INFO -  * Restarting with stat
+Successfully connected to Redis
+2024-10-31 16:50:55,380 - werkzeug - WARNING -  * Debugger is active!
+2024-10-31 16:50:55,392 - werkzeug - INFO -  * Debugger PIN: 144-184-965
+2024-10-31 16:51:07,040 - werkzeug - INFO -  * Detected change in '/Users/cory/dev/silverstream-io/sentiment-analysis/backend/src/api/views.py', reloading
+2024-10-31 16:51:07,168 - werkzeug - INFO -  * Restarting with stat
+Successfully connected to Redis
+2024-10-31 16:51:08,472 - werkzeug - WARNING -  * Debugger is active!
+2024-10-31 16:51:08,483 - werkzeug - INFO -  * Debugger PIN: 144-184-965
+2024-10-31 16:51:08,533 - sentiment-checker - INFO - Using subdomain from query parameters: d3v-silverstream
+2024-10-31 16:51:10,180 - werkzeug - INFO - 127.0.0.1 - - [31/Oct/2024 16:51:10] "GET /sentiment-checker/get-ticket-count?subdomain=d3v-silverstream HTTP/1.1" 200 -
+2024-10-31 16:52:16,282 - sentiment-checker - INFO - Using subdomain from origin: d3v-silverstream
+2024-10-31 16:52:16,335 - werkzeug - INFO - 127.0.0.1 - - [31/Oct/2024 16:52:16] "POST /sentiment-checker/background-refresh?origin=https://d3v-silverstream.zendesk.com&app_guid=b51e3a5b-a5db-448d-aa5d-f503848fc74c HTTP/1.1" 200 -
+2024-10-31 16:52:16,396 - werkzeug - INFO - 127.0.0.1 - - [31/Oct/2024 16:52:16] "[36mGET /static/css/main.css HTTP/1.1[0m" 304 -
+2024-10-31 16:52:16,397 - werkzeug - INFO - 127.0.0.1 - - [31/Oct/2024 16:52:16] "[36mGET /static/js/sentimentChecker.js HTTP/1.1[0m" 304 -
+2024-10-31 16:52:16,525 - werkzeug - INFO - 127.0.0.1 - - [31/Oct/2024 16:52:16] "[33mGET /static/js/main.38f200eb.js.map HTTP/1.1[0m" 404 -
+2024-10-31 16:52:16,549 - werkzeug - INFO - 127.0.0.1 - - [31/Oct/2024 16:52:16] "[36mGET /static/css/main.f60b743c.css.map HTTP/1.1[0m" 304 -
+2024-10-31 16:52:16,611 - sentiment-checker - INFO - Using subdomain from X-Zendesk-Subdomain header: d3v-silverstream
+2024-10-31 16:52:17,008 - werkzeug - INFO - 127.0.0.1 - - [31/Oct/2024 16:52:17] "POST /sentiment-checker/check-namespace?subdomain=d3v-silverstream HTTP/1.1" 200 -
+2024-10-31 16:52:17,015 - sentiment-checker - INFO - Using subdomain from X-Zendesk-Subdomain header: d3v-silverstream
+2024-10-31 16:52:17,050 - werkzeug - INFO - 127.0.0.1 - - [31/Oct/2024 16:52:17] "[31m[1mGET /sentiment-checker/get-ticket-count?subdomain=d3v-silverstream HTTP/1.1[0m" 400 -
+2024-10-31 16:52:19,770 - sentiment-checker - INFO - Using subdomain from origin: d3v-silverstream
+2024-10-31 16:52:19,800 - sentiment_checker - INFO - Sidebar request received from 127.0.0.1
+2024-10-31 16:52:19,800 - sentiment_checker - INFO - Query string: origin=https%3A%2F%2Fd3v-silverstream.zendesk.com&app_guid=43328f65-b213-49e4-b9cf-033d0fa487de
+2024-10-31 16:52:19,800 - sentiment_checker - INFO - Using template: sentiment-checker/index.tmpl
+2024-10-31 16:52:19,802 - werkzeug - INFO - 127.0.0.1 - - [31/Oct/2024 16:52:19] "POST /sentiment-checker/?origin=https://d3v-silverstream.zendesk.com&app_guid=43328f65-b213-49e4-b9cf-033d0fa487de HTTP/1.1" 200 -
+2024-10-31 16:52:19,825 - werkzeug - INFO - 127.0.0.1 - - [31/Oct/2024 16:52:19] "[36mGET /static/css/main.css HTTP/1.1[0m" 304 -
+2024-10-31 16:52:19,827 - werkzeug - INFO - 127.0.0.1 - - [31/Oct/2024 16:52:19] "[36mGET /static/js/sentimentChecker.js HTTP/1.1[0m" 304 -
+2024-10-31 16:52:19,959 - werkzeug - INFO - 127.0.0.1 - - [31/Oct/2024 16:52:19] "[36mGET /static/css/main.f60b743c.css.map HTTP/1.1[0m" 304 -
+2024-10-31 16:52:20,001 - werkzeug - INFO - 127.0.0.1 - - [31/Oct/2024 16:52:19] "[33mGET /static/js/main.38f200eb.js.map HTTP/1.1[0m" 404 -
+2024-10-31 16:52:20,411 - sentiment-checker - INFO - Using subdomain from X-Zendesk-Subdomain header: d3v-silverstream
+2024-10-31 16:52:20,436 - sentiment_checker - INFO - Received request for analyze_comments
+2024-10-31 16:52:21,606 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2024-10-31 16:52:22,270 - sentiment_checker - ERROR - Error analyzing comment 29741274358555: get
+2024-10-31 16:52:22,270 - sentiment-checker - INFO - Using subdomain from X-Zendesk-Subdomain header: d3v-silverstream
+2024-10-31 16:52:22,305 - sentiment_checker - INFO - Received request for get_score, request remote addr: 127.0.0.1
+2024-10-31 16:52:22,305 - sentiment_checker - INFO - Processing ticket: 24, request remote addr: 127.0.0.1
+2024-10-31 16:52:22,786 - sentiment_checker - INFO - Vector 24#29741274358555: score=1.2931345135384604, weight=1.0
+2024-10-31 16:52:22,787 - sentiment_checker - INFO - Most recent score: 1.2931345135384604, weighted score: 1.2931345135384604, std_dev: 0.0
+2024-10-31 16:52:22,788 - sentiment_checker - INFO - Calculated weighted score for 1 tickets: 1, request remote addr: 127.0.0.1
+2024-10-31 16:52:22,790 - werkzeug - INFO - 127.0.0.1 - - [31/Oct/2024 16:52:22] "POST /sentiment-checker/analyze-comments?subdomain=d3v-silverstream HTTP/1.1" 200 -
+2024-10-31 16:52:23,087 - sentiment-checker - INFO - Using subdomain from X-Zendesk-Subdomain header: d3v-silverstream
+2024-10-31 16:52:23,124 - sentiment_checker - INFO - Received request for get_score, request remote addr: 127.0.0.1
+2024-10-31 16:52:23,124 - sentiment_checker - INFO - Processing ticket: 24, request remote addr: 127.0.0.1
+2024-10-31 16:52:23,598 - sentiment_checker - INFO - Vector 24#29741274358555: score=1.2931345135384604, weight=1.0
+2024-10-31 16:52:23,598 - sentiment_checker - INFO - Most recent score: 1.2931345135384604, weighted score: 1.2931345135384604, std_dev: 0.0
+2024-10-31 16:52:23,598 - sentiment_checker - INFO - Calculated weighted score for 1 tickets: 1, request remote addr: 127.0.0.1
+2024-10-31 16:52:23,600 - werkzeug - INFO - 127.0.0.1 - - [31/Oct/2024 16:52:23] "POST /sentiment-checker/get-score?subdomain=d3v-silverstream HTTP/1.1" 200 -
+2024-10-31 16:56:22,203 - sentiment-checker - INFO - Using subdomain from origin: d3v-silverstream
+2024-10-31 16:56:22,236 - werkzeug - INFO - 127.0.0.1 - - [31/Oct/2024 16:56:22] "POST /sentiment-checker/background-refresh?origin=https://d3v-silverstream.zendesk.com&app_guid=9b8d5ea1-e148-452c-b219-b974c90eb53c HTTP/1.1" 200 -
+2024-10-31 16:56:22,412 - werkzeug - INFO - 127.0.0.1 - - [31/Oct/2024 16:56:22] "[36mGET /static/css/main.css HTTP/1.1[0m" 304 -
+2024-10-31 16:56:22,415 - werkzeug - INFO - 127.0.0.1 - - [31/Oct/2024 16:56:22] "[36mGET /static/js/sentimentChecker.js HTTP/1.1[0m" 304 -
+2024-10-31 16:56:22,600 - werkzeug - INFO - 127.0.0.1 - - [31/Oct/2024 16:56:22] "[33mGET /static/js/main.38f200eb.js.map HTTP/1.1[0m" 404 -
+2024-10-31 16:56:22,605 - werkzeug - INFO - 127.0.0.1 - - [31/Oct/2024 16:56:22] "[36mGET /static/css/main.f60b743c.css.map HTTP/1.1[0m" 304 -
+2024-10-31 16:56:22,849 - sentiment-checker - INFO - Using subdomain from X-Zendesk-Subdomain header: d3v-silverstream
+2024-10-31 16:56:23,293 - werkzeug - INFO - 127.0.0.1 - - [31/Oct/2024 16:56:23] "POST /sentiment-checker/check-namespace?subdomain=d3v-silverstream HTTP/1.1" 200 -
+2024-10-31 16:56:23,298 - sentiment-checker - INFO - Using subdomain from X-Zendesk-Subdomain header: d3v-silverstream
+2024-10-31 16:56:23,341 - werkzeug - INFO - 127.0.0.1 - - [31/Oct/2024 16:56:23] "[31m[1mGET /sentiment-checker/get-ticket-count?subdomain=d3v-silverstream HTTP/1.1[0m" 400 -
+2024-10-31 16:56:26,580 - sentiment-checker - INFO - Using subdomain from origin: d3v-silverstream
+2024-10-31 16:56:26,607 - sentiment_checker - INFO - Sidebar request received from 127.0.0.1
+2024-10-31 16:56:26,607 - sentiment_checker - INFO - Query string: origin=https%3A%2F%2Fd3v-silverstream.zendesk.com&app_guid=178ecf2a-d195-4111-a52c-256990a05b30
+2024-10-31 16:56:26,607 - sentiment_checker - INFO - Using template: sentiment-checker/index.tmpl
+2024-10-31 16:56:26,608 - werkzeug - INFO - 127.0.0.1 - - [31/Oct/2024 16:56:26] "POST /sentiment-checker/?origin=https://d3v-silverstream.zendesk.com&app_guid=178ecf2a-d195-4111-a52c-256990a05b30 HTTP/1.1" 200 -
+2024-10-31 16:56:26,629 - werkzeug - INFO - 127.0.0.1 - - [31/Oct/2024 16:56:26] "[36mGET /static/css/main.css HTTP/1.1[0m" 304 -
+2024-10-31 16:56:26,630 - werkzeug - INFO - 127.0.0.1 - - [31/Oct/2024 16:56:26] "GET /static/js/sentimentChecker.js HTTP/1.1" 200 -
+2024-10-31 16:56:26,727 - werkzeug - INFO - 127.0.0.1 - - [31/Oct/2024 16:56:26] "GET /static/css/main.f60b743c.css.map HTTP/1.1" 200 -
+2024-10-31 16:56:26,739 - werkzeug - INFO - 127.0.0.1 - - [31/Oct/2024 16:56:26] "[33mGET /static/js/main.6adf99d8.js.map HTTP/1.1[0m" 404 -
+2024-10-31 16:56:27,169 - sentiment-checker - INFO - Using subdomain from X-Zendesk-Subdomain header: d3v-silverstream
+2024-10-31 16:56:27,194 - sentiment_checker - INFO - Received request for analyze_comments
+2024-10-31 16:56:28,036 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2024-10-31 16:56:28,711 - sentiment_checker - ERROR - Error analyzing comment 29741274358555: get
+2024-10-31 16:56:28,711 - sentiment-checker - INFO - Using subdomain from X-Zendesk-Subdomain header: d3v-silverstream
+2024-10-31 16:56:28,737 - sentiment_checker - INFO - Received request for get_score, request remote addr: 127.0.0.1
+2024-10-31 16:56:28,737 - sentiment_checker - INFO - Processing ticket: 24, request remote addr: 127.0.0.1
+2024-10-31 16:56:29,250 - sentiment_checker - INFO - Vector 24#29741274358555: score=1.2931345135384604, weight=1.0
+2024-10-31 16:56:29,250 - sentiment_checker - INFO - Most recent score: 1.2931345135384604, weighted score: 1.2931345135384604, std_dev: 0.0
+2024-10-31 16:56:29,250 - sentiment_checker - INFO - Calculated weighted score for 1 tickets: 1, request remote addr: 127.0.0.1
+2024-10-31 16:56:29,252 - werkzeug - INFO - 127.0.0.1 - - [31/Oct/2024 16:56:29] "POST /sentiment-checker/analyze-comments?subdomain=d3v-silverstream HTTP/1.1" 200 -
+2024-10-31 16:56:32,507 - sentiment-checker - INFO - Using subdomain from origin: d3v-silverstream
+2024-10-31 16:56:32,555 - werkzeug - INFO - 127.0.0.1 - - [31/Oct/2024 16:56:32] "POST /sentiment-checker/background-refresh?origin=https://d3v-silverstream.zendesk.com&app_guid=fae31189-453e-49cf-ad1d-8391cecfccb9 HTTP/1.1" 200 -
+2024-10-31 16:56:32,662 - werkzeug - INFO - 127.0.0.1 - - [31/Oct/2024 16:56:32] "[36mGET /static/js/sentimentChecker.js HTTP/1.1[0m" 304 -
+2024-10-31 16:56:32,664 - werkzeug - INFO - 127.0.0.1 - - [31/Oct/2024 16:56:32] "[36mGET /static/css/main.css HTTP/1.1[0m" 304 -
+2024-10-31 16:56:32,779 - werkzeug - INFO - 127.0.0.1 - - [31/Oct/2024 16:56:32] "[33mGET /static/js/main.6adf99d8.js.map HTTP/1.1[0m" 404 -
+2024-10-31 16:56:32,788 - werkzeug - INFO - 127.0.0.1 - - [31/Oct/2024 16:56:32] "[36mGET /static/css/main.f60b743c.css.map HTTP/1.1[0m" 304 -
+2024-10-31 16:56:33,107 - sentiment-checker - INFO - Using subdomain from X-Zendesk-Subdomain header: d3v-silverstream
+2024-10-31 16:56:33,517 - werkzeug - INFO - 127.0.0.1 - - [31/Oct/2024 16:56:33] "POST /sentiment-checker/check-namespace?subdomain=d3v-silverstream HTTP/1.1" 200 -
+2024-10-31 16:56:33,523 - sentiment-checker - INFO - Using subdomain from X-Zendesk-Subdomain header: d3v-silverstream
+2024-10-31 16:56:33,563 - werkzeug - INFO - 127.0.0.1 - - [31/Oct/2024 16:56:33] "[31m[1mGET /sentiment-checker/get-ticket-count?subdomain=d3v-silverstream HTTP/1.1[0m" 400 -
+2024-10-31 16:56:36,285 - sentiment-checker - INFO - Using subdomain from origin: d3v-silverstream
+2024-10-31 16:56:36,321 - sentiment_checker - INFO - Sidebar request received from 127.0.0.1
+2024-10-31 16:56:36,321 - sentiment_checker - INFO - Query string: origin=https%3A%2F%2Fd3v-silverstream.zendesk.com&app_guid=e6ba0562-f879-42e8-bf1a-74aaf9a7e8be
+2024-10-31 16:56:36,321 - sentiment_checker - INFO - Using template: sentiment-checker/index.tmpl
+2024-10-31 16:56:36,323 - werkzeug - INFO - 127.0.0.1 - - [31/Oct/2024 16:56:36] "POST /sentiment-checker/?origin=https://d3v-silverstream.zendesk.com&app_guid=e6ba0562-f879-42e8-bf1a-74aaf9a7e8be HTTP/1.1" 200 -
+2024-10-31 16:56:36,378 - werkzeug - INFO - 127.0.0.1 - - [31/Oct/2024 16:56:36] "[36mGET /static/css/main.css HTTP/1.1[0m" 304 -
+2024-10-31 16:56:36,378 - werkzeug - INFO - 127.0.0.1 - - [31/Oct/2024 16:56:36] "[36mGET /static/js/sentimentChecker.js HTTP/1.1[0m" 304 -
+2024-10-31 16:56:36,601 - werkzeug - INFO - 127.0.0.1 - - [31/Oct/2024 16:56:36] "[33mGET /static/js/main.6adf99d8.js.map HTTP/1.1[0m" 404 -
+2024-10-31 16:56:36,603 - werkzeug - INFO - 127.0.0.1 - - [31/Oct/2024 16:56:36] "[36mGET /static/css/main.f60b743c.css.map HTTP/1.1[0m" 304 -
+2024-10-31 16:56:36,752 - sentiment-checker - INFO - Using subdomain from X-Zendesk-Subdomain header: d3v-silverstream
+2024-10-31 16:56:36,780 - sentiment_checker - INFO - Received request for analyze_comments
+2024-10-31 16:56:37,545 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2024-10-31 16:56:38,134 - sentiment_checker - ERROR - Error analyzing comment 29741274358555: get
+2024-10-31 16:56:38,134 - sentiment-checker - INFO - Using subdomain from X-Zendesk-Subdomain header: d3v-silverstream
+2024-10-31 16:56:38,161 - sentiment_checker - INFO - Received request for get_score, request remote addr: 127.0.0.1
+2024-10-31 16:56:38,161 - sentiment_checker - INFO - Processing ticket: 24, request remote addr: 127.0.0.1
+2024-10-31 16:56:38,673 - sentiment_checker - INFO - Vector 24#29741274358555: score=1.2931345135384604, weight=1.0
+2024-10-31 16:56:38,673 - sentiment_checker - INFO - Most recent score: 1.2931345135384604, weighted score: 1.2931345135384604, std_dev: 0.0
+2024-10-31 16:56:38,673 - sentiment_checker - INFO - Calculated weighted score for 1 tickets: 1, request remote addr: 127.0.0.1
+2024-10-31 16:56:38,675 - werkzeug - INFO - 127.0.0.1 - - [31/Oct/2024 16:56:38] "POST /sentiment-checker/analyze-comments?subdomain=d3v-silverstream HTTP/1.1" 200 -
+2024-10-31 16:56:38,960 - sentiment-checker - INFO - Using subdomain from X-Zendesk-Subdomain header: d3v-silverstream
+2024-10-31 16:56:38,987 - sentiment_checker - INFO - Received request for get_score, request remote addr: 127.0.0.1
+2024-10-31 16:56:38,987 - sentiment_checker - INFO - Processing ticket: 24, request remote addr: 127.0.0.1
+2024-10-31 16:56:39,457 - sentiment_checker - INFO - Vector 24#29741274358555: score=1.2931345135384604, weight=1.0
+2024-10-31 16:56:39,457 - sentiment_checker - INFO - Most recent score: 1.2931345135384604, weighted score: 1.2931345135384604, std_dev: 0.0
+2024-10-31 16:56:39,458 - sentiment_checker - INFO - Calculated weighted score for 1 tickets: 1, request remote addr: 127.0.0.1
+2024-10-31 16:56:39,459 - werkzeug - INFO - 127.0.0.1 - - [31/Oct/2024 16:56:39] "POST /sentiment-checker/get-score?subdomain=d3v-silverstream HTTP/1.1" 200 -

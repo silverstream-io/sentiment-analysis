@@ -46,9 +46,9 @@ const SidebarApp: React.FC<SidebarAppProps> = ({ zafClient, originalQueryString 
     }
   }, [isAnalysisComplete, zafClient]);
 
-  const handleSentimentUpdate = (ticketId: string | null, sentiment: SentimentRange) => {
-    debugLog('[SidebarApp] Sentiment update received:', { ticketId, sentiment });
-    if (ticketId === null) {
+  const handleSentimentUpdate = (id: string | null, sentiment: SentimentRange) => {
+    debugLog('[SidebarApp] Sentiment update received:', { id, sentiment });
+    if (id === null) {
       setLastThirtySentiment(sentiment);
     } else {
       setCurrentSentiment(sentiment);

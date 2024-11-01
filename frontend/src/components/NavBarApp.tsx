@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { getUnsolvedTicketsFromCache, debugLog, errorLog } from '../services/apiService';
 import { getSubdomain } from '../utils';
-import { TicketData, ZendeskTicketStatus } from '../types';
+import { TicketData, TicketWithDetails, ZendeskTicketStatus} from '../types';
 import { format } from 'date-fns';
 
 type SortField = 'sentiment' | 'created_at' | 'updated_at';
@@ -18,9 +18,9 @@ const getSortValue = (ticket: TicketData, field: SortField): number => {
     case 'sentiment':
       return ticket.score || 0;
     case 'created_at':
-      return new Date(ticket.created_at).getTime();
+      return new Date(ticket.created_at || '').getTime();
     case 'updated_at':
-      return new Date(ticket.updated_at).getTime();
+      return new Date(ticket.updated_at || '').getTime();
     default:
       return 0;
   }
@@ -28,6 +28,7 @@ const getSortValue = (ticket: TicketData, field: SortField): number => {
 
 const NavBarApp: React.FC<NavBarAppProps> = ({ zafClient, originalQueryString, selectedRange }) => {
   const [tickets, setTickets] = useState<TicketData[]>([]);
+  const [ticketsWithDetails, setTicketsWithDetails] = useState<TicketWithDetails[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isInitializing, setIsInitializing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -123,27 +124,37 @@ const NavBarApp: React.FC<NavBarAppProps> = ({ zafClient, originalQueryString, s
       const paginatedTickets = sortedTickets.slice(startIndex, startIndex + TICKETS_PER_PAGE);
       setTotalPages(Math.ceil(sortedTickets.length / TICKETS_PER_PAGE));
 
-      // Get additional ticket details from Zendesk API
-      const ticketsWithDetails = await Promise.all(paginatedTickets.map(async (ticket) => {
-        try {
-          const details = await zafClient.request({
-            url: `/api/v2/tickets/${ticket.id}.json`,
-            type: 'GET'
-          });
-          console.log('Got details for ticket:', ticket.id);
+      // Batch fetch ticket details for current page
+      const ids = paginatedTickets.map(ticket => ticket.id).join(',');
+      try {
+        const batchResponse = await zafClient.request({
+          url: `/api/v2/tickets/show_many.json?ids=${ids}`,
+          type: 'GET'
+        });
+        
+        const ticketsWithDetails = paginatedTickets.map(ticket => {
+          const details = batchResponse.tickets.find((t: any) => t.id.toString() === ticket.id);
           return {
             ...ticket,
-            requestor: details.ticket.requester,
-            assignee: details.ticket.assignee
+            requester: details?.requester ? {
+              id: details.requester.id.toString(),
+              name: details.requester.name,
+              email: details.requester.email
+            } : null,
+            assignee: details?.assignee ? {
+              id: details.assignee.id.toString(),
+              name: details.assignee.name,
+              email: details.assignee.email
+            } : null
           };
-        } catch (error) {
-          errorLog(`Error fetching details for ticket ${ticket.id}:`, error);
-          return ticket;
-        }
-      }));
-      console.log('All ticket details fetched:', ticketsWithDetails);
+        });
+        
+        setTicketsWithDetails(ticketsWithDetails);
+      } catch (error) {
+        errorLog('Error fetching ticket details:', error);
+        setTickets(paginatedTickets); // Fallback to tickets without details
+      }
 
-      setTickets(ticketsWithDetails);
       setIsLoading(false);
     } catch (error) {
       errorLog('Error fetching tickets:', error);
@@ -206,7 +217,7 @@ const NavBarApp: React.FC<NavBarAppProps> = ({ zafClient, originalQueryString, s
                 <th onClick={() => handleSort('sentiment')}>
                   Sentiment {sortField === 'sentiment' && (sortDirection === 'asc' ? '↑' : '↓')}
                 </th>
-                <th>Requestor</th>
+                <th>Requester</th>
                 <th>Assignee</th>
                 <th onClick={() => handleSort('created_at')}>
                   Created {sortField === 'created_at' && (sortDirection === 'asc' ? '↑' : '↓')}
@@ -217,7 +228,7 @@ const NavBarApp: React.FC<NavBarAppProps> = ({ zafClient, originalQueryString, s
               </tr>
             </thead>
             <tbody>
-              {tickets.map(ticket => (
+              {ticketsWithDetails.map(ticket => (
                 <tr key={ticket.id} onClick={() => zafClient.invoke('routeTo', 'ticket', ticket.id)}>
                   <td><a href={`https://${subdomain}.zendesk.com/agent/tickets/${ticket.id}`}>{ticket.subject}</a></td>
                   <td>
@@ -228,10 +239,10 @@ const NavBarApp: React.FC<NavBarAppProps> = ({ zafClient, originalQueryString, s
                       {(ticket.score || 0).toFixed(2)}
                     </div>
                   </td>
-                  <td>{ticket.requestor?.name || 'Unassigned'}</td>
+                  <td>{ticket.requester?.name || 'Unassigned'}</td>
                   <td>{ticket.assignee?.name || 'Unassigned'}</td>
-                  <td>{format(new Date(ticket.created_at), 'MMM d, yyyy HH:mm')}</td>
-                  <td>{format(new Date(ticket.updated_at), 'MMM d, yyyy HH:mm')}</td>
+                  <td>{format(new Date(ticket.created_at || ''), 'MMM d, yyyy HH:mm')}</td>
+                  <td>{format(new Date(ticket.updated_at || ''), 'MMM d, yyyy HH:mm')}</td>
                 </tr>
               ))}
             </tbody>
