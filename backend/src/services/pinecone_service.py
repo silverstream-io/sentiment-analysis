@@ -5,7 +5,7 @@ from datetime import datetime
 import logging
 
 dotenv.load_dotenv()
-logger = logging.getLogger('sentiment_checker')
+logger = logging.getLogger('pinecone_service')
 
 class PineconeService:
     def __init__(self, subdomain=None):
@@ -13,6 +13,9 @@ class PineconeService:
         self.index = self.pc.Index(os.getenv("PINECONE_INDEX_NAME"))
         self.namespace = subdomain
         self.openai_client = OpenAI()
+    
+    def describe_index_stats(self):
+        return self.index.describe_index_stats()
 
 
     def get_embedding(self, text):
@@ -95,6 +98,18 @@ class PineconeService:
             if not response.pagination:
                 break  
 
+            pagination_token = response.pagination.next
+        return vectors
+
+
+    def list_ticket_ids(self):
+        pagination_token = None
+        vectors = []
+        while True:
+            response = self.index.list_paginated(prefix="", namespace=self.namespace, pagination_token=pagination_token)
+            vectors.extend(response.vectors)
+            if not response.pagination:
+                break
             pagination_token = response.pagination.next
         return vectors
 

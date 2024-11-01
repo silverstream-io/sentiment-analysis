@@ -1,5 +1,9 @@
 from api.server import create_app
 from dotenv import load_dotenv
+import logging
+
+logger = logging.getLogger('sentiment-checker')
+logger.setLevel(logging.DEBUG)
 
 load_dotenv("../../.env")
 

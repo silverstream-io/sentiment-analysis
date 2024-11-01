@@ -1,10 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { listTicketVectors, analyzeComments, getScore, debugLog, getLast30DaysSentiment, errorLog, getTicketId } from '../services/apiService';
-import { SentimentRange, MIN_SENTIMENT, MAX_SENTIMENT } from '../types';
+import { 
+  analyzeComments, 
+  getScore, 
+  debugLog, 
+  getLast30DaysSentiment, 
+  errorLog, 
+  getTicket,
+  getComments
+} from '../services/apiService';
+import { SentimentRange, TicketData, CommentData, MIN_SENTIMENT, MAX_SENTIMENT } from '../types';
 
 interface SentimentAnalysisProps {
   zafClient: any;
-  onSentimentUpdate: (ticketId: string | null, sentiment: SentimentRange) => void;
+  onSentimentUpdate: (id: string | null, sentiment: SentimentRange) => void;
 }
 
 const SentimentAnalysis: React.FC<SentimentAnalysisProps> = ({ zafClient, onSentimentUpdate }) => {
@@ -41,79 +49,47 @@ const SentimentAnalysis: React.FC<SentimentAnalysisProps> = ({ zafClient, onSent
       setIsAnalyzing(true);
       //rotateMessages(); // Uncomment to see the rotating messages
 
-      // Use getTicketId instead of direct ZAF client call
-      const ticketId = await getTicketId(zafClient);
-      debugLog('Analyzing sentiment for ticket:', ticketId);
-
-      const ticketComments = await zafClient.get('ticket.comments');
-      // Add guard for ticketComments
-      if (!ticketComments || !ticketComments['ticket.comments']) {
-        debugLog('No ticket comments data found');
-        return "No comments found, check back later.";
+      const ticket = await getTicket(zafClient);
+      debugLog('Analyzing sentiment for ticket:', ticket.id);
+      if (!ticket || !ticket.id ) {
+        throw new Error(`No ticket data found ${ticket}`);
       }
 
-      // Add guard for comments array
-      if (!Array.isArray(ticketComments['ticket.comments'])) {
-        debugLog('Ticket comments is not an array:', ticketComments);
-        return "Invalid comments data structure";
+      const comments = await getComments(zafClient, ticket);
+      if (!comments || comments.length === 0) {
+        debugLog('No comments found, check back later.');
+        return;
       }
 
-      if (ticketComments['ticket.comments'].length === 0) {
-        debugLog('No comments found for ticket:', ticketId);
-        return "No comments found, check back later.";
-      }
-      debugLog('ticketComments', ticketComments);
-
-      // Fetch ticket details to get comment creation times
-      const ticketDetails = await zafClient.request({
-        url: `/api/v2/tickets/${ticketId}/comments.json`,
-        type: 'GET'
-      });
-
-      if (ticketDetails && ticketDetails.comments && Array.isArray(ticketDetails.comments)) {
-        const detailedComments = new Map(ticketDetails.comments.map((comment: any) => [comment.id, comment.created_at]));
-        ticketComments['ticket.comments'].forEach((comment: any) => {
-          if (detailedComments.has(comment.id)) {
-            comment.created_at = detailedComments.get(comment.id);
-          }
-        });
-      } else {
-        debugLog('Unexpected structure in ticketDetails:', ticketDetails);
-        throw new Error('Unexpected structure in ticketDetails: ' + JSON.stringify(ticketDetails));
-      }
-
-      // Get all vectors associated with the current ticket
-      const storedVectors = await listTicketVectors(zafClient, ticketId);
-      debugLog('storedVectors', storedVectors);
-
-      if (Object.keys(storedVectors).length === 0) {
-        debugLog('No vectors found for ticket:', ticketId);
-        // Create vectors for every comment on the ticket
-        await analyzeComments(zafClient, ticketId, ticketComments);
-      } else {
-        // Analyze new comments if any
-        if (Array.isArray(ticketComments['ticket.comments'])) {
-          const newComments = ticketComments['ticket.comments'].filter((comment: any) => 
-            !Object.values(storedVectors).some((vector: any) => vector.id === `${ticketId}#${comment.id}`)
-          );
-            if (newComments.length > 0) {
-            debugLog('Analyzing new comments:', newComments);
-            await analyzeComments(zafClient, ticketId, { 'ticket.comments': newComments });
-          }
-        } else {
-          debugLog('Unexpected structure in ticketComments:', ticketComments);
-          throw new Error('Unexpected structure in ticketComments: ' + JSON.stringify(ticketComments));
-        }
-      }
+      // Map the comments to the CommentData type
+      const mappedComments = comments.map((comment: any) => ({
+        id: String(comment.id),
+        body: comment.body,
+        created_at: comment.created_at,
+        author_id: String(comment.author_id),
+        ticket_requester_id: ticket.requester ? String(ticket.requester.id) : null,
+        ticket_assignee_id: ticket.assignee ? String(ticket.assignee.id) : null
+      }));
 
       // Get the updated score for the current ticket
-      const currentTicketScore = await getScore(zafClient, ticketId);
-      const normalizedCurrentScore = Math.max(MIN_SENTIMENT, Math.min(MAX_SENTIMENT, currentTicketScore)) as SentimentRange;
-      debugLog('Current ticket score:', normalizedCurrentScore);
-      onSentimentUpdate(ticketId.toString(), normalizedCurrentScore);
+      const ticketInput: TicketData = {
+        id: String(ticket.id),
+        comments: mappedComments,
+        status: ticket.status,
+        created_at: ticket.created_at,
+        updated_at: ticket.updated_at,
+        requester: ticket.requester ? { id: String(ticket.requester.id) } : null,
+        assignee: ticket.assignee ? { id: String(ticket.assignee.id) } : null
+      };
+        
+      const analysisResult = await analyzeComments(zafClient, ticketInput);
+      const normalizedScore = Math.max(MIN_SENTIMENT, Math.min(MAX_SENTIMENT, analysisResult.weighted_score)) as SentimentRange;
+      console.log('Normalized score:', normalizedScore, 'for ticket', ticket.id);
+      console.log('analysisResult:', analysisResult.weighted_score);
+      onSentimentUpdate(String(ticket.id), normalizedScore);
 
       // Get the sentiment for the last 30 days
-      const last30DaysScore = await getLast30DaysSentiment(zafClient);
+      const last30DaysScore = await getLast30DaysSentiment(zafClient, ticketInput);
       const normalizedLast30DaysScore = Math.max(MIN_SENTIMENT, Math.min(MAX_SENTIMENT, last30DaysScore)) as SentimentRange;
       debugLog('Last 30 days score:', normalizedLast30DaysScore);
       onSentimentUpdate(null, normalizedLast30DaysScore);

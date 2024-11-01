@@ -2,6 +2,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import SentimentAnalysis from './SentimentAnalysis';
 import SentimentDisplay from './SentimentDisplay';
 import { SentimentRange } from '../types';
+import { debugLog } from '../services/apiService';
 
 interface SidebarAppProps {
   zafClient: any;
@@ -32,7 +33,7 @@ class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasErr
 }
 
 const SidebarApp: React.FC<SidebarAppProps> = ({ zafClient, originalQueryString }) => {
-  console.log('[App] Initializing with ZAF client');
+  debugLog('[SidebarApp] Initializing with ZAF client');
   const [currentSentiment, setCurrentSentiment] = useState<SentimentRange | null>(null);
   const [lastThirtySentiment, setLastThirtySentiment] = useState<SentimentRange | null>(null);
   const [isAnalysisComplete, setIsAnalysisComplete] = useState(false);
@@ -45,9 +46,9 @@ const SidebarApp: React.FC<SidebarAppProps> = ({ zafClient, originalQueryString 
     }
   }, [isAnalysisComplete, zafClient]);
 
-  const handleSentimentUpdate = (ticketId: string | null, sentiment: SentimentRange) => {
-    console.log('[App] Sentiment update received:', { ticketId, sentiment });
-    if (ticketId === null) {
+  const handleSentimentUpdate = (id: string | null, sentiment: SentimentRange) => {
+    debugLog('[SidebarApp] Sentiment update received:', { id, sentiment });
+    if (id === null) {
       setLastThirtySentiment(sentiment);
     } else {
       setCurrentSentiment(sentiment);
